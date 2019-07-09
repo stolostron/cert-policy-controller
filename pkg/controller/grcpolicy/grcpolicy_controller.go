@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/apis/mcm-grcpolicy/v1alpha1"
-	"github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/common"
-	"github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/controller/util"
+	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/mcm-grcpolicy/v1alpha1"
+	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
+	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

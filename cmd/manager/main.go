@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/apis"
-	"github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/controller"
+	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis"
+	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller"
 
-	common "github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/common"
-	policyStatusHandler "github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/controller/grcpolicy"
-	"github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/webhook"
+	common "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
+	policyStatusHandler "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/grcpolicy"
+	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/webhook"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 

@@ -11,8 +11,8 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/apis/mcm-grcpolicy/v1alpha1"
-	"github.ibm.com/IBMPrivateCloud/PolicyFramework/pkg/common"
+	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/mcm-grcpolicy/v1alpha1"
+	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
