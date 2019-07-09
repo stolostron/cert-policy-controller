@@ -2,7 +2,7 @@ language: bash
 sudo: true
 
 language: go
-go_import_path: github.ibm.com/IBMPrivateCloud/PolicyFramework
+go_import_path: github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller
 go:
   - 1.12
 
@@ -15,6 +15,7 @@ branches:
     - /^[0-9]+\..*$/
     - /^v[0-9]+\..*$/
     - /^release-[0-9]+\..*$/
+    - build
 
 matrix:
   fast_finish: true
@@ -46,3 +47,19 @@ jobs:
         - make docker-push
         - make rhel-image
         - make docker-push-rhel
+    - stage: build
+      os: linux-ppc64le
+      script:
+        - make init
+        - make build
+        - make image
+        - make docker:login
+        - make docker-push
+    - stage: build
+      os: linux-s390
+      script:
+        - make init
+        - make build
+        - make image
+        - make docker:login
+        - make docker-push
