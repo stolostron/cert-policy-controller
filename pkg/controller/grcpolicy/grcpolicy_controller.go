@@ -428,41 +428,22 @@ func updatePolicyStatus(policies map[string]*mcmv1alpha1.CertPolicy) (*mcmv1alph
 		if EventOnParent != "no" {
 			createParentPolicyEvent(instance)
 		}
-		{ //TODO we can make this eventing enabled by a flag
-			message := fmt.Sprintf("Policy status is: %v\n", instance.Status.ComplianceState)
-			/* if instance.Status.ComplianceState == mcmv1alpha1.NonCompliant {
-				message = fmt.Sprintf("%sList of non-compliant certificates by namespace:\n", message)
-			}
-			for namespace, details := range instance.Status.CompliancyDetails {
-				if details.NonCompliantCertificates > 0 {
-					message = fmt.Sprintf("%sNamespace: %s\n\t%s\n", message, namespace, details.Message)
+		message := fmt.Sprintf("Policy status is: %v\n", instance.Status.ComplianceState)
+		for namespace, details := range instance.Status.CompliancyDetails {
+			if details.NonCompliantCertificates > 0 {
+				minDuration := DefaultDuration
+				if instance.Spec.MinDuration != nil {
+					minDuration = instance.Spec.MinDuration.Duration
 				}
-			}*/
-			for namespace, details := range instance.Status.CompliancyDetails {
-				if details.NonCompliantCertificates > 0 {
-					minDuration := DefaultDuration
-					if instance.Spec.MinDuration != nil {
-						minDuration = instance.Spec.MinDuration.Duration
-					}
-					message = fmt.Sprintf("%sNon-compliant certificates (expires in less than %s) in %s[%d]:", message, minDuration.String(), namespace, details.NonCompliantCertificates)
-					for cert, certDetails := range details.NonCompliantCertificatesList {
-						message = fmt.Sprintf("%s [%s, %s]", message, cert, certDetails.Secret)
-					}
+				message = fmt.Sprintf("%sNon-compliant certificates (expires in less than %s) in %s[%d]:", message, minDuration.String(), namespace, details.NonCompliantCertificates)
+				for cert, certDetails := range details.NonCompliantCertificatesList {
+					message = fmt.Sprintf("%s [%s, %s]", message, cert, certDetails.Secret)
 				}
 			}
-			reconcilingAgent.recorder.Event(instance, "Normal", "Policy updated", message)
 		}
+		reconcilingAgent.recorder.Event(instance, "Normal", "Policy updated", message)
 	}
 	return nil, nil
-}
-
-func getContainerID(pod corev1.Pod, containerName string) string {
-	for _, containerStatus := range pod.Status.ContainerStatuses {
-		if containerStatus.Name == containerName {
-			return containerStatus.ContainerID
-		}
-	}
-	return ""
 }
 
 func handleRemovingPolicy(plc *mcmv1alpha1.CertPolicy) {
