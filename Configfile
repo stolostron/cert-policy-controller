@@ -1,0 +1,32 @@
+# Travis build settings
+ARCH = $(shell uname -m)
+DOCKERFILE_EXT := $(ARCH)
+ifeq ($(ARCH), x86_64)
+    ARCH = amd64
+    DOCKERFILE_EXT := 
+endif
+
+# Git vars
+GIT_COMMIT := $(shell git rev-parse --short HEAD)
+GIT_REMOTE_URL := $(shell git config --get remote.origin.url)
+
+# Project settings
+APP_NAME ?= icp-cert-policy-controller
+VERSION ?= 0.0.1
+
+# Image settings
+DOCKER_REGISTRY ?= hyc-cloud-private-scratch-docker-local.artifactory.swg-devops.com
+DOCKER_NAMESPACE ?= crystal
+DOCKER_IMAGE ?= $(APP_NAME)-$(ARCH)
+DOCKER_BUILD_TAG ?= $(VERSION)-$(GIT_COMMIT)
+DOCKER_BUILD_TAG_RHEL ?= $(DOCKER_BUILD_TAG)-rhel
+DOCKERFILE := Dockerfile
+DOCKER_BUILD_DIR := $(TRAVIS_BUILD_DIR)
+
+# Go build settings
+GOARCH := $(ARCH)
+GOOS := linux
+
+# Metadata
+SUMMARY := Watches certificates to ensure compliance.
+IMAGE_DESCRIPTION := A controller that watches certificates within ICP to ensure they meet compliance standards.

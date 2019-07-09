@@ -1,0 +1,15 @@
+apiVersion: mcm.ibm.com/v1alpha1
+kind: GRCPolicy
+metadata:
+  name: grc-policy-example
+  label: 
+    category: "System-Integrity"
+spec:
+  namespaceSelector:
+    include: ["default","kube-*"]
+    exclude: ["kube-system"]
+  #labelSelector:
+    #env: "production"
+  remediationAction: enforce # enforce or inform
+  maxRoleBindingUsersPerNamespace: 2
+  

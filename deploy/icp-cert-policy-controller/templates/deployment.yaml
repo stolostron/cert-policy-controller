@@ -1,0 +1,57 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ include "controller.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    app: {{ include "controller.fullname" . }}
+    chart: {{ include "controller.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  securityContext:
+    allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+    runAsUser: {{ .Values.securityContext.runAsUser }}
+    readOnlyRootFilesystem: {{ .Values.securityContext.readOnlyRootFilesystem }}
+    runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "controller.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        k8s-app: {{ include "controller.name" . }}
+        app: {{ include "controller.name" . }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
+        chart: {{ include "controller.chart" . }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - --v={{ .Values.verbosity }}
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - pgrep cert-policy -l
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command: ["sh", "-c", "exec echo start certificate-policy-controller"]
+          initialDelaySeconds: 10
+          timeoutSeconds: 2
+      {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+      {{- end }}

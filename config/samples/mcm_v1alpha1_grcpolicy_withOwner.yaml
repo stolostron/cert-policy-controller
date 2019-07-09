@@ -1,0 +1,25 @@
+apiVersion: mcm.ibm.com/v1alpha1
+kind: GRCPolicy
+metadata:
+  name: grc-policy-with-owner
+  label: 
+    category: "System-Integrity"
+    cluster-namespace: "default" #used to indicate the namespace of the parent policy
+  ownerReferences: # note, policies with owners are not supposed to be created manually, this is only for demo purpose in the absence of mcm
+    - apiVersion: mcm.ibm.com/v1alpha1 
+      blockOwnerDeletion: false
+      controller: false
+      kind: Policy
+      name: policy-parent
+      uid: b1c43dc7-6127-11e9-b45d-023b10fe828d
+spec:
+  namespaceSelector:
+    include: ["default","kube-*"]
+    exclude: ["kube-system"]
+  #labelSelector:
+    #env: "production"
+  remediationAction: enforce # enforce or inform
+  maxRoleBindingUsersPerNamespace: 2
+  maxClusterRoleBindingUsers: 3
+  maxClusterRoleBindingGroups: -1
+  

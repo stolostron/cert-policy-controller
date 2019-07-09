@@ -1,0 +1,26 @@
+replicas: 1
+
+image: 
+  repository: ibmcom/icp-cert-policy-controller
+  tag: 0.0.1
+  pullPolicy: IfNotPresent
+
+verbosity: 0
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsUser: 100
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+
+nodeSelector: {}
+
+tolerations:
+  - effect: NoSchedule
+    key: dedicated
+    operator: Exists
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - effect: NoSchedule
+    key: node.kubernetes.io/not-ready
+    operator: Exists
