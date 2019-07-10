@@ -1,9 +1,7 @@
 # Travis build settings
 ARCH = $(shell uname -m)
-DOCKERFILE_EXT := $(ARCH)
 ifeq ($(ARCH), x86_64)
     ARCH = amd64
-    DOCKERFILE_EXT := 
 endif
 
 # Git vars
@@ -20,7 +18,7 @@ DOCKER_NAMESPACE ?= crystal
 DOCKER_IMAGE ?= $(APP_NAME)-$(ARCH)
 DOCKER_BUILD_TAG ?= $(VERSION)-$(GIT_COMMIT)
 DOCKER_BUILD_TAG_RHEL ?= $(DOCKER_BUILD_TAG)-rhel
-DOCKERFILE := Dockerfile
+DOCKER_FILE := Dockerfile
 DOCKER_BUILD_DIR := $(TRAVIS_BUILD_DIR)
 
 # Go build settings

@@ -49,18 +49,20 @@ type CertPolicySpec struct {
 	MinDuration       *metav1.Duration  `json:"minimumDuration,omitempty"`
 }
 
-// CertPolicyStatus defines the observed state of GRCPolicy
+// CertPolicyStatus defines the observed state of CertPolicy
 type CertPolicyStatus struct {
 	ComplianceState   ComplianceState              `json:"compliant,omitempty"`         // Compliant, NonCompliant, UnkownCompliancy
 	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"` // map of namespaces to its compliancy details
 }
 
+// CompliancyDetails defines the all the details related to whether or not the policy is compliant
 type CompliancyDetails struct {
 	NonCompliantCertificates     uint            `json:"nonCompliantCertificates,omitempty"`
 	NonCompliantCertificatesList map[string]Cert `json:"nonCompliantCertificatesList,omitEmpty"`
 	Message                      string          `json:"message,omitempty"` // Overall message of this compliance
 }
 
+// Cert contains its related secret and when it expires
 type Cert struct {
 	Secret     string `json:"secretName,omitempty"`
 	Expiration string `json:"expiration,omitempty"`

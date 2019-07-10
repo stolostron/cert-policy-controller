@@ -51,7 +51,7 @@ test: generate fmt vet manifests
 	go test ./pkg/... ./cmd/... -v -coverprofile cover.out
 
 build:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
 
 image:
 	$(eval DOCKER_BUILD_OPTS := '--build-arg "VCS_REF=$(GIT_COMMIT)" \
