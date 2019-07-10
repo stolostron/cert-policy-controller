@@ -1,9 +1,7 @@
 # Travis build settings
 ARCH = $(shell uname -m)
-DOCKERFILE_EXT := $(ARCH)
 ifeq ($(ARCH), x86_64)
     ARCH = amd64
-    DOCKERFILE_EXT := 
 endif
 
 # Git vars
