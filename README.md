@@ -1,8 +1,10 @@
 # ICP Certificate Policy Controller
 ## Description
-A controller that watches certificates created and/or used within ICP/MCM to ensure they don't expire within a given amount of time.
+A controller that watches certificates created and/or used within ICP/MCM to ensure they don't expire within a given amount of time. The controller shows whether or not a given `CertPolicy` is compliant.
 
 ## Usage
+`CertPolicy` is the custom resource definition created by this controller. It watches specific namespaces and shows whether or not those namespaces and the policy as a whole is compliant.
+
 The controller watches for `CertPolicy` objects in Kubernetes. This is an example spec of a `CertPolicy` object:
 
 ```yaml
