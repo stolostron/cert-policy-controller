@@ -223,6 +223,7 @@ func ensureDefaultLabel(instance *mcmv1alpha1.CertPolicy) (updateNeeded bool) {
 func PeriodicallyExecGRCPolicies(freq uint) {
 	var plcToUpdateMap map[string]*mcmv1alpha1.CertPolicy
 	for {
+		start := time.Now()
 		printMap(availablePolicies.PolicyMap)
 
 		plcToUpdateMap = make(map[string]*mcmv1alpha1.CertPolicy)
@@ -254,6 +255,16 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 		faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
 		if err != nil {
 			glog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+		}
+
+		//prometheus quantiles for processing delay in each cycle
+		elapsed := time.Since(start)
+		//making sure that if processing is > freq we don't sleep
+		//if freq > processing we sleep for the remaining duration
+		elapsed = time.Since(start) / 1000000000 // convert to seconds
+		if float64(freq) > float64(elapsed) {
+			remainingSleep := float64(freq) - float64(elapsed)
+			time.Sleep(time.Duration(remainingSleep) * time.Second)
 		}
 	}
 }
