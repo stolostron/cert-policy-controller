@@ -535,7 +535,7 @@ func createParentPolicyEvent(instance *mcmv1alpha1.CertPolicy) {
 
 	parentPlc := createParentPolicy(instance)
 
-	reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance))
+	reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("Policy %s/%s is %v;", instance.Namespace, instance.Name, instance.Status.ComplianceState), convertPolicyStatusToString(instance, DefaultDuration))
 }
 
 func createParentPolicy(instance *mcmv1alpha1.CertPolicy) mcmv1alpha1.Policy {
