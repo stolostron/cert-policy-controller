@@ -28,7 +28,7 @@ endif
 
 -include $(shell curl -fso .build-harness -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" "https://raw.github.ibm.com/ICP-DevOps/build-harness/master/templates/Makefile.build-harness"; echo .build-harness)
 
-.PHONY: all lint test build image rhel-image manager run deploy install \
+.PHONY: all lint test dependencies build image rhel-image manager run deploy install \
 fmt vet generate docker-push docker-push-rhel
 
 all: test manager
@@ -42,6 +42,11 @@ test: generate fmt vet manifests
 
 	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
 	go test ./pkg/... ./cmd/... -v -coverprofile cover.out
+
+dependencies:
+    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    export PATH=$(PATH):/$(GOPATH)/bin
+    dep ensure
 
 build:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
