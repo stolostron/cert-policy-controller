@@ -46,7 +46,7 @@ test: generate fmt vet manifests
 dependencies:
 	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 	export PATH=$(PATH):/$(GOPATH)/bin
-    dep ensure
+	dep ensure
 
 build:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
