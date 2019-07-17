@@ -44,8 +44,8 @@ test: generate fmt vet manifests
 	go test ./pkg/... ./cmd/... -v -coverprofile cover.out
 
 dependencies:
-    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-    export PATH=$(PATH):/$(GOPATH)/bin
+	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+	export PATH=$(PATH):/$(GOPATH)/bin
     dep ensure
 
 build:
