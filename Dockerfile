@@ -7,7 +7,7 @@ ARG IMAGE_DESCRIPTION
 ARG SUMMARY
 ARG GOARCH
 
-RUN microdnf install shadow-utils bind-utils procps && \
+RUN microdnf install shadow-utils procps && \
       groupadd -r controller && adduser -rm -g controller -u 100 controller && \
       microdnf clean all
 
