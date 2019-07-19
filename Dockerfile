@@ -8,7 +8,7 @@ ARG SUMMARY
 ARG GOARCH
 
 RUN microdnf install shadow-utils procps && \
-      groupadd -r controller && adduser -rm -g controller -u 100 controller && \
+      groupadd -r controller && adduser -rm -g controller -u 10000 controller && \
       microdnf clean all
 
 ADD cert-policy_$GOARCH /usr/bin/cert-policy-controller
@@ -19,7 +19,7 @@ RUN mkdir /licenses
 
 COPY packages.yaml /licenses
 
-USER controller
+USER 10000
 
 ENTRYPOINT ["/usr/bin/cert-policy-controller"]
 
