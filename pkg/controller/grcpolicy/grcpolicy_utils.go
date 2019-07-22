@@ -9,6 +9,7 @@ package grcpolicy
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/golang/glog"
 	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/mcm-grcpolicy/v1alpha1"
@@ -20,7 +21,7 @@ import (
 
 //=================================================================
 // convertPolicyStatusToString to be able to pass the status as event
-func convertPolicyStatusToString(plc *mcmv1alpha1.CertPolicy) (results string) {
+func convertPolicyStatusToString(plc *mcmv1alpha1.CertPolicy, defaultDuration time.Duration) (results string) {
 	result := "ComplianceState is still undetermined"
 	if plc.Status.ComplianceState == "" {
 		return result
@@ -30,12 +31,18 @@ func convertPolicyStatusToString(plc *mcmv1alpha1.CertPolicy) (results string) {
 	if plc.Status.CompliancyDetails == nil {
 		return result
 	}
-	if _, ok := plc.Status.CompliancyDetails[plc.Name]; !ok {
-		return result
 
-	}
 	for namespace, details := range plc.Status.CompliancyDetails {
-		result += fmt.Sprintf(";%s: %v", namespace, details)
+		if details.NonCompliantCertificates > 0 {
+			minDuration := defaultDuration
+			if plc.Spec.MinDuration != nil {
+				minDuration = plc.Spec.MinDuration.Duration
+			}
+			result = fmt.Sprintf("%s; Non-compliant certificates (expires in less than %s) in %s[%d]:", result, minDuration.String(), namespace, details.NonCompliantCertificates)
+			for cert, certDetails := range details.NonCompliantCertificatesList {
+				result = fmt.Sprintf("%s [%s, %s]", result, cert, certDetails.Secret)
+			}
+		}
 	}
 	return result
 }

@@ -1,17 +1,10 @@
+# IBM Confidential
+# OCO Source Materials
+# 5737-E67
+# (C) Copyright IBM Corporation 2018 All Rights Reserved
+# The source code for this program is not published or otherwise divested of its trade secrets, irrespective of what has been deposited with the U.S. Copyright Office.
+
 include Configfile
-# Copyright 2019 The Jetstack cert-manager contributors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 # CICD BUILD HARNESS
 ####################
@@ -35,7 +28,7 @@ endif
 
 -include $(shell curl -fso .build-harness -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" "https://raw.github.ibm.com/ICP-DevOps/build-harness/master/templates/Makefile.build-harness"; echo .build-harness)
 
-.PHONY: all lint test build image rhel-image manager run deploy install \
+.PHONY: all lint test dependencies build image rhel-image manager run deploy install \
 fmt vet generate docker-push docker-push-rhel
 
 all: test manager
@@ -49,6 +42,11 @@ test: generate fmt vet manifests
 
 	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
 	go test ./pkg/... ./cmd/... -v -coverprofile cover.out
+
+dependencies:
+	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+	export PATH=$(PATH):/$(GOPATH)/bin
+	dep ensure
 
 build:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
