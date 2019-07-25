@@ -48,7 +48,7 @@ dependencies:
 	export PATH=$(PATH):/$(GOPATH)/bin
 	dep ensure
 
-build:
+build: dependencies
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
 
 image:
