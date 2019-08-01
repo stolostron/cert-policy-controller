@@ -57,8 +57,8 @@ type CertificatePolicyStatus struct {
 
 // CompliancyDetails defines the all the details related to whether or not the policy is compliant
 type CompliancyDetails struct {
-	NonCompliantCertificates     uint            `json:"nonComplianCertificatePolicyts,omitempty"`
-	NonCompliantCertificatesList map[string]Cert `json:"nonComplianCertificatePolicytsList,omitEmpty"`
+	NonCompliantCertificates     uint            `json:"NonCompliantCertificates,omitempty"`
+	NonCompliantCertificatesList map[string]Cert `json:"NonCompliantCertificatesList,omitEmpty"`
 	Message                      string          `json:"message,omitempty"` // Overall message of this compliance
 }
 
