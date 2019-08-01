@@ -136,8 +136,8 @@ type ReconcileGRCPolicy struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=grc-mcmpolicy.ibm.com,resources=Certpolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=grc-mcmpolicy.ibm.com,resources=Certpolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=grc-mcmpolicy.ibm.com,resources=Certificates,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=grc-mcmpolicy.ibm.com,resources=Certificates/status,verbs=get;update;patch
 func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the GRCPolicy instance
 	instance := &policyv1alpha1.Certificate{}
@@ -372,8 +372,8 @@ func addViolationCount(plc *policyv1alpha1.Certificate, message string, count ui
 	return changed
 }
 
-// checkComplianceBasedOnDetails takes a certpolicy and sets whether
-// the policy is compliant or not based on the certpolicy's status
+// checkComplianceBasedOnDetails takes a certificate and sets whether
+// the policy is compliant or not based on the certificate's status
 func checkComplianceBasedOnDetails(plc *policyv1alpha1.Certificate) {
 	plc.Status.ComplianceState = policyv1alpha1.Compliant
 	if plc.Status.CompliancyDetails == nil {
