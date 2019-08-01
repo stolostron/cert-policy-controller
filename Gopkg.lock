@@ -215,7 +215,7 @@
 
 [[projects]]
   digest = "1:a8e3d14801bed585908d130ebfc3b925ba642208e6f30d879437ddfc7bb9b413"
-  name = "github.com/macertificatepoliciesroud/golang_protobuf_extensions"
+  name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   pruneopts = "T"
   revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
@@ -610,7 +610,7 @@
     "batch/v1",
     "batch/v1beta1",
     "batch/v2alpha1",
-    "certificatepolicies/v1beta1",
+    "certificates/v1beta1",
     "coordination/v1beta1",
     "core/v1",
     "events/v1beta1",
@@ -721,7 +721,7 @@
     "kubernetes/typed/batch/v1",
     "kubernetes/typed/batch/v1beta1",
     "kubernetes/typed/batch/v2alpha1",
-    "kubernetes/typed/certificatepolicies/v1beta1",
+    "kubernetes/typed/certificates/v1beta1",
     "kubernetes/typed/coordination/v1beta1",
     "kubernetes/typed/core/v1",
     "kubernetes/typed/events/v1beta1",
