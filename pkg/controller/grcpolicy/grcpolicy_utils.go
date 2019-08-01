@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/mcm-grcpolicy/v1alpha1"
+	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy/v1alpha1"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +21,7 @@ import (
 
 //=================================================================
 // convertPolicyStatusToString to be able to pass the status as event
-func convertPolicyStatusToString(plc *mcmv1alpha1.CertPolicy, defaultDuration time.Duration) (results string) {
+func convertPolicyStatusToString(plc *policyv1alpha1.CertPolicy, defaultDuration time.Duration) (results string) {
 	result := "ComplianceState is still undetermined"
 	if plc.Status.ComplianceState == "" {
 		return result
@@ -49,7 +49,7 @@ func convertPolicyStatusToString(plc *mcmv1alpha1.CertPolicy, defaultDuration ti
 
 func createGenericObjectEvent(name, namespace string) {
 
-	plc := &mcmv1alpha1.Policy{
+	plc := &policyv1alpha1.Policy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

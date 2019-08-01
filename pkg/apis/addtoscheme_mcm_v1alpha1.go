@@ -7,7 +7,7 @@
 package apis
 
 import (
-	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/mcm-grcpolicy/v1alpha1"
+	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy/v1alpha1"
 )
 
 func init() {

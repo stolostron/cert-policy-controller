@@ -10,7 +10,7 @@ The controller can be run as a stand-alone program within IBM Cloud Private. Its
 The controller watches for `CertPolicy` objects in Kubernetes. This is an example spec of a `CertPolicy` object:
 
 ```yaml
-apiVersion: mcm-grcpolicy.ibm.com/v1alpha1
+apiVersion: policy.ibm.com/v1alpha1
 kind: CertPolicy
 metadata:
   name: certificate-policy-1

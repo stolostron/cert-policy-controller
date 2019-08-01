@@ -4,5 +4,5 @@
 // Use, duplication or disclosure restricted by GSA ADP Schedule
 // Contract with IBM Corp.
 
-// Package mcm contains mcm API versions
-package mcm
+// Package policy contains policy API versions
+package policy
