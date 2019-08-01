@@ -10,9 +10,6 @@ spec:
   names:
     kind: Certificate
     plural: certificates
-  shortNames:
-  - cert-policy
-  - cert-policies
   scope: Namespaced
   validation:
     openAPIV3Schema:

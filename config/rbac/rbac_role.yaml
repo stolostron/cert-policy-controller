@@ -34,7 +34,7 @@ rules:
 - apiGroups:
   - grc-mcmpolicy.ibm.com
   resources:
-  - Certpolicies
+  - Certificates
   verbs:
   - get
   - list
@@ -46,7 +46,7 @@ rules:
 - apiGroups:
   - grc-mcmpolicy.ibm.com
   resources:
-  - Certpolicies/status
+  - Certificates/status
   verbs:
   - get
   - update
