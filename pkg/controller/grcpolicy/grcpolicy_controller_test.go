@@ -32,7 +32,7 @@ const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	instance := &policyv1alpha1.CertPolicy{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+	instance := &policyv1alpha1.Certificate{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
@@ -78,14 +78,14 @@ func TestReconcile(t *testing.T) {
 
 }
 
-func createPolicy(policyName, PolicyNamespace string, remediation policyv1alpha1.RemediationAction) (plc *policyv1alpha1.CertPolicy) {
+func createPolicy(policyName, PolicyNamespace string, remediation policyv1alpha1.RemediationAction) (plc *policyv1alpha1.Certificate) {
 	duration := &metav1.Duration{Duration: time.Hour * 24 * 120}
-	return &policyv1alpha1.CertPolicy{
+	return &policyv1alpha1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      policyName,
 			Namespace: PolicyNamespace,
 		},
-		Spec: policyv1alpha1.CertPolicySpec{
+		Spec: policyv1alpha1.CertificateSpec{
 			RemediationAction: remediation,
 			NamespaceSelector: policyv1alpha1.Target{
 				Include: []string{"default"},

@@ -1,17 +1,17 @@
 # ICP Certificate Policy Controller
 ## Description
-A controller that watches certificates created and/or used within ICP/MCM to ensure they don't expire within a given amount of time. The controller shows whether or not a given `CertPolicy` is compliant.
+A controller that watches certificates created and/or used within ICP/MCM to ensure they don't expire within a given amount of time. The controller shows whether or not a given `Certificate` is compliant.
 
 ## Usage
 The controller can be run as a stand-alone program within IBM Cloud Private. Its intended usage is to be integrated with Multi-cloud Manager.
 
-`CertPolicy` is the custom resource definition created by this controller. It watches specific namespaces and shows whether or not those namespaces and the policy as a whole is compliant.
+`Certificate` is the custom resource definition created by this controller. It watches specific namespaces and shows whether or not those namespaces and the policy as a whole is compliant.
 
-The controller watches for `CertPolicy` objects in Kubernetes. This is an example spec of a `CertPolicy` object:
+The controller watches for `Certificate` objects in Kubernetes. This is an example spec of a `Certificate` object:
 
 ```yaml
 apiVersion: policy.ibm.com/v1alpha1
-kind: CertPolicy
+kind: Certificate
 metadata:
   name: certificate-policy-1
   namespace: kube-system

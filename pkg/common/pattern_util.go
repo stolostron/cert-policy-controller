@@ -138,7 +138,7 @@ func Round(num float64) int {
 }
 
 // ExtractNamespaceLabel to find out the cluster-namespace from the label
-func ExtractNamespaceLabel(instance *policyv1alpha1.CertPolicy) string {
+func ExtractNamespaceLabel(instance *policyv1alpha1.Certificate) string {
 	if instance.ObjectMeta.Labels == nil {
 		return ""
 	}

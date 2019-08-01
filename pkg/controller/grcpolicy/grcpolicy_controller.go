@@ -48,7 +48,7 @@ var clusterName = "managedCluster"
 var availablePolicies common.SyncedPolicyMap
 
 // PlcChan a channel used to pass policies ready for update
-var PlcChan chan *policyv1alpha1.CertPolicy
+var PlcChan chan *policyv1alpha1.Certificate
 
 // KubeClient a k8s client used for k8s native resources
 var KubeClient *kubernetes.Clientset
@@ -67,7 +67,7 @@ var DefaultDuration time.Duration
 // Initialize to initialize some controller varaibles
 func Initialize(kClient *kubernetes.Clientset, mgr manager.Manager, clsName, namespace, eventParent string, defaultDuration time.Duration) (err error) {
 	KubeClient = kClient
-	PlcChan = make(chan *policyv1alpha1.CertPolicy, 100) //buffering up to 100 policies for update
+	PlcChan = make(chan *policyv1alpha1.Certificate, 100) //buffering up to 100 policies for update
 
 	if clsName != "" {
 		clusterName = clsName
@@ -103,16 +103,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to CertPolicy
-	err = c.Watch(&source.Kind{Type: &policyv1alpha1.CertPolicy{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to Certificate
+	err = c.Watch(&source.Kind{Type: &policyv1alpha1.Certificate{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
-	// Uncomment watch a Deployment created by CertPolicy - change this for objects you create
-	err = c.Watch(&source.Kind{Type: &policyv1alpha1.CertPolicy{}}, &handler.EnqueueRequestForOwner{
+	// Uncomment watch a Deployment created by Certificate - change this for objects you create
+	err = c.Watch(&source.Kind{Type: &policyv1alpha1.Certificate{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &policyv1alpha1.CertPolicy{},
+		OwnerType:    &policyv1alpha1.Certificate{},
 	})
 	if err != nil {
 		return err
@@ -124,15 +124,15 @@ var _ reconcile.Reconciler = &ReconcileGRCPolicy{}
 
 // Annotation for generating RBAC role for writing Events
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
-// ReconcileGRCPolicy reconciles a CertPolicy object
+// ReconcileGRCPolicy reconciles a Certificate object
 type ReconcileGRCPolicy struct {
 	client.Client
 	scheme   *runtime.Scheme
 	recorder record.EventRecorder
 }
 
-// Reconcile reads that state of the cluster for a CertPolicy object and makes changes based on the state read
-// and what is in the CertPolicy.Spec
+// Reconcile reads that state of the cluster for a Certificate object and makes changes based on the state read
+// and what is in the Certificate.Spec
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
@@ -140,7 +140,7 @@ type ReconcileGRCPolicy struct {
 // +kubebuilder:rbac:groups=grc-mcmpolicy.ibm.com,resources=Certpolicies/status,verbs=get;update;patch
 func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the GRCPolicy instance
-	instance := &policyv1alpha1.CertPolicy{}
+	instance := &policyv1alpha1.Certificate{}
 	if reconcilingAgent == nil {
 		reconcilingAgent = r
 	}
@@ -200,7 +200,7 @@ func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Res
 	return reconcile.Result{}, nil
 }
 
-func ensureDefaultLabel(instance *policyv1alpha1.CertPolicy) (updateNeeded bool) {
+func ensureDefaultLabel(instance *policyv1alpha1.Certificate) (updateNeeded bool) {
 	//we need to ensure this label exists -> category: "System and Information Integrity"
 	if instance.ObjectMeta.Labels == nil {
 		newlbl := make(map[string]string)
@@ -221,12 +221,12 @@ func ensureDefaultLabel(instance *policyv1alpha1.CertPolicy) (updateNeeded bool)
 
 // PeriodicallyExecGRCPolicies always check status - let this be the only function in the controller
 func PeriodicallyExecGRCPolicies(freq uint) {
-	var plcToUpdateMap map[string]*policyv1alpha1.CertPolicy
+	var plcToUpdateMap map[string]*policyv1alpha1.Certificate
 	for {
 		start := time.Now()
 		printMap(availablePolicies.PolicyMap)
 
-		plcToUpdateMap = make(map[string]*policyv1alpha1.CertPolicy)
+		plcToUpdateMap = make(map[string]*policyv1alpha1.Certificate)
 
 		// Loops through all of the cert policies
 		for namespace, policy := range availablePolicies.PolicyMap {
@@ -271,11 +271,11 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 
 // Checks each namespace for certificates that are going to expire within 3 months
 // Returns the number of uncompliant certificates and a list of the uncompliant certificates
-func certExpiration(policy *policyv1alpha1.CertPolicy, namespace string) (bool, uint, map[string]policyv1alpha1.Cert) {
+func certExpiration(policy *policyv1alpha1.Certificate, namespace string) (bool, uint, map[string]policyv1alpha1.Cert) {
 	update := false
 	nonCompliantCertificates := make(map[string]policyv1alpha1.Cert, 0)
 	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
-	// Loops through all the secrets within the CertPolicy's specified namespace
+	// Loops through all the secrets within the Certificate's specified namespace
 	secretList, _ := common.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secret := range secretList.Items {
 		glog.V(6).Infof("Checking secret %s", secret.Name)
@@ -332,8 +332,8 @@ func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bo
 	return false, "", ""
 }
 
-func convertMaptoPolicyNameKey() map[string]*policyv1alpha1.CertPolicy {
-	plcMap := make(map[string]*policyv1alpha1.CertPolicy)
+func convertMaptoPolicyNameKey() map[string]*policyv1alpha1.Certificate {
+	plcMap := make(map[string]*policyv1alpha1.Certificate)
 	for _, policy := range availablePolicies.PolicyMap {
 		plcMap[policy.Name] = policy
 	}
@@ -343,7 +343,7 @@ func convertMaptoPolicyNameKey() map[string]*policyv1alpha1.CertPolicy {
 // addViolationCount takes in a certificate policy and updates its status
 // with the message passed into this function and the number of certificates
 // violated this policy.
-func addViolationCount(plc *policyv1alpha1.CertPolicy, message string, count uint, namespace string, certificates map[string]policyv1alpha1.Cert) bool {
+func addViolationCount(plc *policyv1alpha1.Certificate, message string, count uint, namespace string, certificates map[string]policyv1alpha1.Cert) bool {
 	changed := false
 	// Add in default/generic message that can be overridden
 	msg := fmt.Sprintf("%s violations detected in namespace `%s`", fmt.Sprint(count), namespace)
@@ -374,7 +374,7 @@ func addViolationCount(plc *policyv1alpha1.CertPolicy, message string, count uin
 
 // checkComplianceBasedOnDetails takes a certpolicy and sets whether
 // the policy is compliant or not based on the certpolicy's status
-func checkComplianceBasedOnDetails(plc *policyv1alpha1.CertPolicy) {
+func checkComplianceBasedOnDetails(plc *policyv1alpha1.Certificate) {
 	plc.Status.ComplianceState = policyv1alpha1.Compliant
 	if plc.Status.CompliancyDetails == nil {
 		return
@@ -390,7 +390,7 @@ func checkComplianceBasedOnDetails(plc *policyv1alpha1.CertPolicy) {
 	}
 }
 
-func checkComplianceChangeBasedOnDetails(plc *policyv1alpha1.CertPolicy) (complianceChanged bool) {
+func checkComplianceChangeBasedOnDetails(plc *policyv1alpha1.Certificate) (complianceChanged bool) {
 	//used in case we also want to know not just the compliance state, but also whether the compliance changed or not.
 	previous := plc.Status.ComplianceState
 	if plc.Status.CompliancyDetails == nil {
@@ -419,7 +419,7 @@ func checkComplianceChangeBasedOnDetails(plc *policyv1alpha1.CertPolicy) (compli
 	return reflect.DeepEqual(previous, plc.Status.ComplianceState)
 }
 
-func updatePolicyStatus(policies map[string]*policyv1alpha1.CertPolicy) (*policyv1alpha1.CertPolicy, error) {
+func updatePolicyStatus(policies map[string]*policyv1alpha1.Certificate) (*policyv1alpha1.Certificate, error) {
 	for _, instance := range policies { // policies is a map where: key = plc.Name, value = pointer to plc
 		err := reconcilingAgent.Update(context.TODO(), instance)
 		if err != nil {
@@ -446,7 +446,7 @@ func updatePolicyStatus(policies map[string]*policyv1alpha1.CertPolicy) (*policy
 	return nil, nil
 }
 
-func handleRemovingPolicy(plc *policyv1alpha1.CertPolicy) {
+func handleRemovingPolicy(plc *policyv1alpha1.Certificate) {
 	for k, v := range availablePolicies.PolicyMap {
 		if v.Name == plc.Name {
 			availablePolicies.RemoveObject(k)
@@ -454,7 +454,7 @@ func handleRemovingPolicy(plc *policyv1alpha1.CertPolicy) {
 	}
 }
 
-func handleAddingPolicy(plc *policyv1alpha1.CertPolicy) error {
+func handleAddingPolicy(plc *policyv1alpha1.Certificate) error {
 
 	allNamespaces, err := common.GetAllNamespaces()
 	if err != nil {
@@ -480,7 +480,7 @@ func handleAddingPolicy(plc *policyv1alpha1.CertPolicy) error {
 
 //=================================================================
 //deleteExternalDependency in case the CRD was related to non-k8s resource
-func (r *ReconcileGRCPolicy) deleteExternalDependency(instance *policyv1alpha1.CertPolicy) error {
+func (r *ReconcileGRCPolicy) deleteExternalDependency(instance *policyv1alpha1.Certificate) error {
 	glog.V(0).Infof("reason: CRD deletion, subject: policy/%v, namespace: %v, according to policy: none, additional-info: none\n", instance.Name, instance.Namespace)
 	// Ensure that delete implementation is idempotent and safe to invoke
 	// multiple types for same object.
@@ -512,7 +512,7 @@ func removeString(slice []string, s string) (result []string) {
 
 //=================================================================
 // Helper functions that pretty prints a map
-func printMap(myMap map[string]*policyv1alpha1.CertPolicy) {
+func printMap(myMap map[string]*policyv1alpha1.Certificate) {
 	if len(myMap) == 0 {
 		fmt.Println("Waiting for policies to be available for processing... ")
 		return
@@ -524,7 +524,7 @@ func printMap(myMap map[string]*policyv1alpha1.CertPolicy) {
 	}
 }
 
-func createParentPolicyEvent(instance *policyv1alpha1.CertPolicy) {
+func createParentPolicyEvent(instance *policyv1alpha1.Certificate) {
 	if len(instance.OwnerReferences) == 0 {
 		return //there is nothing to do, since no owner is set
 	}
@@ -538,7 +538,7 @@ func createParentPolicyEvent(instance *policyv1alpha1.CertPolicy) {
 	reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
 }
 
-func createParentPolicy(instance *policyv1alpha1.CertPolicy) policyv1alpha1.Policy {
+func createParentPolicy(instance *policyv1alpha1.Certificate) policyv1alpha1.Policy {
 	ns := common.ExtractNamespaceLabel(instance)
 	if ns == "" {
 		ns = NamespaceWatched

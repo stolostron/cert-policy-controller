@@ -49,7 +49,7 @@ type CertificateSpec struct {
 	MinDuration       *metav1.Duration  `json:"minimumDuration,omitempty"`
 }
 
-// CertificateStatus defines the observed state of CertPolicy
+// CertificateStatus defines the observed state of Certificate
 type CertificateStatus struct {
 	ComplianceState   ComplianceState              `json:"compliant,omitempty"`         // Compliant, NonCompliant, UnkownCompliancy
 	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"` // map of namespaces to its compliancy details

@@ -21,7 +21,7 @@ import (
 
 //=================================================================
 // convertPolicyStatusToString to be able to pass the status as event
-func convertPolicyStatusToString(plc *policyv1alpha1.CertPolicy, defaultDuration time.Duration) (results string) {
+func convertPolicyStatusToString(plc *policyv1alpha1.Certificate, defaultDuration time.Duration) (results string) {
 	result := "ComplianceState is still undetermined"
 	if plc.Status.ComplianceState == "" {
 		return result

@@ -32,12 +32,12 @@ import (
 
 var duration = &metav1.Duration{Duration: time.Hour * 24 * 120}
 
-var plc = &policyv1alpha1.CertPolicy{
+var plc = &policyv1alpha1.Certificate{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "testPolicy",
 		Namespace: "default",
 	},
-	Spec: policyv1alpha1.CertPolicySpec{
+	Spec: policyv1alpha1.CertificateSpec{
 		RemediationAction: policyv1alpha1.Enforce,
 		NamespaceSelector: policyv1alpha1.Target{
 			Include: []string{"default"},
@@ -48,7 +48,7 @@ var plc = &policyv1alpha1.CertPolicy{
 }
 
 var sm = SyncedPolicyMap{
-	PolicyMap: make(map[string]*policyv1alpha1.CertPolicy),
+	PolicyMap: make(map[string]*policyv1alpha1.Certificate),
 }
 
 //TestGetObject testing get object in map
