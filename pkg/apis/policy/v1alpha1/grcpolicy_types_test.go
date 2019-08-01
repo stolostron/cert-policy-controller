@@ -20,7 +20,7 @@ func TestStorageGRCPolicy(t *testing.T) {
 		Name:      "foo",
 		Namespace: "default",
 	}
-	created := &Certificate{
+	created := &CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
@@ -29,7 +29,7 @@ func TestStorageGRCPolicy(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
-	fetched := &Certificate{}
+	fetched := &CertificatePolicy{}
 	g.Expect(c.Create(context.TODO(), created)).NotTo(gomega.HaveOccurred())
 
 	g.Expect(c.Get(context.TODO(), key, fetched)).NotTo(gomega.HaveOccurred())

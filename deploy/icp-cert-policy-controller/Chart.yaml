@@ -1,12 +1,12 @@
 name: icp-cert-policy-controller
 version: 0.0.1
 appVersion: 0.0.1
-description: A Helm chart for deploying the Certificate Policy Controller
+description: A Helm chart for deploying the CertificatePolicy Policy Controller
 home: https://github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller
 sources:
   - https://github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller
 keywords:
-  - certificates
+  - certificatepolicies
   - certificate
   - cert
   - expiration

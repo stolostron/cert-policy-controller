@@ -8,7 +8,7 @@ metadata:
 spec:
   group: policy.ibm.com
   names:
-    kind: Certificate
+    kind: CertificatePolicy
     plural: certpolicies
   scope: Namespaced
   validation:

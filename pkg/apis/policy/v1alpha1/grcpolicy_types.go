@@ -41,24 +41,24 @@ type Target struct {
 	Exclude []string `json:"exclude,omitempty"`
 }
 
-// CertificateSpec defines the desired state of GRCPolicy
-type CertificateSpec struct {
+// CertificatePolicySpec defines the desired state of GRCPolicy
+type CertificatePolicySpec struct {
 	RemediationAction RemediationAction `json:"remediationAction,omitempty"` //enforce, inform
 	NamespaceSelector Target            `json:"namespaceSelector,omitempty"` // selecting a list of namespaces where the policy applies
 	LabelSelector     map[string]string `json:"labelSelector,omitempty"`
 	MinDuration       *metav1.Duration  `json:"minimumDuration,omitempty"`
 }
 
-// CertificateStatus defines the observed state of Certificate
-type CertificateStatus struct {
+// CertificatePolicyStatus defines the observed state of CertificatePolicy
+type CertificatePolicyStatus struct {
 	ComplianceState   ComplianceState              `json:"compliant,omitempty"`         // Compliant, NonCompliant, UnkownCompliancy
 	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"` // map of namespaces to its compliancy details
 }
 
 // CompliancyDetails defines the all the details related to whether or not the policy is compliant
 type CompliancyDetails struct {
-	NonCompliantCertificates     uint            `json:"nonCompliantCertificates,omitempty"`
-	NonCompliantCertificatesList map[string]Cert `json:"nonCompliantCertificatesList,omitEmpty"`
+	NonComplianCertificatePolicyts     uint            `json:"nonComplianCertificatePolicyts,omitempty"`
+	NonComplianCertificatePolicytsList map[string]Cert `json:"nonComplianCertificatePolicytsList,omitEmpty"`
 	Message                      string          `json:"message,omitempty"` // Overall message of this compliance
 }
 
@@ -71,14 +71,14 @@ type Cert struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Certificate is the Schema for the certpolicies API
+// CertificatePolicy is the Schema for the certpolicies API
 // +k8s:openapi-gen=true
-type Certificate struct {
+type CertificatePolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CertificateSpec   `json:"spec,omitempty"`
-	Status CertificateStatus `json:"status,omitempty"`
+	Spec   CertificatePolicySpec   `json:"spec,omitempty"`
+	Status CertificatePolicyStatus `json:"status,omitempty"`
 }
 
 // Policy is a specification for a Policy resource
@@ -91,11 +91,11 @@ type Policy struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// CertificateList contains a list of Certificate
-type CertificateList struct {
+// CertificatePolicyList contains a list of CertificatePolicy
+type CertificatePolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Certificate `json:"items"`
+	Items           []CertificatePolicy `json:"items"`
 }
 
 // PolicyList is a list of Policy resources
@@ -109,6 +109,6 @@ type PolicyList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Certificate{}, &CertificateList{})
+	SchemeBuilder.Register(&CertificatePolicy{}, &CertificatePolicyList{})
 	SchemeBuilder.Register(&Policy{}, &PolicyList{})
 }

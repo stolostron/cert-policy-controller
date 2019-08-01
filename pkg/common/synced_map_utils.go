@@ -14,13 +14,13 @@ import (
 
 //SyncedPolicyMap a thread safe map
 type SyncedPolicyMap struct {
-	PolicyMap map[string]*policyv1alpha1.Certificate
+	PolicyMap map[string]*policyv1alpha1.CertificatePolicy
 	//Mx for making the map thread safe
 	Mx sync.RWMutex
 }
 
 //GetObject used for fetching objects from the synced map
-func (spm *SyncedPolicyMap) GetObject(key string) (value *policyv1alpha1.Certificate, found bool) {
+func (spm *SyncedPolicyMap) GetObject(key string) (value *policyv1alpha1.CertificatePolicy, found bool) {
 
 	spm.Mx.Lock()
 	defer spm.Mx.Unlock()
@@ -35,13 +35,13 @@ func (spm *SyncedPolicyMap) GetObject(key string) (value *policyv1alpha1.Certifi
 }
 
 // AddObject safely add to map
-func (spm *SyncedPolicyMap) AddObject(key string, plc *policyv1alpha1.Certificate) {
+func (spm *SyncedPolicyMap) AddObject(key string, plc *policyv1alpha1.CertificatePolicy) {
 
 	spm.Mx.Lock()
 	defer spm.Mx.Unlock()
 	//check if the map is initialized, if not initilize it
 	if spm.PolicyMap == nil {
-		spm.PolicyMap = make(map[string]*policyv1alpha1.Certificate)
+		spm.PolicyMap = make(map[string]*policyv1alpha1.CertificatePolicy)
 	}
 	spm.PolicyMap[key] = plc
 }

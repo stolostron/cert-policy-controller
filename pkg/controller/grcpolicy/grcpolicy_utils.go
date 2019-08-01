@@ -21,7 +21,7 @@ import (
 
 //=================================================================
 // convertPolicyStatusToString to be able to pass the status as event
-func convertPolicyStatusToString(plc *policyv1alpha1.Certificate, defaultDuration time.Duration) (results string) {
+func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultDuration time.Duration) (results string) {
 	result := "ComplianceState is still undetermined"
 	if plc.Status.ComplianceState == "" {
 		return result
@@ -33,13 +33,13 @@ func convertPolicyStatusToString(plc *policyv1alpha1.Certificate, defaultDuratio
 	}
 
 	for namespace, details := range plc.Status.CompliancyDetails {
-		if details.NonCompliantCertificates > 0 {
+		if details.NonComplianCertificatePolicyts > 0 {
 			minDuration := defaultDuration
 			if plc.Spec.MinDuration != nil {
 				minDuration = plc.Spec.MinDuration.Duration
 			}
-			result = fmt.Sprintf("%s; Non-compliant certificates (expires in less than %s) in %s[%d]:", result, minDuration.String(), namespace, details.NonCompliantCertificates)
-			for cert, certDetails := range details.NonCompliantCertificatesList {
+			result = fmt.Sprintf("%s; Non-compliant certificatepolicies (expires in less than %s) in %s[%d]:", result, minDuration.String(), namespace, details.NonComplianCertificatePolicyts)
+			for cert, certDetails := range details.NonComplianCertificatePolicytsList {
 				result = fmt.Sprintf("%s [%s, %s]", result, cert, certDetails.Secret)
 			}
 		}
