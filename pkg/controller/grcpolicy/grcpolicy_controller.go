@@ -136,8 +136,8 @@ type ReconcileGRCPolicy struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=grc-mcmpolicy.ibm.com,resources=CertificatePolicys,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=grc-mcmpolicy.ibm.com,resources=CertificatePolicys/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=olicy.ibm.com,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy.ibm.com,resources=CertificatePolicies/status,verbs=get;update;patch
 func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the GRCPolicy instance
 	instance := &policyv1alpha1.CertificatePolicy{}
@@ -273,7 +273,7 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 // Returns the number of uncompliant certificatepolicies and a list of the uncompliant certificatepolicies
 func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1alpha1.Cert) {
 	update := false
-	nonComplianCertificatePolicyts := make(map[string]policyv1alpha1.Cert, 0)
+	nonCompliantCertificates := make(map[string]policyv1alpha1.Cert, 0)
 	//TODO: Want the label selector to find secrets with certificatepolicies only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	secretList, _ := common.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
@@ -288,13 +288,13 @@ func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) 
 			glog.V(4).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
 			msg := fmt.Sprintf("CertificatePolicy %s [secret name: %s] expires in %s", certName, secret.ObjectMeta.Name, expiration)
 			glog.V(4).Info(msg)
-			nonComplianCertificatePolicyts[certName] = policyv1alpha1.Cert{Secret: secret.Name, Expiration: expiration}
+			nonCompliantCertificates[certName] = policyv1alpha1.Cert{Secret: secret.Name, Expiration: expiration}
 			if policy.Status.ComplianceState != policyv1alpha1.NonCompliant {
 				update = true
 			}
 		}
 	}
-	return update, uint(len(nonComplianCertificatePolicyts)), nonComplianCertificatePolicyts
+	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
 }
 
 // Returns true only if the secret (certificate) is not compliant (expires within the given duration)
@@ -308,13 +308,13 @@ func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bo
 	// Get the certificate bytes
 	certBytes, _ := secret.Data[key]
 
-	// Get the x509 CertificatePolicys
-	certs := util.DecodeCertificatePolicyBytes(certBytes)
+	// Get the x509 Certificates
+	certs := util.DecodeCertificateBytes(certBytes)
 	if len(certs) < 1 {
 		glog.V(6).Infof("The secret %s does not contain any certificatepolicies. Skipping this secret.", secret.Name)
 		return false, "No certificatepolicies", ""
 	}
-	x509Cert := certs[0] // CertificatePolicy chains always begin with the end user certificate as a standard format
+	x509Cert := certs[0] // Certificate chains always begin with the end user certificate as a standard format
 
 	// Get time now and subtract from cert's not before
 	now := time.Now()
@@ -359,13 +359,13 @@ func addViolationCount(plc *policyv1alpha1.CertificatePolicy, message string, co
 	}
 
 	// The number of non-compliant certificatepolicies has changed, so change the overall compliance state
-	if plc.Status.CompliancyDetails[namespace].NonComplianCertificatePolicyts != count {
+	if plc.Status.CompliancyDetails[namespace].NonCompliantCertificates != count {
 		changed = true
 	}
 
 	plc.Status.CompliancyDetails[namespace] = policyv1alpha1.CompliancyDetails{
-		NonComplianCertificatePolicyts:     count,
-		NonComplianCertificatePolicytsList: certificatepolicies,
+		NonCompliantCertificates:     count,
+		NonCompliantCertificatesList: certificatepolicies,
 		Message:                      msg,
 	}
 	glog.V(4).Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
@@ -383,7 +383,7 @@ func checkComplianceBasedOnDetails(plc *policyv1alpha1.CertificatePolicy) {
 		return
 	}
 	for namespace, details := range plc.Status.CompliancyDetails {
-		if details.NonComplianCertificatePolicyts > 0 {
+		if details.NonCompliantCertificates > 0 {
 			glog.V(4).Infof("The number of violations in policy %s in namespace %s does not equal zero, therefore it is non compliant", plc.Name, namespace)
 			plc.Status.ComplianceState = policyv1alpha1.NonCompliant
 		}
@@ -407,7 +407,7 @@ func checkComplianceChangeBasedOnDetails(plc *policyv1alpha1.CertificatePolicy) 
 	}
 	plc.Status.ComplianceState = policyv1alpha1.Compliant
 	for _, details := range plc.Status.CompliancyDetails {
-		if details.NonComplianCertificatePolicyts > 0 {
+		if details.NonCompliantCertificates > 0 {
 			plc.Status.ComplianceState = policyv1alpha1.NonCompliant
 		} else {
 			return reflect.DeepEqual(previous, plc.Status.ComplianceState)
@@ -430,13 +430,13 @@ func updatePolicyStatus(policies map[string]*policyv1alpha1.CertificatePolicy) (
 		}
 		message := fmt.Sprintf("%v", instance.Status.ComplianceState)
 		for namespace, details := range instance.Status.CompliancyDetails {
-			if details.NonComplianCertificatePolicyts > 0 {
+			if details.NonCompliantCertificates > 0 {
 				minDuration := DefaultDuration
 				if instance.Spec.MinDuration != nil {
 					minDuration = instance.Spec.MinDuration.Duration
 				}
-				message = fmt.Sprintf("%s; Non-compliant certificatepolicies (expires in less than %s) in %s[%d]:", message, minDuration.String(), namespace, details.NonComplianCertificatePolicyts)
-				for cert, certDetails := range details.NonComplianCertificatePolicytsList {
+				message = fmt.Sprintf("%s; Non-compliant certificatepolicies (expires in less than %s) in %s[%d]:", message, minDuration.String(), namespace, details.NonCompliantCertificates)
+				for cert, certDetails := range details.NonCompliantCertificatesList {
 					message = fmt.Sprintf("%s [%s, %s]", message, cert, certDetails.Secret)
 				}
 			}
