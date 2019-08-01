@@ -10,6 +10,8 @@ spec:
   names:
     kind: CertificatePolicy
     plural: certificatepolicies
+  shortNames:
+  - certpl
   scope: Namespaced
   validation:
     openAPIV3Schema:
