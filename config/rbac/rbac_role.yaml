@@ -32,7 +32,7 @@ rules:
   - update
   - patch
 - apiGroups:
-  - olicy.ibm.com
+  - policy.ibm.com
   resources:
   - CertificatePolicies
   verbs:
