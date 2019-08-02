@@ -136,7 +136,7 @@ type ReconcileGRCPolicy struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=olicy.ibm.com,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy.ibm.com,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=policy.ibm.com,resources=CertificatePolicies/status,verbs=get;update;patch
 func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the GRCPolicy instance
