@@ -26,5 +26,5 @@ GOARCH := $(ARCH)
 GOOS := linux
 
 # Metadata
-SUMMARY := Watches certificates to ensure compliance.
-IMAGE_DESCRIPTION := A controller that watches certificates within ICP to ensure they meet compliance standards.
+SUMMARY := Watches certificatepolicies to ensure compliance.
+IMAGE_DESCRIPTION := A controller that watches certificatepolicies within ICP to ensure they meet compliance standards.

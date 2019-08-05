@@ -4,9 +4,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: policies.mcm-grcpolicy.ibm.com
+  name: policies.policy.ibm.com
 spec:
-  group: mcm-grcpolicy.ibm.com
+  group: policy.ibm.com
   names:
     kind: Policy
     plural: policies

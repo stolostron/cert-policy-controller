@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
-	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/mcm-grcpolicy/v1alpha1"
+	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy/v1alpha1"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +32,7 @@ const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	instance := &mcmv1alpha1.CertPolicy{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+	instance := &policyv1alpha1.CertificatePolicy{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
@@ -78,16 +78,16 @@ func TestReconcile(t *testing.T) {
 
 }
 
-func createPolicy(policyName, PolicyNamespace string, remediation mcmv1alpha1.RemediationAction) (plc *mcmv1alpha1.CertPolicy) {
+func createPolicy(policyName, PolicyNamespace string, remediation policyv1alpha1.RemediationAction) (plc *policyv1alpha1.CertificatePolicy) {
 	duration := &metav1.Duration{Duration: time.Hour * 24 * 120}
-	return &mcmv1alpha1.CertPolicy{
+	return &policyv1alpha1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      policyName,
 			Namespace: PolicyNamespace,
 		},
-		Spec: mcmv1alpha1.CertPolicySpec{
+		Spec: policyv1alpha1.CertificatePolicySpec{
 			RemediationAction: remediation,
-			NamespaceSelector: mcmv1alpha1.Target{
+			NamespaceSelector: policyv1alpha1.Target{
 				Include: []string{"default"},
 				Exclude: []string{"kube*"},
 			},

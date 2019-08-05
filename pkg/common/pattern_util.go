@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	mcmv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/mcm-grcpolicy/v1alpha1"
+	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy/v1alpha1"
 )
 
 // IfMatch check matches
@@ -138,7 +138,7 @@ func Round(num float64) int {
 }
 
 // ExtractNamespaceLabel to find out the cluster-namespace from the label
-func ExtractNamespaceLabel(instance *mcmv1alpha1.CertPolicy) string {
+func ExtractNamespaceLabel(instance *policyv1alpha1.CertificatePolicy) string {
 	if instance.ObjectMeta.Labels == nil {
 		return ""
 	}

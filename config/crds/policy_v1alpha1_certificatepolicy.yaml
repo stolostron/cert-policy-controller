@@ -4,12 +4,14 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: certpolicies.mcm-grcpolicy.ibm.com
+  name: certificatepolicies.policy.ibm.com
 spec:
-  group: mcm-grcpolicy.ibm.com
+  group: policy.ibm.com
   names:
-    kind: CertPolicy
-    plural: certpolicies
+    kind: CertificatePolicy
+    plural: certificatepolicies
+    shortNames:
+    - certpl
   scope: Namespaced
   validation:
     openAPIV3Schema:
@@ -32,7 +34,7 @@ spec:
               description: selecting a list of namespaces where the policy applies
               type: object
             minimumDuration:
-              type: object
+              type: string
             namespaceSelector:
               description: enforce, inform
               properties:
