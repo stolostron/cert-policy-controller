@@ -37,7 +37,7 @@ func main() {
 	flag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
 	flag.StringVar(&namespace, "watch-ns", "default", "Watched Kubernetes namespace")
 	flag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
-	flag.StringVar(&defaultDuration, "default-duration", "2160h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
+	flag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
 
 	flag.Set("logtostderr", "true")
 	flag.Set("alsologtostderr", "true")
