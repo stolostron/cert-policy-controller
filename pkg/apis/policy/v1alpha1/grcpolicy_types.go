@@ -43,10 +43,15 @@ type Target struct {
 
 // CertificatePolicySpec defines the desired state of GRCPolicy
 type CertificatePolicySpec struct {
-	RemediationAction RemediationAction `json:"remediationAction,omitempty"` //enforce, inform
-	NamespaceSelector Target            `json:"namespaceSelector,omitempty"` // selecting a list of namespaces where the policy applies
+	//enforce, inform
+	RemediationAction RemediationAction `json:"remediationAction,omitempty"`
+	// selecting a list of namespaces where the policy applies
+	NamespaceSelector Target            `json:"namespaceSelector,omitempty"`
 	LabelSelector     map[string]string `json:"labelSelector,omitempty"`
-	MinDuration       *metav1.Duration  `json:"minimumDuration,omitempty"`
+	// low, medium, or high
+	Severity string `json:"severity,omitempty"`
+	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only
+	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
 }
 
 // CertificatePolicyStatus defines the observed state of CertificatePolicy
