@@ -10,8 +10,6 @@ spec:
   names:
     kind: CertificatePolicy
     plural: certificatepolicies
-    shortNames:
-    - certpl
   scope: Namespaced
   validation:
     openAPIV3Schema:
@@ -31,12 +29,13 @@ spec:
         spec:
           properties:
             labelSelector:
-              description: selecting a list of namespaces where the policy applies
               type: object
             minimumDuration:
+              description: Minimum duration before a certificate expires that it is
+                considered non-compliant. Golang's time units only
               type: string
             namespaceSelector:
-              description: enforce, inform
+              description: selecting a list of namespaces where the policy applies
               properties:
                 exclude:
                   items:
@@ -48,6 +47,10 @@ spec:
                   type: array
               type: object
             remediationAction:
+              description: enforce, inform
+              type: string
+            severity:
+              description: low, medium, or high
               type: string
           type: object
         status:
