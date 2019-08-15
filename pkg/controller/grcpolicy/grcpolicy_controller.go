@@ -36,6 +36,7 @@ import (
 )
 
 const certNameLabel = "certificate-name"
+const certManagerNameLabel = "certmanager.k8s.io/certificate-name"
 
 // Finalizer used to ensure consistency when deleting a CRD
 const Finalizer = "finalizer.mcm.ibm.com"
@@ -284,6 +285,8 @@ func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) 
 			// Gets the certificate's name if it exists
 			if secret.Labels[certNameLabel] != "" {
 				certName = secret.Labels[certNameLabel]
+			} else if secret.Labels[certManagerNameLabel] != "" {
+				certName = secret.Labels[certManagerNameLabel]
 			}
 			glog.V(4).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
 			msg := fmt.Sprintf("Certificate %s [secret name: %s] expires in %s", certName, secret.ObjectMeta.Name, expiration)
