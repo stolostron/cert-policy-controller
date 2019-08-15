@@ -4,9 +4,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: certificatepolicies.policy.ibm.com
+  name: certificatepolicies.policies.ibm.com
 spec:
-  group: policy.ibm.com
+  group: policies.ibm.com
   names:
     kind: CertificatePolicy
     plural: certificatepolicies

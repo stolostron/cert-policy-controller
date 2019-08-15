@@ -32,7 +32,7 @@ rules:
   - update
   - patch
 - apiGroups:
-  - policy.ibm.com
+  - policies.ibm.com
   resources:
   - CertificatePolicies
   verbs:
@@ -44,7 +44,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - policy.ibm.com
+  - policies.ibm.com
   resources:
   - CertificatePolicies/status
   verbs:

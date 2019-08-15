@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/util"
 	corev1 "k8s.io/api/core/v1"
@@ -36,6 +36,7 @@ import (
 )
 
 const certNameLabel = "certificate-name"
+const certManagerNameLabel = "certmanager.k8s.io/certificate-name"
 
 // Finalizer used to ensure consistency when deleting a CRD
 const Finalizer = "finalizer.mcm.ibm.com"
@@ -136,8 +137,8 @@ type ReconcileGRCPolicy struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=policy.ibm.com,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=policy.ibm.com,resources=CertificatePolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=policies.ibm.com,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policies.ibm.com,resources=CertificatePolicies/status,verbs=get;update;patch
 func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the GRCPolicy instance
 	instance := &policyv1alpha1.CertificatePolicy{}
@@ -230,14 +231,14 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 
 		// Loops through all of the cert policies
 		for namespace, policy := range availablePolicies.PolicyMap {
-			glog.V(4).Infof("Checking certificatepolicies in namespace %s defined in policy %s", namespace, policy.Name)
+			glog.V(4).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
 			update, nonCompliant, list := certExpiration(policy, namespace)
 			if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1alpha1.Enforce)) {
 				glog.V(5).Infof("Enforce is set, but ignored :-)")
 			}
-			message := fmt.Sprintf("Found %d non compliant certificatepolicies in the namespace %s.\n", nonCompliant, namespace)
+			message := fmt.Sprintf("Found %d non compliant certificates in the namespace %s.\n", nonCompliant, namespace)
 			if nonCompliant > 0 {
-				message = fmt.Sprintf("%sList of non compliant certificatepolicies:\n", message)
+				message = fmt.Sprintf("%sList of non compliant certificates:\n", message)
 				for cert, certDetails := range list {
 					message = fmt.Sprintf("%s%s expires in %s\n", message, cert, certDetails.Expiration)
 				}
@@ -269,12 +270,12 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 	}
 }
 
-// Checks each namespace for certificatepolicies that are going to expire within 3 months
-// Returns the number of uncompliant certificatepolicies and a list of the uncompliant certificatepolicies
+// Checks each namespace for certificates that are going to expire within 3 months
+// Returns the number of uncompliant certificates and a list of the uncompliant certificates
 func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1alpha1.Cert) {
 	update := false
 	nonCompliantCertificates := make(map[string]policyv1alpha1.Cert, 0)
-	//TODO: Want the label selector to find secrets with certificatepolicies only!! -> is-certificate
+	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	secretList, _ := common.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secret := range secretList.Items {
@@ -284,9 +285,11 @@ func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) 
 			// Gets the certificate's name if it exists
 			if secret.Labels[certNameLabel] != "" {
 				certName = secret.Labels[certNameLabel]
+			} else if secret.Labels[certManagerNameLabel] != "" {
+				certName = secret.Labels[certManagerNameLabel]
 			}
 			glog.V(4).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
-			msg := fmt.Sprintf("CertificatePolicy %s [secret name: %s] expires in %s", certName, secret.ObjectMeta.Name, expiration)
+			msg := fmt.Sprintf("Certificate %s [secret name: %s] expires in %s", certName, secret.ObjectMeta.Name, expiration)
 			glog.V(4).Info(msg)
 			nonCompliantCertificates[certName] = policyv1alpha1.Cert{Secret: secret.Name, Expiration: expiration}
 			if policy.Status.ComplianceState != policyv1alpha1.NonCompliant {
@@ -311,8 +314,8 @@ func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bo
 	// Get the x509 Certificates
 	certs := util.DecodeCertificateBytes(certBytes)
 	if len(certs) < 1 {
-		glog.V(6).Infof("The secret %s does not contain any certificatepolicies. Skipping this secret.", secret.Name)
-		return false, "No certificatepolicies", ""
+		glog.V(6).Infof("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
+		return false, "No certificates", ""
 	}
 	x509Cert := certs[0] // Certificate chains always begin with the end user certificate as a standard format
 
@@ -341,9 +344,9 @@ func convertMaptoPolicyNameKey() map[string]*policyv1alpha1.CertificatePolicy {
 }
 
 // addViolationCount takes in a certificate policy and updates its status
-// with the message passed into this function and the number of certificatepolicies
+// with the message passed into this function and the number of certificates
 // violated this policy.
-func addViolationCount(plc *policyv1alpha1.CertificatePolicy, message string, count uint, namespace string, certificatepolicies map[string]policyv1alpha1.Cert) bool {
+func addViolationCount(plc *policyv1alpha1.CertificatePolicy, message string, count uint, namespace string, certificates map[string]policyv1alpha1.Cert) bool {
 	changed := false
 	// Add in default/generic message that can be overridden
 	msg := fmt.Sprintf("%s violations detected in namespace `%s`", fmt.Sprint(count), namespace)
@@ -358,14 +361,14 @@ func addViolationCount(plc *policyv1alpha1.CertificatePolicy, message string, co
 		changed = true
 	}
 
-	// The number of non-compliant certificatepolicies has changed, so change the overall compliance state
+	// The number of non-compliant certificates has changed, so change the overall compliance state
 	if plc.Status.CompliancyDetails[namespace].NonCompliantCertificates != count {
 		changed = true
 	}
 
 	plc.Status.CompliancyDetails[namespace] = policyv1alpha1.CompliancyDetails{
 		NonCompliantCertificates:     count,
-		NonCompliantCertificatesList: certificatepolicies,
+		NonCompliantCertificatesList: certificates,
 		Message:                      msg,
 	}
 	glog.V(4).Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
@@ -435,7 +438,7 @@ func updatePolicyStatus(policies map[string]*policyv1alpha1.CertificatePolicy) (
 				if instance.Spec.MinDuration != nil {
 					minDuration = instance.Spec.MinDuration.Duration
 				}
-				message = fmt.Sprintf("%s; Non-compliant certificatepolicies (expires in less than %s) in %s[%d]:", message, minDuration.String(), namespace, details.NonCompliantCertificates)
+				message = fmt.Sprintf("%s; Non-compliant certificates (expires in less than %s) in %s[%d]:", message, minDuration.String(), namespace, details.NonCompliantCertificates)
 				for cert, certDetails := range details.NonCompliantCertificatesList {
 					message = fmt.Sprintf("%s [%s, %s]", message, cert, certDetails.Secret)
 				}
