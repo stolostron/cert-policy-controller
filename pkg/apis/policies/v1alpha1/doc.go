@@ -7,7 +7,7 @@
 // Package v1alpha1 contains API Schema definitions for the mcm v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy
+// +k8s:conversion-gen=github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=policy.ibm.com
+// +groupName=policies.ibm.com
 package v1alpha1

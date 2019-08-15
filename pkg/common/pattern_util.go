@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
 )
 
 // IfMatch check matches

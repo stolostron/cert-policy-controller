@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policy/v1alpha1"
+	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/util"
 	corev1 "k8s.io/api/core/v1"
@@ -137,8 +137,8 @@ type ReconcileGRCPolicy struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=policy.ibm.com,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=policy.ibm.com,resources=CertificatePolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=policies.ibm.com,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policies.ibm.com,resources=CertificatePolicies/status,verbs=get;update;patch
 func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the GRCPolicy instance
 	instance := &policyv1alpha1.CertificatePolicy{}
