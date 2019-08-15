@@ -230,7 +230,7 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 
 		// Loops through all of the cert policies
 		for namespace, policy := range availablePolicies.PolicyMap {
-			glog.V(4).Infof("Checking certificatepolicies in namespace %s defined in policy %s", namespace, policy.Name)
+			glog.V(4).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
 			update, nonCompliant, list := certExpiration(policy, namespace)
 			if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1alpha1.Enforce)) {
 				glog.V(5).Infof("Enforce is set, but ignored :-)")
@@ -269,12 +269,12 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 	}
 }
 
-// Checks each namespace for certificatepolicies that are going to expire within 3 months
-// Returns the number of uncompliant certificatepolicies and a list of the uncompliant certificatepolicies
+// Checks each namespace for certificates that are going to expire within 3 months
+// Returns the number of uncompliant certificates and a list of the uncompliant certificates
 func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1alpha1.Cert) {
 	update := false
 	nonCompliantCertificates := make(map[string]policyv1alpha1.Cert, 0)
-	//TODO: Want the label selector to find secrets with certificatepolicies only!! -> is-certificate
+	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	secretList, _ := common.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secret := range secretList.Items {
@@ -341,7 +341,7 @@ func convertMaptoPolicyNameKey() map[string]*policyv1alpha1.CertificatePolicy {
 }
 
 // addViolationCount takes in a certificate policy and updates its status
-// with the message passed into this function and the number of certificatepolicies
+// with the message passed into this function and the number of certificates
 // violated this policy.
 func addViolationCount(plc *policyv1alpha1.CertificatePolicy, message string, count uint, namespace string, certificates map[string]policyv1alpha1.Cert) bool {
 	changed := false
