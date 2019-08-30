@@ -537,8 +537,11 @@ func createParentPolicyEvent(instance *policyv1alpha1.CertificatePolicy) {
 	}
 
 	parentPlc := createParentPolicy(instance)
-
-	reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	if instance.Status.ComplianceState == policyv1alpha1.NonCompliant {
+		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	} else {
+		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	}
 }
 
 func createParentPolicy(instance *policyv1alpha1.CertificatePolicy) policyv1alpha1.Policy {
