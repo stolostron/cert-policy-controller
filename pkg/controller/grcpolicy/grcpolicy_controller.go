@@ -444,7 +444,11 @@ func updatePolicyStatus(policies map[string]*policyv1alpha1.CertificatePolicy) (
 				}
 			}
 		}
-		reconcilingAgent.recorder.Event(instance, "Normal", "Policy updated", message)
+		if instance.Status.ComplianceState == policyv1alpha1.NonCompliant {
+			reconcilingAgent.recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
+		} else {
+			reconcilingAgent.recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+		}
 	}
 	return nil, nil
 }
@@ -537,8 +541,13 @@ func createParentPolicyEvent(instance *policyv1alpha1.CertificatePolicy) {
 	}
 
 	parentPlc := createParentPolicy(instance)
-
-	reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	if instance.Status.ComplianceState == policyv1alpha1.NonCompliant {
+		glog.V(4).Info("Update parent policy, non-compliant policy")
+		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	} else {
+		glog.V(4).Info("Update parent policy, compliant policy")
+		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	}
 }
 
 func createParentPolicy(instance *policyv1alpha1.CertificatePolicy) policyv1alpha1.Policy {
