@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -445,7 +444,11 @@ func updatePolicyStatus(policies map[string]*policyv1alpha1.CertificatePolicy) (
 				}
 			}
 		}
-		reconcilingAgent.recorder.Event(instance, "Normal", "Policy updated", message)
+		if instance.Status.ComplianceState == policyv1alpha1.NonCompliant {
+			reconcilingAgent.recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
+		} else {
+			reconcilingAgent.recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+		}
 	}
 	return nil, nil
 }
@@ -539,10 +542,10 @@ func createParentPolicyEvent(instance *policyv1alpha1.CertificatePolicy) {
 
 	parentPlc := createParentPolicy(instance)
 	if instance.Status.ComplianceState == policyv1alpha1.NonCompliant {
-		klog.Info("Non compliant policy")
+		glog.V(4).Info("Update parent policy, non-compliant policy")
 		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
 	} else {
-		klog.Info("Compliant policy")
+		glog.V(4).Info("Update parent policy, compliant policy")
 		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
 	}
 }
