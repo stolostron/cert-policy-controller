@@ -11,9 +11,9 @@ import (
 	"os"
 	"time"
 
-	"k8s.io/klog"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller"
+	"k8s.io/klog"
 
 	common "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	policyStatusHandler "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/grcpolicy"
@@ -40,9 +40,10 @@ func main() {
 	flag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
 
 	flag.Set("logtostderr", "true")
-	flag.Set("alsologtostderr", "true")
+	flag.Set("alsologtostderr", "false")
 
 	flag.Parse()
+
 	defer klog.Flush()
 
 	// Get a config to talk to the apiserver
