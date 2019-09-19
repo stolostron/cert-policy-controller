@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	corev1 "k8s.io/api/core/v1"
@@ -61,11 +61,11 @@ func createGenericObjectEvent(name, namespace string) {
 	}
 	data, err := json.Marshal(plc)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 	found, err := common.GetGenericObject(data, namespace)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 	if md, ok := found.Object["metadata"]; ok {
 		metadata := md.(map[string]interface{})
@@ -73,7 +73,7 @@ func createGenericObjectEvent(name, namespace string) {
 			plc.ObjectMeta.UID = types.UID(objectUID.(string))
 			reconcilingAgent.recorder.Event(plc, corev1.EventTypeWarning, "reporting --> forward", fmt.Sprintf("eventing on policy %s/%s", plc.Namespace, plc.Name))
 		} else {
-			glog.Errorf("the objectUID is missing from policy %s/%s", plc.Namespace, plc.Name)
+			klog.Errorf("the objectUID is missing from policy %s/%s", plc.Namespace, plc.Name)
 			return
 		}
 	}
