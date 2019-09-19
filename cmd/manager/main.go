@@ -40,11 +40,11 @@ func main() {
 	flag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
 
 	flag.Set("logtostderr", "true")
-	flag.Set("alsologtostderr", "false")
 
 	flag.Parse()
 
 	defer klog.Flush()
+	klog.InitFlags(nil)
 
 	// Get a config to talk to the apiserver
 	klog.Info("setting up client for manager")
