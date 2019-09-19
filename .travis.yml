@@ -15,7 +15,6 @@ branches:
     - /^[0-9]+\..*$/
     - /^v[0-9]+\..*$/
     - /^release-[0-9]+\..*$/
-    - klog
 
 matrix:
   fast_finish: true
@@ -24,12 +23,39 @@ before_install:
   - source travis-env.sh
 
 stages:
+  - lint
+  - test
   - build
 
 jobs:
   include:
+    - stage: lint
+      script:
+        - make lint
+    - stage: test
+      os: linux
+      script:
+        - make test
     - stage: build
       os: linux
+      script:
+        - make init
+        - make build
+        - make image
+        - make docker:login
+        - make docker-push
+        - make rhel-image
+        - make docker-push-rhel
+    - stage: build
+      os: linux-ppc64le
+      script:
+        - make init
+        - make build
+        - make image
+        - make docker:login
+        - make docker-push
+    - stage: build
+      os: linux-s390
       script:
         - make init
         - make build
