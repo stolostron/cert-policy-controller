@@ -10,7 +10,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
 )
 
@@ -24,14 +24,14 @@ func IfMatch(name string, included, excluded []string) bool {
 // MatchNames matches names
 func MatchNames(all, included, excluded []string) []string {
 
-	glog.V(6).Infof("MatchNames all = %v, included = %v, excluded = %v", all, included, excluded)
+	klog.V(6).Infof("MatchNames all = %v, included = %v, excluded = %v", all, included, excluded)
 	//list of included
 	includedNames := []string{}
 	for _, value := range included {
 		found := FindPattern(value, all)
 		includedNames = append(includedNames, found...)
 	}
-	glog.V(6).Infof("MatchNames all = %v includedNames = %v", all, includedNames)
+	klog.V(6).Infof("MatchNames all = %v includedNames = %v", all, includedNames)
 	//then get the list of excluded
 	excludedNames := []string{}
 
@@ -39,11 +39,11 @@ func MatchNames(all, included, excluded []string) []string {
 		found := FindPattern(value, all)
 		excludedNames = append(excludedNames, found...)
 	}
-	glog.V(6).Infof("MatchNames all = %v excludedNames = %v", all, excludedNames)
+	klog.V(6).Infof("MatchNames all = %v excludedNames = %v", all, excludedNames)
 
 	//then get the list of deduplicated
 	finalList := DeduplicateItems(includedNames, excludedNames)
-	glog.V(6).Infof("MatchNames all = %v return  = %v", all, finalList)
+	klog.V(6).Infof("MatchNames all = %v return  = %v", all, finalList)
 	return finalList
 }
 

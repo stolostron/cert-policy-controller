@@ -11,9 +11,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/golang/glog"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller"
+	"k8s.io/klog"
 
 	common "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	policyStatusHandler "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/grcpolicy"
@@ -40,52 +40,53 @@ func main() {
 	flag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
 
 	flag.Set("logtostderr", "true")
-	flag.Set("alsologtostderr", "true")
 
 	flag.Parse()
-	defer glog.Flush()
+
+	defer klog.Flush()
+	klog.InitFlags(nil)
 
 	// Get a config to talk to the apiserver
-	glog.Info("setting up client for manager")
+	klog.Info("setting up client for manager")
 	cfg, err := config.GetConfig()
 	if err != nil {
-		glog.Error(err, "unable to set up client config")
+		klog.Error(err, "unable to set up client config")
 		os.Exit(1)
 	}
 
 	// Create a new Cmd to provide shared dependencies and start components
-	glog.Info("setting up manager")
+	klog.Info("setting up manager")
 	mgr, err := manager.New(cfg, manager.Options{})
 	if err != nil {
-		glog.Error(err, "unable to set up overall controller manager")
+		klog.Error(err, "unable to set up overall controller manager")
 		os.Exit(1)
 	}
 
-	glog.Info("Registering Components.")
+	klog.Info("Registering Components.")
 
 	// Setup Scheme for all resources
-	glog.Info("setting up scheme")
+	klog.Info("setting up scheme")
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		glog.Error(err, "unable add APIs to scheme")
+		klog.Error(err, "unable add APIs to scheme")
 		os.Exit(1)
 	}
 
 	// Setup all Controllers
-	glog.Info("Setting up controller")
+	klog.Info("Setting up controller")
 	if err := controller.AddToManager(mgr); err != nil {
-		glog.Error(err, " unable to register controllers to the manager")
+		klog.Error(err, " unable to register controllers to the manager")
 		os.Exit(1)
 	}
 
-	glog.Info("setting up webhooks")
+	klog.Info("setting up webhooks")
 	if err := webhook.AddToManager(mgr); err != nil {
-		glog.Error(err, "unable to register webhooks to the manager")
+		klog.Error(err, "unable to register webhooks to the manager")
 		os.Exit(1)
 	}
 
 	duration, err := time.ParseDuration(defaultDuration)
 	if err != nil {
-		glog.Errorf("Error parsing command line argument --default-duration, %s", err.Error())
+		klog.Errorf("Error parsing command line argument --default-duration, %s", err.Error())
 		os.Exit(1)
 	}
 
@@ -97,9 +98,9 @@ func main() {
 	go policyStatusHandler.PeriodicallyExecGRCPolicies(frequency)
 
 	// Start the Cmd
-	glog.Info("Starting the Cmd.")
+	klog.Info("Starting the Cmd.")
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		glog.Error(err, "unable to run the manager")
+		klog.Error(err, "unable to run the manager")
 		os.Exit(1)
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 // DecodeCertificateBytes Decodes certificate bytes, accepts certificate chains too
@@ -28,7 +28,7 @@ func DecodeCertificateBytes(certBytes []byte) []*x509.Certificate {
 		// parse the tls certificate
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			glog.Infof("Error decoding certificate bytes, error: %s", err.Error())
+			klog.Infof("Error decoding certificate bytes, error: %s", err.Error())
 		}
 		certs = append(certs, cert)
 	}

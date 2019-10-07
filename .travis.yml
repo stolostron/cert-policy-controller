@@ -62,3 +62,4 @@ jobs:
         - make image
         - make docker:login
         - make docker-push
+

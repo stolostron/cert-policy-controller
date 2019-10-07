@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	//logf "sigs.k8s.io/controller-runtime/pkg/runtime/log" // yet another logger...
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -196,7 +196,7 @@ func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Res
 		// Our finalizer has finished, so the reconciler can do nothing.
 		return reconcile.Result{}, nil
 	}
-	glog.V(3).Infof("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
+	klog.V(3).Infof("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
 
 	return reconcile.Result{}, nil
 }
@@ -231,10 +231,10 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 
 		// Loops through all of the cert policies
 		for namespace, policy := range availablePolicies.PolicyMap {
-			glog.V(4).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
+			klog.V(4).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
 			update, nonCompliant, list := certExpiration(policy, namespace)
 			if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1alpha1.Enforce)) {
-				glog.V(5).Infof("Enforce is set, but ignored :-)")
+				klog.V(5).Infof("Enforce is set, but ignored :-)")
 			}
 			message := fmt.Sprintf("Found %d non compliant certificates in the namespace %s.\n", nonCompliant, namespace)
 			if nonCompliant > 0 {
@@ -243,19 +243,19 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 					message = fmt.Sprintf("%s%s expires in %s\n", message, cert, certDetails.Expiration)
 				}
 			}
-			glog.V(4).Info(message)
+			klog.V(4).Info(message)
 
 			if addViolationCount(policy, message, nonCompliant, namespace, list) || update {
 				plcToUpdateMap[policy.Name] = policy
 			}
 			checkComplianceBasedOnDetails(policy)
-			glog.Infof("Finished processing policy %s", policy.Name)
+			klog.Infof("Finished processing policy %s", policy.Name)
 		}
 
 		//update status of all policies that changed:
 		faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
 		if err != nil {
-			glog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+			klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
 		}
 
 		//prometheus quantiles for processing delay in each cycle
@@ -279,7 +279,7 @@ func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) 
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	secretList, _ := common.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secret := range secretList.Items {
-		glog.V(6).Infof("Checking secret %s", secret.Name)
+		klog.V(6).Infof("Checking secret %s", secret.Name)
 		if notCompliant, reason, expiration := checkExpiration(&secret, policy.Spec.MinDuration); notCompliant {
 			certName := secret.Name
 			// Gets the certificate's name if it exists
@@ -288,9 +288,9 @@ func certExpiration(policy *policyv1alpha1.CertificatePolicy, namespace string) 
 			} else if secret.Labels[certManagerNameLabel] != "" {
 				certName = secret.Labels[certManagerNameLabel]
 			}
-			glog.V(4).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
+			klog.V(4).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
 			msg := fmt.Sprintf("Certificate %s [secret name: %s] expires in %s", certName, secret.ObjectMeta.Name, expiration)
-			glog.V(4).Info(msg)
+			klog.V(4).Info(msg)
 			nonCompliantCertificates[certName] = policyv1alpha1.Cert{Secret: secret.Name, Expiration: expiration}
 			if policy.Status.ComplianceState != policyv1alpha1.NonCompliant {
 				update = true
@@ -307,14 +307,14 @@ func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bo
 	if secret.Labels != nil && secret.Labels[keyName] != "" {
 		key = secret.Labels[keyName]
 	}
-	glog.V(5).Infof("Checking secret %s with certificate key %s", secret.Name, key)
+	klog.V(5).Infof("Checking secret %s with certificate key %s", secret.Name, key)
 	// Get the certificate bytes
 	certBytes, _ := secret.Data[key]
 
 	// Get the x509 Certificates
 	certs := util.DecodeCertificateBytes(certBytes)
 	if len(certs) < 1 {
-		glog.V(6).Infof("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
+		klog.V(6).Infof("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
 		return false, "No certificates", ""
 	}
 	x509Cert := certs[0] // Certificate chains always begin with the end user certificate as a standard format
@@ -371,7 +371,7 @@ func addViolationCount(plc *policyv1alpha1.CertificatePolicy, message string, co
 		NonCompliantCertificatesList: certificates,
 		Message:                      msg,
 	}
-	glog.V(4).Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
+	klog.V(4).Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
 	return changed
 }
 
@@ -387,7 +387,7 @@ func checkComplianceBasedOnDetails(plc *policyv1alpha1.CertificatePolicy) {
 	}
 	for namespace, details := range plc.Status.CompliancyDetails {
 		if details.NonCompliantCertificates > 0 {
-			glog.V(4).Infof("The number of violations in policy %s in namespace %s does not equal zero, therefore it is non compliant", plc.Name, namespace)
+			klog.V(4).Infof("The number of violations in policy %s in namespace %s does not equal zero, therefore it is non compliant", plc.Name, namespace)
 			plc.Status.ComplianceState = policyv1alpha1.NonCompliant
 		}
 	}
@@ -466,7 +466,7 @@ func handleAddingPolicy(plc *policyv1alpha1.CertificatePolicy) error {
 	allNamespaces, err := common.GetAllNamespaces()
 	if err != nil {
 
-		glog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, namespace: all, according to policy: %v, additional-info: %v\n", plc.Name, err)
+		klog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, namespace: all, according to policy: %v, additional-info: %v\n", plc.Name, err)
 
 		return err
 	}
@@ -488,7 +488,7 @@ func handleAddingPolicy(plc *policyv1alpha1.CertificatePolicy) error {
 //=================================================================
 //deleteExternalDependency in case the CRD was related to non-k8s resource
 func (r *ReconcileGRCPolicy) deleteExternalDependency(instance *policyv1alpha1.CertificatePolicy) error {
-	glog.V(0).Infof("reason: CRD deletion, subject: policy/%v, namespace: %v, according to policy: none, additional-info: none\n", instance.Name, instance.Namespace)
+	klog.V(0).Infof("reason: CRD deletion, subject: policy/%v, namespace: %v, according to policy: none, additional-info: none\n", instance.Name, instance.Namespace)
 	// Ensure that delete implementation is idempotent and safe to invoke
 	// multiple types for same object.
 	return nil
@@ -542,10 +542,10 @@ func createParentPolicyEvent(instance *policyv1alpha1.CertificatePolicy) {
 
 	parentPlc := createParentPolicy(instance)
 	if instance.Status.ComplianceState == policyv1alpha1.NonCompliant {
-		glog.V(4).Info("Update parent policy, non-compliant policy")
+		klog.V(4).Info("Update parent policy, non-compliant policy")
 		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
 	} else {
-		glog.V(4).Info("Update parent policy, compliant policy")
+		klog.V(4).Info("Update parent policy, compliant policy")
 		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
 	}
 }
