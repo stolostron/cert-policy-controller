@@ -29,9 +29,14 @@ import (
 )
 
 func main() {
+	klog.InitFlags(nil)
+	defer klog.Flush()
+
 	var clusterName, namespace, eventOnParent, defaultDuration string
-	var frequency uint
+	var v, frequency uint
 	var restartOrphanPods bool
+
+	flag.UintVar(&v, "verbosity", 0, "What level of logging to display.")
 	flag.StringVar(&clusterName, "cluster-name", "mcm-managed-cluster", "Name of the cluster")
 	flag.BoolVar(&restartOrphanPods, "restart-orphan-pods", false, "Pods that are not part of a controller")
 	flag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
@@ -42,9 +47,6 @@ func main() {
 	flag.Set("logtostderr", "true")
 
 	flag.Parse()
-
-	defer klog.Flush()
-	klog.InitFlags(nil)
 
 	// Get a config to talk to the apiserver
 	klog.Info("setting up client for manager")
