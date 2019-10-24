@@ -10,7 +10,7 @@ GIT_REMOTE_URL := $(shell git config --get remote.origin.url)
 
 # Project settings
 APP_NAME ?= icp-cert-policy-controller
-VERSION ?= 3.2.2
+VERSION ?= 3.3.0
 
 # Image settings
 DOCKER_REGISTRY ?= hyc-cloud-private-scratch-docker-local.artifactory.swg-devops.com
