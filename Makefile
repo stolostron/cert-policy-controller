@@ -101,6 +101,8 @@ ifneq ($(RETAG),)
 	docker tag $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/$(DOCKER_IMAGE):$(DOCKER_BUILD_TAG) $(RELEASE)
 	@make DOCKER_URI=$(RELEASE) docker:push
 	@echo "Retagged image as $(RELEASE) and pushed to $(DOCKER_REGISTRY)"
+else
+	@make VASCAN_DOCKER_URI=$(DOCKER_URI) vascan:image
 endif
 
 docker-push-rhel:
