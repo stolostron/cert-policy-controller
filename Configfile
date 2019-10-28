@@ -16,8 +16,6 @@ VERSION ?= 3.3.0
 DOCKER_REGISTRY ?= hyc-cloud-private-scratch-docker-local.artifactory.swg-devops.com
 DOCKER_NAMESPACE ?= crystal
 DOCKER_IMAGE ?= $(APP_NAME)-$(ARCH)
-DOCKER_BUILD_TAG ?= $(VERSION)-$(GIT_COMMIT)
-DOCKER_BUILD_TAG_RHEL ?= $(DOCKER_BUILD_TAG)-rhel
 DOCKER_FILE := Dockerfile
 DOCKER_BUILD_DIR := $(TRAVIS_BUILD_DIR)
 
