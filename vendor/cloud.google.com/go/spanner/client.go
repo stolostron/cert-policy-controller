@@ -19,14 +19,13 @@ package spanner
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/internal/trace"
-	"cloud.google.com/go/internal/version"
 	vkit "cloud.google.com/go/spanner/apiv1"
-	"cloud.google.com/go/spanner/internal/backoff"
 	"google.golang.org/api/option"
 	sppb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/grpc"
@@ -40,10 +39,6 @@ const (
 	// resourcePrefixHeader is the name of the metadata header used to indicate
 	// the resource being operated on.
 	resourcePrefixHeader = "google-cloud-resource-prefix"
-
-	// xGoogHeaderKey is the name of the metadata header used to indicate client
-	// information.
-	xGoogHeaderKey = "x-goog-api-client"
 )
 
 const (
@@ -56,7 +51,6 @@ const (
 
 var (
 	validDBPattern = regexp.MustCompile("^projects/[^/]+/instances/[^/]+/databases/[^/]+$")
-	xGoogHeaderVal = fmt.Sprintf("gl-go/%s gccl/%s grpc/%s", version.Go(), version.Repo, grpc.Version)
 )
 
 func validDatabaseName(db string) error {
@@ -122,24 +116,46 @@ func NewClient(ctx context.Context, database string, opts ...option.ClientOption
 // NewClientWithConfig creates a client to a database. A valid database name has
 // the form projects/PROJECT_ID/instances/INSTANCE_ID/databases/DATABASE_ID.
 func NewClientWithConfig(ctx context.Context, database string, config ClientConfig, opts ...option.ClientOption) (c *Client, err error) {
-	ctx = trace.StartSpan(ctx, "cloud.google.com/go/spanner.NewClient")
-	defer func() { trace.EndSpan(ctx, err) }()
-
-	// Validate database path.
-	if err := validDatabaseName(database); err != nil {
-		return nil, err
-	}
 	c = &Client{
 		database: database,
-		md: metadata.Pairs(
-			resourcePrefixHeader, database,
-			xGoogHeaderKey, xGoogHeaderVal),
+		md:       metadata.Pairs(resourcePrefixHeader, database),
 	}
 
 	// Make a copy of labels.
 	c.sessionLabels = make(map[string]string)
 	for k, v := range config.SessionLabels {
 		c.sessionLabels[k] = v
+	}
+
+	// Prepare gRPC channels.
+	if config.NumChannels == 0 {
+		config.NumChannels = numChannels
+	}
+
+	// Default configs for session pool.
+	if config.MaxOpened == 0 {
+		config.MaxOpened = uint64(config.NumChannels * 100)
+	}
+	if config.MaxBurst == 0 {
+		config.MaxBurst = 10
+	}
+
+	// Validate database path.
+	if err := validDatabaseName(database); err != nil {
+		return nil, err
+	}
+
+	ctx = trace.StartSpan(ctx, "cloud.google.com/go/spanner.NewClient")
+	defer func() { trace.EndSpan(ctx, err) }()
+
+	// Append emulator options if SPANNER_EMULATOR_HOST has been set.
+	if emulatorAddr := os.Getenv("SPANNER_EMULATOR_HOST"); emulatorAddr != "" {
+		emulatorOpts := []option.ClientOption{
+			option.WithEndpoint(emulatorAddr),
+			option.WithGRPCDialOption(grpc.WithInsecure()),
+			option.WithoutAuthentication(),
+		}
+		opts = append(opts, emulatorOpts...)
 	}
 
 	// gRPC options.
@@ -154,19 +170,6 @@ func NewClientWithConfig(ctx context.Context, database string, config ClientConf
 		),
 	}
 	allOpts = append(allOpts, opts...)
-
-	// Prepare gRPC channels.
-	if config.NumChannels == 0 {
-		config.NumChannels = numChannels
-	}
-
-	// Default configs for session pool.
-	if config.MaxOpened == 0 {
-		config.MaxOpened = uint64(config.NumChannels * 100)
-	}
-	if config.MaxBurst == 0 {
-		config.MaxBurst = 10
-	}
 
 	// TODO(deklerk): This should be replaced with a balancer with
 	// config.NumChannels connections, instead of config.NumChannels
@@ -404,43 +407,6 @@ func (c *Client) ReadWriteTransaction(ctx context.Context, f func(context.Contex
 		sh.recycle()
 	}
 	return ts, err
-}
-
-func runWithRetryOnAborted(ctx context.Context, f func(context.Context) error) error {
-	var funcErr error
-	retryCount := 0
-	for {
-		select {
-		case <-ctx.Done():
-			// Do context check here so that even f() failed to do so (for
-			// example, gRPC implementation bug), the loop can still have a
-			// chance to exit as expected.
-			return errContextCanceled(ctx, funcErr)
-		default:
-		}
-		funcErr = f(ctx)
-		if funcErr == nil {
-			return nil
-		}
-		// Only retry on ABORTED.
-		if isAbortErr(funcErr) {
-			// Aborted, do exponential backoff and continue.
-			b, ok := extractRetryDelay(funcErr)
-			if !ok {
-				b = backoff.DefaultBackoff.Delay(retryCount)
-			}
-			trace.TracePrintf(ctx, nil, "Backing off after ABORTED for %s, then retrying", b)
-			select {
-			case <-ctx.Done():
-				return errContextCanceled(ctx, funcErr)
-			case <-time.After(b):
-			}
-			retryCount++
-			continue
-		}
-		// Error isn't ABORTED / no error, return immediately.
-		return funcErr
-	}
 }
 
 // applyOption controls the behavior of Client.Apply.

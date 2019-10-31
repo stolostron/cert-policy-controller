@@ -52,6 +52,8 @@ func defaultFirestoreAdminClientOptions() []option.ClientOption {
 	return []option.ClientOption{
 		option.WithEndpoint("firestore.googleapis.com:443"),
 		option.WithScopes(DefaultAuthScopes()...),
+		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
 }
 
@@ -61,6 +63,7 @@ func defaultFirestoreAdminCallOptions() *FirestoreAdminCallOptions {
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
+					codes.Internal,
 					codes.Unavailable,
 				}, gax.Backoff{
 					Initial:    100 * time.Millisecond,
@@ -115,7 +118,7 @@ func NewFirestoreAdminClient(ctx context.Context, opts ...option.ClientOption) (
 
 		firestoreAdminClient: adminpb.NewFirestoreAdminClient(conn),
 	}
-	c.SetGoogleClientInfo()
+	c.setGoogleClientInfo()
 	return c, nil
 }
 
@@ -130,10 +133,10 @@ func (c *FirestoreAdminClient) Close() error {
 	return c.conn.Close()
 }
 
-// SetGoogleClientInfo sets the name and version of the application in
+// setGoogleClientInfo sets the name and version of the application in
 // the `x-goog-api-client` header passed on each request. Intended for
 // use by Google-written clients.
-func (c *FirestoreAdminClient) SetGoogleClientInfo(keyval ...string) {
+func (c *FirestoreAdminClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
 	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
