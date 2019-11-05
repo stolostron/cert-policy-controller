@@ -43,8 +43,6 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 		certs := ""
 		for namespace, details := range plc.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
-
-				result = fmt.Sprintf("%s; Non-compliant certificatepolicies (expires in less than %s) in %s[%d]:", result, minDuration.String(), namespace, details.NonCompliantCertificates)
 				for _, certDetails := range details.NonCompliantCertificatesList {
 					if len(certs) > 0 {
 						certs = fmt.Sprintf("%s, %s:%s", certs, namespace, certDetails.Secret)
