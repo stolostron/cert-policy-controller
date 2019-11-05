@@ -34,7 +34,7 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 
 	// Message format: NonComplliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
 	count := 0
-	if result == policyv1alpha1.NonCompliant {
+	if plc.Status.ComplianceState == policyv1alpha1.NonCompliant {
 		minDuration := defaultDuration
 		if plc.Spec.MinDuration != nil {
 			minDuration = plc.Spec.MinDuration.Duration
