@@ -32,7 +32,7 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 		return result
 	}
 
-	// Message format: NonComplliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
+	// Message format: NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
 	count := 0
 	if plc.Status.ComplianceState == policyv1alpha1.NonCompliant {
 		minDuration := defaultDuration
@@ -45,7 +45,7 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 			if details.NonCompliantCertificates > 0 {
 
 				result = fmt.Sprintf("%s; Non-compliant certificatepolicies (expires in less than %s) in %s[%d]:", result, minDuration.String(), namespace, details.NonCompliantCertificates)
-				for cert, certDetails := range details.NonCompliantCertificatesList {
+				for _, certDetails := range details.NonCompliantCertificatesList {
 					if len(certs) > 0 {
 						certs = fmt.Sprintf("%s, %s:%s", certs, namespace, certDetails.Secret)
 					} else {
