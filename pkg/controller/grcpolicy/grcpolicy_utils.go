@@ -39,7 +39,7 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 		if plc.Spec.MinDuration != nil {
 			minDuration = plc.Spec.MinDuration.Duration
 		}
-		message := fmt.Sprintf("certificates expire in less than %s: ", minDuration.String())
+		message := fmt.Sprintf("certificates expire in less than %s", minDuration.String())
 		certs := ""
 		for namespace, details := range plc.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
