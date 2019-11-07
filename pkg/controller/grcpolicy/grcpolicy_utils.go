@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/klog"
 	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 )
 
 //=================================================================
@@ -32,17 +32,28 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 		return result
 	}
 
-	for namespace, details := range plc.Status.CompliancyDetails {
-		if details.NonCompliantCertificates > 0 {
-			minDuration := defaultDuration
-			if plc.Spec.MinDuration != nil {
-				minDuration = plc.Spec.MinDuration.Duration
-			}
-			result = fmt.Sprintf("%s; Non-compliant certificatepolicies (expires in less than %s) in %s[%d]:", result, minDuration.String(), namespace, details.NonCompliantCertificates)
-			for cert, certDetails := range details.NonCompliantCertificatesList {
-				result = fmt.Sprintf("%s [%s, %s]", result, cert, certDetails.Secret)
+	// Message format: NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
+	count := 0
+	if plc.Status.ComplianceState == policyv1alpha1.NonCompliant {
+		minDuration := defaultDuration
+		if plc.Spec.MinDuration != nil {
+			minDuration = plc.Spec.MinDuration.Duration
+		}
+		message := fmt.Sprintf("certificates expire in less than %s", minDuration.String())
+		certs := ""
+		for namespace, details := range plc.Status.CompliancyDetails {
+			if details.NonCompliantCertificates > 0 {
+				for _, certDetails := range details.NonCompliantCertificatesList {
+					if len(certs) > 0 {
+						certs = fmt.Sprintf("%s, %s:%s", certs, namespace, certDetails.Secret)
+					} else {
+						certs = fmt.Sprintf("%s:%s", namespace, certDetails.Secret)
+					}
+					count++
+				}
 			}
 		}
+		result = fmt.Sprintf("%s; %d %s: %s", result, count, message, certs)
 	}
 	return result
 }
