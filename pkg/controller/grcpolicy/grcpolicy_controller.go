@@ -92,7 +92,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileGRCPolicy{
 		Client:   mgr.GetClient(),
 		scheme:   mgr.GetScheme(),
-		recorder: mgr.GetRecorder("Certpolicy-controller"),
+		recorder: mgr.GetEventRecorderFor("Certpolicy-controller"),
 	}
 }
 

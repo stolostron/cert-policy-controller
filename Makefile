@@ -37,18 +37,17 @@ lint:
 	@echo "Linting disabled."
 
 # Run tests
-test: generate fmt vet manifests
+test: generate fmt vet
 	curl -sL https://go.kubebuilder.io/dl/2.0.0-alpha.1/${GOOS}/${GOARCH} | tar -xz -C /tmp/
 
 	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
 	go test ./pkg/... ./cmd/... -v -coverprofile cover.out
 
 dependencies:
-	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-	export PATH=$(PATH):/$(GOPATH)/bin
-	dep ensure
+	go mod tidy
+	go mod download	
 
-build: dependencies
+build:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
 
 image:
@@ -98,7 +97,7 @@ ifneq ($(RETAG),)
 else
 	@make DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT) docker:tag
 	@make DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT) docker:push
-	@make VASCAN_DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT) vascan:image
+	#@make VASCAN_DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT) vascan:image
 endif
 
 docker-push-rhel:

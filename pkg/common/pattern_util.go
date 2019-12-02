@@ -10,8 +10,8 @@ import (
 	"math"
 	"strings"
 
-	"k8s.io/klog"
 	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
+	"k8s.io/klog"
 )
 
 // IfMatch check matches

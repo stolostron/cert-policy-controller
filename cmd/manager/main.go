@@ -20,6 +20,7 @@ import (
 	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/webhook"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -47,48 +48,64 @@ func main() {
 
 	flag.Parse()
 
-	// Get a config to talk to the apiserver
-	klog.Info("setting up client for manager")
-	cfg, err := config.GetConfig()
-	if err != nil {
-		klog.Error(err, "unable to set up client config")
-		os.Exit(1)
-	}
+	settingUp := true
 
-	// Create a new Cmd to provide shared dependencies and start components
-	klog.Info("setting up manager")
-	mgr, err := manager.New(cfg, manager.Options{})
-	if err != nil {
-		klog.Error(err, "unable to set up overall controller manager")
-		os.Exit(1)
-	}
+	var mgr manager.Manager
+	var cfg *rest.Config
+	var duration time.Duration
+	var err error
+	retries := 0
+	for settingUp {
+		if retries > 50 {
+			os.Exit(1)
+		}
+		retries = retries + 1
+		// Get a config to talk to the apiserver
+		klog.Info("setting up client for manager")
+		cfg, err = config.GetConfig()
+		if err != nil {
+			klog.Error(err, " unable to set up client config")
+			continue
+		}
 
-	klog.Info("Registering Components.")
+		// Create a new Cmd to provide shared dependencies and start components
+		klog.Info("setting up manager")
+		mgr, err = manager.New(cfg, manager.Options{})
+		if err != nil {
+			klog.Error(err, " unable to set up overall controller manager")
+			continue
+		}
 
-	// Setup Scheme for all resources
-	klog.Info("setting up scheme")
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		klog.Error(err, "unable add APIs to scheme")
-		os.Exit(1)
-	}
+		klog.Info("Registering Components.")
 
-	// Setup all Controllers
-	klog.Info("Setting up controller")
-	if err := controller.AddToManager(mgr); err != nil {
-		klog.Error(err, " unable to register controllers to the manager")
-		os.Exit(1)
-	}
+		// Setup Scheme for all resources
+		klog.Info("setting up scheme")
+		if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+			klog.Error(err, "unable add APIs to scheme")
+			continue
+		}
 
-	klog.Info("setting up webhooks")
-	if err := webhook.AddToManager(mgr); err != nil {
-		klog.Error(err, "unable to register webhooks to the manager")
-		os.Exit(1)
-	}
+		// Setup all Controllers
+		klog.Info("Setting up controller")
+		if err := controller.AddToManager(mgr); err != nil {
+			klog.Error(err, " unable to register controllers to the manager")
+			continue
+		}
 
-	duration, err := time.ParseDuration(defaultDuration)
-	if err != nil {
-		klog.Errorf("Error parsing command line argument --default-duration, %s", err.Error())
-		os.Exit(1)
+		klog.Info("setting up webhooks")
+		if err := webhook.AddToManager(mgr); err != nil {
+			klog.Error(err, "unable to register webhooks to the manager")
+			continue
+		}
+
+		duration, err = time.ParseDuration(defaultDuration)
+		if err != nil {
+			klog.Errorf("Error parsing command line argument --default-duration, %s", err.Error())
+			continue
+		}
+
+		settingUp = false
+
 	}
 
 	// Initialize some variables
