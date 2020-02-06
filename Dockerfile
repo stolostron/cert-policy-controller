@@ -5,14 +5,13 @@ ARG VCS_URL
 ARG IMAGE_NAME
 ARG IMAGE_DESCRIPTION
 ARG SUMMARY
-ARG GOARCH
 
 RUN microdnf update && \
       microdnf install shadow-utils procps && \
       groupadd -r controller && adduser -rm -g controller -u 10000 controller && \
       microdnf clean all
 
-ADD cert-policy_$GOARCH /usr/bin/cert-policy-controller
+ADD cert-policy /usr/bin/cert-policy-controller
 
 RUN chmod a+x /usr/bin/cert-policy-controller
 
