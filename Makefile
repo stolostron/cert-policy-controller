@@ -6,38 +6,19 @@
 
 include Configfile
 
-# CICD BUILD HARNESS
-####################
-GITHUB_USER := $(shell echo $(GITHUB_USER) | sed 's/@/%40/g')
+-include $(shell curl -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
 
 .PHONY: default
-default:: init;
+default::
+	@echo "Build Harness Bootstrapped"
 
-.PHONY: init\:
-init::
-	@mkdir -p variables
-ifndef GITHUB_USER
-	$(info GITHUB_USER not defined)
-	exit -1
-endif
-	$(info Using GITHUB_USER=$(GITHUB_USER))
-ifndef GITHUB_TOKEN
-	$(info GITHUB_TOKEN not defined)
-	exit -1
-endif
-
--include $(shell curl -fso .build-harness -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" "https://raw.github.ibm.com/ICP-DevOps/build-harness/master/templates/Makefile.build-harness"; echo .build-harness)
-
-.PHONY: all lint test dependencies build image rhel-image manager run deploy install \
-fmt vet generate docker-push docker-push-rhel
+.PHONY: all test dependencies build-prod image rhel-image manager run deploy install \
+fmt vet generate
 
 all: test manager
 
-lint:
-	@echo "Linting disabled."
-
 # Run tests
-test: generate fmt vet
+unit-test: generate fmt vet
 	curl -sL https://go.kubebuilder.io/dl/2.0.0-alpha.1/${GOOS}/${GOARCH} | tar -xz -C /tmp/
 
 	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
@@ -47,17 +28,8 @@ dependencies:
 	go mod tidy
 	go mod download	
 
-build:
+build-prod:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy_$(GOARCH) ./cmd/manager
-
-image:
-	$(eval DOCKER_BUILD_OPTS := '--build-arg "VCS_REF=$(GIT_COMMIT)" \
-		--build-arg "VCS_URL=$(GIT_REMOTE_URL)" \
-		--build-arg "IMAGE_NAME=$(DOCKER_IMAGE)" \
-		--build-arg "IMAGE_DESCRIPTION=$(IMAGE_DESCRIPTION)" \
-		--build-arg "SUMMARY=$(SUMMARY)" \
-		--build-arg "GOARCH=$(GOARCH)"')
-	@make DOCKER_BUILD_OPTS=$(DOCKER_BUILD_OPTS) docker:build
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
@@ -88,24 +60,3 @@ vet:
 generate:
 	go generate ./pkg/... ./cmd/...
 
-# Push the docker image
-docker-push:
-ifneq ($(RETAG),)
-	@make docker:tag
-	@make docker:push
-	@echo "Retagged image as $(DOCKER_URI) and pushed to $(DOCKER_REGISTRY)"
-else
-	@make DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT) docker:tag
-	@make DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT) docker:push
-	#@make VASCAN_DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT) vascan:image
-endif
-
-docker-push-rhel:
-ifneq ($(RETAG),)
-	@make DOCKER_URI=$(DOCKER_URI)-rhel docker:tag
-	@make DOCKER_URI=$(DOCKER_URI)-rhel docker:push
-	@echo "Retagged image as $(DOCKER_URI)-rhel and pushed to $(DOCKER_REGISTRY)"
-else
-	@make DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT)-rhel docker:tag
-	@make DOCKER_URI=$(DOCKER_URI)-$(GIT_COMMIT)-rhel docker:push
-endif

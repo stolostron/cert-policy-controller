@@ -6,6 +6,8 @@ go_import_path: github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller
 go:
   - 1.13.2
 
+os: linux
+
 services:
   - docker
 
@@ -19,47 +21,48 @@ branches:
 matrix:
   fast_finish: true
 
-before_install:
-  - source travis-env.sh
+env:
+  global:
+    # Required
+    - OS=linux
+    - COMPONENT_TAG_EXTENSION="-${TRAVIS_COMMIT}"
+    # Component Specific
+    - COMPONENT_INIT_COMMAND=${TRAVIS_BUILD_DIR}/build/install-dependencies.sh
+    - COMPONENT_BUILD_COMMAND=${TRAVIS_BUILD_DIR}/build/build.sh
+    - COMPONENT_UNIT_TEST_COMMAND=${TRAVIS_BUILD_DIR}/build/run-unit-tests.sh
+    - COMPONENT_E2E_TEST_COMMAND=${TRAVIS_BUILD_DIR}/build/run-e2e-tests.sh
 
 stages:
-  - lint
-  - test
   - build
+  - unit-test
+  - test-e2e
+  - publish
+
+before_script:
+  - make init
 
 jobs:
   include:
-    - stage: lint
-      script:
-        - make lint
-    - stage: test
-      os: linux
-      script:
-        - make test
     - stage: build
-      os: linux
+      name: "Build the image and push"
       script:
-        - make init
-        - make build
-        - make image
-        - make docker:login
-        - make docker-push
-        - make rhel-image
-        - make docker-push-rhel
-    - stage: build
-      os: linux-ppc64le
+        - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then export COMPONENT_TAG_EXTENSION="-PR${TRAVIS_PULL_REQUEST}-${TRAVIS_COMMIT}"; fi;
+        - make component/build
+        - make component/push
+    - stage: unit-test
+      name: "Build and run unit tests"
       script:
-        - make init
-        - make build
-        - make image
-        - make docker:login
-        - make docker-push
-    - stage: build
-      os: linux-s390
+        - make component/test/unit
+    - stage: test-e2e
+      name: "Run e2e tests"
+      if: type = pull_request
       script:
-        - make init
-        - make build
-        - make image
-        - make docker:login
-        - make docker-push
+        - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then export COMPONENT_TAG_EXTENSION="-PR${TRAVIS_PULL_REQUEST}-${TRAVIS_COMMIT}"; fi;
+        - make component/pull
+        - make component/test/e2e
+    - stage: publish
+      name: "Publish the image to quay with an official version/sha tag and publish entry to integration pipeline stage"
+      # if: type = push AND branch IN ( master )
+      script:
+        - make pipeline-manifest/update PIPELINE_MANIFEST_COMPONENT_SHA256=${TRAVIS_COMMIT} PIPELINE_MANIFEST_COMPONENT_REPO=${TRAVIS_REPO_SLUG}
 

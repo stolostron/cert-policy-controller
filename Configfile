@@ -1,28 +1,29 @@
-# Travis build settings
+VCS_URL ?=$(shell git config --get remote.origin.url)
+IMAGE_NAME =cert-policy-controller
+IMAGE_DISPLAY_NAME =Certificate Policy Controller
 ARCH = $(shell uname -m)
 ifeq ($(ARCH), x86_64)
-    ARCH = amd64
+	IMAGE_NAME_ARCH =$(IMAGE_NAME)-amd64
+else
+	IMAGE_NAME_ARCH =$(IMAGE_NAME)-$(ARCH)
 endif
+GOARCH = $(shell go env GOARCH)
+GOOS = $(shell go env GOOS)
+IMAGE_MAINTAINER =gparvin@us.ibm.com
+IMAGE_VENDOR =IBM
+IMAGE_VERSION :=$(shell git rev-parse --short HEAD)
+IMAGE_DESCRIPTION =Certificate Policy Controller Container
+IMAGE_SUMMARY =$(IMAGE_DESCRIPTION)
+IMAGE_OPENSHIFT_TAGS =Certificate Policy Controller
 
-# Git vars
-GIT_COMMIT := $(shell git rev-parse --short HEAD)
-GIT_REMOTE_URL := $(shell git config --get remote.origin.url)
-
-# Project settings
-APP_NAME ?= icp-cert-policy-controller
-VERSION ?= 3.3.0
-
-# Image settings
-DOCKER_REGISTRY ?= hyc-cloud-private-scratch-docker-local.artifactory.swg-devops.com
-DOCKER_NAMESPACE ?= crystal
-DOCKER_IMAGE ?= $(APP_NAME)-$(ARCH)
-DOCKER_FILE := Dockerfile
-DOCKER_BUILD_DIR := $(TRAVIS_BUILD_DIR)
-
-# Go build settings
-GOARCH := $(ARCH)
-GOOS := linux
-
-# Metadata
-SUMMARY := Watches certificatepolicies to ensure compliance.
-IMAGE_DESCRIPTION := A controller that watches certificatepolicies within ICP to ensure they meet compliance standards.
+DOCKER_BUILD_OPTS=--build-arg "VCS_REF=$(SEMVERSION)" \
+	--build-arg "VCS_URL=$(VCS_URL)" \
+	--build-arg "IMAGE_NAME=$(IMAGE_NAME)" \
+	--build-arg "IMAGE_DISPLAY_NAME=$(IMAGE_DISPLAY_NAME)" \
+	--build-arg "IMAGE_NAME_ARCH=$(IMAGE_NAME_ARCH)" \
+	--build-arg "IMAGE_MAINTAINER=$(IMAGE_MAINTAINER)" \
+	--build-arg "IMAGE_VENDOR=$(IMAGE_VENDOR)" \
+	--build-arg "IMAGE_VERSION=$(IMAGE_VERSION)" \
+	--build-arg "IMAGE_DESCRIPTION=$(IMAGE_DESCRIPTION)" \
+	--build-arg "IMAGE_SUMMARY=$(IMAGE_SUMMARY)" \
+	--build-arg "IMAGE_OPENSHIFT_TAGS=$(IMAGE_OPENSHIFT_TAGS)"
