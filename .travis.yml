@@ -51,6 +51,8 @@ jobs:
           make init
           make component/build
           make component/push
+          make configscan/scan
+          make imagescan/status
     - stage: unit-test
       name: "Build and run unit tests"
       script:
