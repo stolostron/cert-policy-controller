@@ -13,7 +13,7 @@ addons:
   sonarcloud:
     organization: "open-cluster-management"
     token:
-      secure: "pIAub2t855Ji06TCRnxZdijQmnEhA8De4Jvoq6XH7xtUW/26Pn3nKg3yhA2dQp49dnfBlwQfwb0UOWZhY5FTAb/j4DpAXCpXoemXnKgxzknNfWLMr070MZQ/MomsSlArx13lXLHi3WkJv6oyCyyGwDYtRqDYYXK7ZHNuaSnqKLvSpoJ8nZYCmKigM5kSYepYIh+wg2P7Oz/6TjhK9Lv6rvCxzNhUAizGV+W5ddY01OTjwfut0zO6PvIJqPkpcWqUNTi8GKVY2/gjr8mPCf6ZuNc4laNV+r9rvhf9cUls1zpPpCvOCGVqIA1cYQ7Agq8fEf0k+CpaJeA3IbqJEv+REasPrK9VvOaY/pg55w2tU237RiK96BQnkvQFVkpozL7Bt0Q6nCk7bNxbMY8eYYHJ8ZoTHgIw1lXH4C+ADcaMeENG+zqhvBr/Mfk3M+ZFgCkKSA2LrSL9wDoYLmZL236rJxMBPAUCvjxAd+hUlHo1PXc1aoIR8hwWbGwq2T24Telvl3z6DOXFOLd2fzF5H50imGcSd7UugAJKFLqrVuCrE9nzVhPdZS1EBMxLMnBWG0LFEGUNSLasSaMI1oG6pZJALZBz+A251rSi+EBEP9DVv101a8JYzM99ynwnhpc6AYUw0p0q6YhuTZNkX1PxWvmMfXFdjASODbsnW2z04lcc5B0="
+      secure: "wMr8gaOM2vGUDOVzk5Oj6EbFd0CM+3dNX/RmpXZKjTUKD4vnt8A8CBlZzplnBl/pqAO1rOP3uofvxn3le7ZmbKebCr31jixeYgi6wfdsyimW3z1UOrN/bCp6G3eOH3KOX6fG2gepwnWFP2BpmVX8Tp2jKbPl3fiYRjsfpO2cYUQtemvNpwZtGaPuyn7fC3EjMnmNPruh+RokpZD3mRsvLpvQSbccmWchf/HfmqQdEOKgJdRHzO7r5i3C6gnHGTPXegQZ4U9cWH8L/ELfEvg6GAR1utZ/Dkia5Cxce+7EaDs4JLWieNMIZblJztAFqiefdvStq7tRTG/4bMlY5C6DMANR21m/QtFc8vVz93J+KYe76DHAQ6pqle2lgoPi2E9BE8gH1u2Wxm2yVG/gDQqRdmPLmLVCsTKhY8zFL9YMb15Kl5pD42NHvnLhxccimm4es23r4rOySSvw1eEYyy3tzkDZWklE2dQVoEjN+3xLTuzTvYEINejq3U4Y7OxrE8XF89ZaogiTU+6AkjIYA+Cm9RvOLcttkjlpRVEZVqcPObSVClr6C7YtFTq1aHkxTsgrAXkJqRSQmiOOmY/n/we5XnSdmc0F048B+WQW+WPOKbJzipF807JViE3dLXRmSVPHAl1oeFIsIqnOxeL/S2Mv7lptEPzOBzw8mA515uir8os="
 
 
 branches:
@@ -58,6 +58,7 @@ jobs:
         - |
           make
           make component/test/unit
+          make sonar/go
     - stage: test-e2e
       name: "Run e2e tests"
       if: type = pull_request
