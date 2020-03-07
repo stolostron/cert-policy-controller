@@ -1,7 +1,7 @@
 
 language: go
 go:
-  - 1.13.x
+  - 1.14.x
 
 os:
   - linux
@@ -58,7 +58,6 @@ jobs:
         - |
           make
           make component/test/unit
-          make sonar/go || echo "Sonar/Go processing failed: rc=$?"
     - stage: test-e2e
       name: "Run e2e tests"
       if: type = pull_request
