@@ -13,7 +13,7 @@ default::
 	@echo "Build Harness Bootstrapped"
 
 .PHONY: all test dependencies build-prod image rhel-image manager run deploy install \
-fmt vet generate
+fmt vet generate go-coverage
 
 all: test manager
 
@@ -60,3 +60,11 @@ vet:
 generate:
 	go generate ./pkg/... ./cmd/...
 
+go-coverage:
+	$(shell go test -coverprofile=coverage.out -json ./...\
+		$$(go list ./... | \
+			grep -v '/vendor/' | \
+			grep -v '/docs/' \
+		) > report.json)
+	gosec --quiet -fmt sonarqube -out gosec.json -no-fail ./...
+	sonar-scanner --debug || echo "Sonar scanner is not available"
