@@ -15,9 +15,8 @@ ADD cert-policy /usr/bin/cert-policy-controller
 
 RUN chmod a+x /usr/bin/cert-policy-controller
 
+#still keep licenses directory
 RUN mkdir /licenses
-
-COPY packages.yaml /licenses
 
 USER 10000
 
