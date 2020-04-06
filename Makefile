@@ -3,6 +3,7 @@
 #
 # (C) Copyright IBM Corporation 2018 All Rights Reserved
 # The source code for this program is not published or otherwise divested of its trade secrets, irrespective of what has been deposited with the U.S. Copyright Office.
+# Copyright (c) 2020 Red Hat, Inc.
 
 include Configfile
 
@@ -59,6 +60,9 @@ vet:
 # Generate code
 generate:
 	go generate ./pkg/... ./cmd/...
+
+copyright-check:
+	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
 
 go-coverage:
 	$(shell go test -coverprofile=coverage.out -json ./...\
