@@ -175,7 +175,7 @@ func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Res
 			}
 		}
 		instance.Status.CompliancyDetails = nil //reset CompliancyDetails
-		handleAddingPolicy(instance)
+		handleAddingPolicy(instance) /* #nosec G104 */
 	} else {
 		handleRemovingPolicy(instance)
 		// The object is being deleted
