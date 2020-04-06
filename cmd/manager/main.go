@@ -44,7 +44,7 @@ func main() {
 	flag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
 	flag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
 
-	flag.Set("logtostderr", "true")
+	flag.Set("logtostderr", "true") /* #nosec G104 */
 
 	flag.Parse()
 
@@ -111,7 +111,7 @@ func main() {
 	// Initialize some variables
 	generatedClient := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 	common.Initialize(generatedClient, cfg)
-	policyStatusHandler.Initialize(generatedClient, mgr, clusterName, namespace, eventOnParent, duration)
+	policyStatusHandler.Initialize(generatedClient, mgr, clusterName, namespace, eventOnParent, duration) /* #nosec G104 */
 	// PeriodicallyExecGRCPolicies is the go-routine that periodically checks the policies and does the needed work to make sure the desired state is achieved
 	go policyStatusHandler.PeriodicallyExecGRCPolicies(frequency)
 
