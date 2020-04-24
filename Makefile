@@ -3,10 +3,17 @@
 #
 # (C) Copyright IBM Corporation 2018 All Rights Reserved
 # The source code for this program is not published or otherwise divested of its trade secrets, irrespective of what has been deposited with the U.S. Copyright Office.
+# Copyright (c) 2020 Red Hat, Inc.
 
 include Configfile
 
--include $(shell curl -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
+USE_VENDORIZED_BUILD_HARNESS ?=
+
+ifndef USE_VENDORIZED_BUILD_HARNESS
+-include $(shell curl -s -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
+else
+-include vbh/.build-harness-bootstrap
+endif
 
 .PHONY: default
 default::
@@ -59,6 +66,9 @@ vet:
 # Generate code
 generate:
 	go generate ./pkg/... ./cmd/...
+
+copyright-check:
+	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
 
 go-coverage:
 	$(shell go test -coverprofile=coverage.out -json ./...\

@@ -2,3 +2,8 @@ build-harness-extensions/
 build-harness/
 .build-harness-bootstrap
 cert-policy
+
+# override build harness vendoring
+!vbh/.build-harness-bootstrap
+!vbh/build-harness
+!vbh/build-harness-extensions
