@@ -257,7 +257,8 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 	secretList, _ := common.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secret := range secretList.Items {
 		klog.V(6).Infof("Checking secret %s", secret.Name)
-		if notCompliant, reason, expiration := checkExpiration(&secret, policy.Spec.MinDuration); notCompliant {
+		notCompliant, reason, expiration := checkExpiration(&secret, policy.Spec.MinDuration)
+		if notCompliant {
 			certName := secret.Name
 			// Gets the certificate's name if it exists
 			if secret.Labels[certNameLabel] != "" {
