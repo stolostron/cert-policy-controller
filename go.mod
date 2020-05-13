@@ -1,4 +1,4 @@
-module github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller
+module github.com/open-cluster-management/cert-policy-controller
 
 go 1.13
 

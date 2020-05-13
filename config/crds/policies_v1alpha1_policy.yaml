@@ -4,9 +4,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: policies.policies.ibm.com
+  name: policies.policies.open-cluster-management.io
 spec:
-  group: policies.ibm.com
+  group: policies.open-cluster-management.io
   names:
     kind: Policy
     plural: policies
@@ -28,7 +28,7 @@ spec:
           type: object
       required:
       - metadata
-  version: v1alpha1
+  version: v1
 status:
   acceptedNames:
     kind: ""

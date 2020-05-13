@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"time"
 
-	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
-	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
+	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,7 +21,7 @@ import (
 
 //=================================================================
 // convertPolicyStatusToString to be able to pass the status as event
-func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultDuration time.Duration) (results string) {
+func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuration time.Duration) (results string) {
 	result := "ComplianceState is still undetermined"
 	if plc.Status.ComplianceState == "" {
 		return result
@@ -34,7 +34,7 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 
 	// Message format: NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
 	count := 0
-	if plc.Status.ComplianceState == policyv1alpha1.NonCompliant {
+	if plc.Status.ComplianceState == policyv1.NonCompliant {
 		minDuration := defaultDuration
 		if plc.Spec.MinDuration != nil {
 			minDuration = plc.Spec.MinDuration.Duration
@@ -60,14 +60,14 @@ func convertPolicyStatusToString(plc *policyv1alpha1.CertificatePolicy, defaultD
 
 func createGenericObjectEvent(name, namespace string) {
 
-	plc := &policyv1alpha1.Policy{
+	plc := &policyv1.Policy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Policy",
-			APIVersion: "policy.mcm.ibm.com/v1alpha1",
+			APIVersion: "policies.open-cluster-management.io/v1",
 		},
 	}
 	data, err := json.Marshal(plc)

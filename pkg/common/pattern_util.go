@@ -10,7 +10,7 @@ import (
 	"math"
 	"strings"
 
-	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 	"k8s.io/klog"
 )
 
@@ -138,7 +138,7 @@ func Round(num float64) int {
 }
 
 // ExtractNamespaceLabel to find out the cluster-namespace from the label
-func ExtractNamespaceLabel(instance *policyv1alpha1.CertificatePolicy) string {
+func ExtractNamespaceLabel(instance *policyv1.CertificatePolicy) string {
 	if instance.ObjectMeta.Labels == nil {
 		return ""
 	}

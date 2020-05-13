@@ -7,7 +7,7 @@
 package controller
 
 import (
-	grcpolicy "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/grcpolicy"
+	grcpolicy "github.com/open-cluster-management/cert-policy-controller/pkg/controller/grcpolicy"
 )
 
 func init() {

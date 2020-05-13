@@ -6,13 +6,13 @@
 
 // NOTE: Boilerplate only.  Ignore this file.
 
-// Package v1alpha1 contains API Schema definitions for the mcm v1alpha1 API group
+// Package v1 contains API Schema definitions for the policies v1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies
+// +k8s:conversion-gen=github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=policies.ibm.com
-package v1alpha1
+// +groupName=policies.open-cluster-management.io
+package v1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,7 +21,7 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "policies.ibm.com", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: "policies.open-cluster-management.io", Version: "v1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}

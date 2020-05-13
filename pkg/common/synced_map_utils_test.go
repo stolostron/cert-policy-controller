@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	policyv1alpha1 "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis/policies/v1alpha1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,14 +32,14 @@ import (
 
 var duration = &metav1.Duration{Duration: time.Hour * 24 * 120}
 
-var plc = &policyv1alpha1.CertificatePolicy{
+var plc = &policyv1.CertificatePolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "testPolicy",
 		Namespace: "default",
 	},
-	Spec: policyv1alpha1.CertificatePolicySpec{
-		RemediationAction: policyv1alpha1.Enforce,
-		NamespaceSelector: policyv1alpha1.Target{
+	Spec: policyv1.CertificatePolicySpec{
+		RemediationAction: policyv1.Enforce,
+		NamespaceSelector: policyv1.Target{
 			Include: []string{"default"},
 			Exclude: []string{"kube*"},
 		},
@@ -48,7 +48,7 @@ var plc = &policyv1alpha1.CertificatePolicy{
 }
 
 var sm = SyncedPolicyMap{
-	PolicyMap: make(map[string]*policyv1alpha1.CertificatePolicy),
+	PolicyMap: make(map[string]*policyv1.CertificatePolicy),
 }
 
 //TestGetObject testing get object in map
