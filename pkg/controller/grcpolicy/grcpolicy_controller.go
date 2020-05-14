@@ -207,7 +207,8 @@ func PeriodicallyExecGRCPolicies(freq uint) {
 		plcToUpdateMap = make(map[string]*policyv1alpha1.CertificatePolicy)
 
 		// Loops through all of the cert policies
-		for namespace, policy := range availablePolicies.PolicyMap {
+		for resource, policy := range availablePolicies.PolicyMap {
+			namespace := strings.Split(resource, "/")[0]
 			klog.V(4).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
 			update, nonCompliant, list := certExpiration(policy, namespace)
 			if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1alpha1.Enforce)) {
@@ -449,7 +450,8 @@ func handleAddingPolicy(plc *policyv1alpha1.CertificatePolicy) error {
 	}
 	//clean up that policy from the existing namepsaces, in case the modification is in the namespace selector
 	for _, ns := range allNamespaces {
-		if policy, found := availablePolicies.GetObject(ns); found {
+		key := fmt.Sprintf("%s/%s", ns, plc.Name)
+		if policy, found := availablePolicies.GetObject(key); found {
 			if policy.Name == plc.Name {
 				availablePolicies.RemoveObject(ns)
 			}
@@ -457,7 +459,8 @@ func handleAddingPolicy(plc *policyv1alpha1.CertificatePolicy) error {
 	}
 	selectedNamespaces := common.GetSelectedNamespaces(plc.Spec.NamespaceSelector.Include, plc.Spec.NamespaceSelector.Exclude, allNamespaces)
 	for _, ns := range selectedNamespaces {
-		availablePolicies.AddObject(ns, plc)
+		key := fmt.Sprintf("%s/%s", ns, plc.Name)
+		availablePolicies.AddObject(key, plc)
 	}
 	return err
 }
