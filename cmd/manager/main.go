@@ -11,13 +11,13 @@ import (
 	"os"
 	"time"
 
-	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/apis"
-	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller"
+	"github.com/open-cluster-management/cert-policy-controller/pkg/apis"
+	"github.com/open-cluster-management/cert-policy-controller/pkg/controller"
 	"k8s.io/klog"
 
-	common "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/common"
-	policyStatusHandler "github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/controller/grcpolicy"
-	"github.ibm.com/IBMPrivateCloud/icp-cert-policy-controller/pkg/webhook"
+	common "github.com/open-cluster-management/cert-policy-controller/pkg/common"
+	policyStatusHandler "github.com/open-cluster-management/cert-policy-controller/pkg/controller/grcpolicy"
+	"github.com/open-cluster-management/cert-policy-controller/pkg/webhook"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"

@@ -4,9 +4,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: certificatepolicies.policies.ibm.com
+  name: certificatepolicies.policies.open-cluster-management.io
 spec:
-  group: policies.ibm.com
+  group: policies.open-cluster-management.io
   names:
     kind: CertificatePolicy
     plural: certificatepolicies
@@ -63,7 +63,7 @@ spec:
             compliant:
               type: string
           type: object
-  version: v1alpha1
+  version: v1
 status:
   acceptedNames:
     kind: ""

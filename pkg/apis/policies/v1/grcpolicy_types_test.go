@@ -4,7 +4,7 @@
 // Use, duplication or disclosure restricted by GSA ADP Schedule
 // Contract with IBM Corp.
 
-package v1alpha1
+package v1
 
 import (
 	"testing"
