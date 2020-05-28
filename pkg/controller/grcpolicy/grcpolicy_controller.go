@@ -545,7 +545,7 @@ func createParentPolicy(instance *policyv1.CertificatePolicy) policyv1.Policy {
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Policy",
-			APIVersion: " policies.open-cluster-management.io/v1",
+			APIVersion: "policies.open-cluster-management.io/v1",
 		},
 	}
 	return plc
