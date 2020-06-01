@@ -1,6 +1,6 @@
 module github.com/open-cluster-management/cert-policy-controller
 
-go 1.13
+go 1.14
 
 require (
 	github.com/onsi/gomega v1.8.1
@@ -12,7 +12,6 @@ require (
 	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
-	k8s.io/kubernetes v1.13.0
 	sigs.k8s.io/controller-runtime v0.5.2
 )
 
