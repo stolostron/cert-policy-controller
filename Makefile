@@ -5,8 +5,6 @@
 # The source code for this program is not published or otherwise divested of its trade secrets, irrespective of what has been deposited with the U.S. Copyright Office.
 # Copyright (c) 2020 Red Hat, Inc.
 
-include Configfile
-
 USE_VENDORIZED_BUILD_HARNESS ?=
 
 ifndef USE_VENDORIZED_BUILD_HARNESS
@@ -23,13 +21,6 @@ default::
 fmt vet generate go-coverage
 
 all: test manager
-
-# Run tests
-unit-test: generate fmt vet
-	curl -sL https://go.kubebuilder.io/dl/2.0.0-alpha.1/${GOOS}/${GOARCH} | tar -xz -C /tmp/
-
-	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
-	go test ./pkg/... ./cmd/... -v -coverprofile cover.out
 
 dependencies:
 	go mod tidy
@@ -70,11 +61,3 @@ generate:
 copyright-check:
 	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
 
-go-coverage:
-	$(shell go test -coverprofile=coverage.out -json ./...\
-		$$(go list ./... | \
-			grep -v '/vendor/' | \
-			grep -v '/docs/' \
-		) > report.json)
-	gosec -fmt sonarqube -out gosec.json -no-fail ./...
-	sonar-scanner --debug || echo "Sonar scanner is not available"
