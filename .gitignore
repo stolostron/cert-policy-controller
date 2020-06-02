@@ -7,3 +7,4 @@ cert-policy
 !vbh/.build-harness-bootstrap
 !vbh/build-harness
 !vbh/build-harness-extensions
+.vscode/launch.json

@@ -137,8 +137,8 @@ type ReconcileGRCPolicy struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=policies.open-cluster-management.io,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=policies.open-cluster-management.io,resources=CertificatePolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=CertificatePolicies/status,verbs=get;update;patch
 func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the GRCPolicy instance
 	instance := &policyv1.CertificatePolicy{}
@@ -545,7 +545,7 @@ func createParentPolicy(instance *policyv1.CertificatePolicy) policyv1.Policy {
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Policy",
-			APIVersion: "policies.open-cluster-management.io/v1",
+			APIVersion: "policy.open-cluster-management.io/v1",
 		},
 	}
 	return plc
