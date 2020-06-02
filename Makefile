@@ -23,6 +23,8 @@ fmt vet generate go-coverage
 all: test manager
 
 dependencies:
+	curl -sL https://go.kubebuilder.io/dl/2.0.0-alpha.1/${GOOS}/${GOARCH} | tar -xz -C /tmp/
+	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
 	go mod tidy
 	go mod download	
 
