@@ -64,13 +64,11 @@ func main() {
 	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
-	flag.StringVar(&clusterName, "cluster-name", "mcm-managed-cluster", "Name of the cluster")
-	flag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
-	flag.StringVar(&namespace, "watch-ns", "default", "Watched Kubernetes namespace")
-	flag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
-	flag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
-
-	flag.Set("logtostderr", "true") /* #nosec G104 */
+	pflag.StringVar(&clusterName, "cluster-name", "mcm-managed-cluster", "Name of the cluster")
+	pflag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
+	pflag.StringVar(&namespace, "watch-ns", "default", "Watched Kubernetes namespace")
+	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
+	pflag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
 
 	pflag.Parse()
 
