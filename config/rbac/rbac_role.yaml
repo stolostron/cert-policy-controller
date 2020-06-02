@@ -32,7 +32,7 @@ rules:
   - update
   - patch
 - apiGroups:
-  - policies.open-cluster-management.io
+  - policy.open-cluster-management.io
   resources:
   - CertificatePolicies
   verbs:
@@ -44,7 +44,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - policies.open-cluster-management.io
+  - policy.open-cluster-management.io
   resources:
   - CertificatePolicies/status
   verbs:
