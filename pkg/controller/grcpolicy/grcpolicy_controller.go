@@ -149,7 +149,6 @@ func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Res
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
 			handleRemovingPolicy(request.NamespacedName.Name)
 			return reconcile.Result{}, nil
 		}
