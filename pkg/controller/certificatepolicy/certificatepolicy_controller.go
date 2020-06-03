@@ -163,7 +163,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
                 handleAddingPolicy(instance)            /* #nosec G104 */
         }
 
-	reqLogger.Info("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
+	glog.V(3).Info("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
 	return reconcile.Result{}, nil
 }
 
