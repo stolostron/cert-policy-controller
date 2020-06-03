@@ -10,7 +10,7 @@ The controller can be run as a stand-alone program or as an integrated part of g
 The controller watches for `CertificatePolicy` objects in Kubernetes. This is an example spec of a `CertificatePolicy` object:
 
 ```
-apiVersion: policies.open-cluster-management.io/v1
+apiVersion: policy.open-cluster-management.io/v1
 kind: CertificatePolicy
 metadata:
   name: certificate-policy-1

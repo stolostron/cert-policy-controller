@@ -127,8 +127,8 @@ type ReconcileCertificatePolicy struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 // Automatically generate RBAC rules
-// +kubebuilder:rbac:groups=policies.open-cluster-management.io,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=policies.open-cluster-management.io,resources=CertificatePolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=CertificatePolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=CertificatePolicies/status,verbs=get;update;patch
 func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling CertificatePolicy")
@@ -143,6 +143,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			handleRemovingPolicy(request.NamespacedName.Name)
 			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
@@ -162,10 +163,6 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
                 }
                 instance.Status.CompliancyDetails = nil //reset CompliancyDetails
                 handleAddingPolicy(instance)            /* #nosec G104 */
-        } else {
-                handleRemovingPolicy(instance)
-                // The object is being deleted
-                return reconcile.Result{}, nil
         }
 
 	reqLogger.Info("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
@@ -427,9 +424,9 @@ func updatePolicyStatus(policies map[string]*policiesv1.CertificatePolicy) (*pol
 	return nil, nil
 }
 
-func handleRemovingPolicy(plc *policiesv1.CertificatePolicy) {
+func handleRemovingPolicy(name string) {
 	for k, v := range availablePolicies.PolicyMap {
-		if v.Name == plc.Name {
+		if v.Name == name {
 			availablePolicies.RemoveObject(k)
 		}
 	}
@@ -507,7 +504,7 @@ func createParentPolicy(instance *policiesv1.CertificatePolicy) policiesv1.Polic
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Policy",
-			APIVersion: " policies.open-cluster-management.io/v1",
+			APIVersion: "policy.open-cluster-management.io/v1",
 		},
 	}
 	return plc

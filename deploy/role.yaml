@@ -67,7 +67,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - policies.open-cluster-management.io
+  - policy.open-cluster-management.io
   resources:
   - '*'
   verbs:
