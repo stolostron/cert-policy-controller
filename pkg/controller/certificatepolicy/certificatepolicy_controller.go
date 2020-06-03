@@ -133,6 +133,9 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling CertificatePolicy")
 
+	if reconcilingAgent == nil {
+		reconcilingAgent = r
+	}
 	// Fetch the CertificatePolicy instance
 	instance := &policiesv1.CertificatePolicy{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
