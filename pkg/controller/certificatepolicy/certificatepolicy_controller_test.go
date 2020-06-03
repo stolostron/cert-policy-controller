@@ -228,7 +228,7 @@ func TestHandleAddingPolicy(t *testing.T) {
 	common.Initialize(&simpleClient, nil)
 	err := handleAddingPolicy(&certPolicy)
 	assert.Nil(t, err)
-	handleRemovingPolicy(&certPolicy)
+	handleRemovingPolicy(certPolicy.Name)
 }
 
 func TestPrintMap(t *testing.T) {

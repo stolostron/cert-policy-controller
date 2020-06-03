@@ -3,6 +3,7 @@ module github.com/open-cluster-management/cert-policy-controller
 go 1.14
 
 require (
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/onsi/gomega v1.8.1
 	github.com/operator-framework/operator-sdk v0.17.1
 	github.com/spf13/pflag v1.0.5

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	policiesv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
@@ -164,7 +165,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
                 handleAddingPolicy(instance)            /* #nosec G104 */
         }
 
-	glog.V(3).Info("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
+	glog.V(3).Infof("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
 	return reconcile.Result{}, nil
 }
 
