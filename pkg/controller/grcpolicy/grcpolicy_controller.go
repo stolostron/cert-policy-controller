@@ -150,6 +150,7 @@ func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Res
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
+			handleRemovingPolicy(request.NamespacedName.Name)
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -168,11 +169,8 @@ func (r *ReconcileGRCPolicy) Reconcile(request reconcile.Request) (reconcile.Res
 		}
 		instance.Status.CompliancyDetails = nil //reset CompliancyDetails
 		handleAddingPolicy(instance)            /* #nosec G104 */
-	} else {
-		handleRemovingPolicy(instance)
-		// The object is being deleted
-		return reconcile.Result{}, nil
 	}
+
 	klog.V(3).Infof("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
 
 	return reconcile.Result{}, nil
@@ -433,9 +431,9 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 	return nil, nil
 }
 
-func handleRemovingPolicy(plc *policyv1.CertificatePolicy) {
+func handleRemovingPolicy(name string) {
 	for k, v := range availablePolicies.PolicyMap {
-		if v.Name == plc.Name {
+		if v.Name == name {
 			availablePolicies.RemoveObject(k)
 		}
 	}
