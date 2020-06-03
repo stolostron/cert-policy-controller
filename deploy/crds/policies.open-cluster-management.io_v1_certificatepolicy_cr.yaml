@@ -1,7 +1,0 @@
-apiVersion: policy.open-cluster-management.io/v1
-kind: CertificatePolicy
-metadata:
-  name: example-certificatepolicy
-spec:
-  # Add fields here
-  size: 3

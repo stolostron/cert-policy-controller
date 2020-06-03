@@ -141,10 +141,8 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Object not found, return.  Created objects are automatically garbage collected.
 			handleRemovingPolicy(request.NamespacedName.Name)
-			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
