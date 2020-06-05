@@ -59,13 +59,10 @@ var DefaultDuration time.Duration
 var log = logf.Log.WithName("controller_certificatepolicy")
 
 // Initialize to initialize some controller varaibles
-func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, clsName, namespace, eventParent string, defaultDuration time.Duration) (err error) {
+func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, namespace, eventParent string, defaultDuration time.Duration) (err error) {
 	KubeClient = kClient
 	PlcChan = make(chan *policiesv1.CertificatePolicy, 100) //buffering up to 100 policies for update
 
-	if clsName != "" {
-		clusterName = clsName
-	}
 	NamespaceWatched = namespace
 
 	EventOnParent = strings.ToLower(eventParent)
