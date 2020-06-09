@@ -279,7 +279,7 @@ func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bo
 	if secret.Labels != nil && secret.Labels[keyName] != "" {
 		key = secret.Labels[keyName]
 	}
-	klog.V(3).V(3).Infof("Checking secret %s with certificate key %s", secret.Name, key)
+	klog.V(3).Infof("Checking secret %s with certificate key %s", secret.Name, key)
 	// Get the certificate bytes
 	certBytes, _ := secret.Data[key]
 
