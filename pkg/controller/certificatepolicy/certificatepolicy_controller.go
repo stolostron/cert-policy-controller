@@ -145,7 +145,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		updateNeeded := false
-		if !ensureDefaultLabel(instance) {
+		if ensureDefaultLabel(instance) {
 			klog.Info("Label update needed")
 			updateNeeded = true
 		}
@@ -166,7 +166,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 	return reconcile.Result{}, nil
 }
 
-func ensureDefaultLabel(instance *policyv1.CertificatePolicy) (updateNeeded bool) {
+func ensureDefaultLabel(instance *policyv1.CertificatePolicy) bool {
 	klog.Info("ensureDefaultLabel")
 	//we need to ensure this label exists -> category: "System and Information Integrity"
 	if instance.ObjectMeta.Labels == nil {
@@ -400,6 +400,7 @@ func checkComplianceChangeBasedOnDetails(plc *policyv1.CertificatePolicy) (compl
 func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*policyv1.CertificatePolicy, error) {
 	klog.Info("Updating the Policy Status")
 	for _, instance := range policies { // policies is a map where: key = plc.Name, value = pointer to plc
+		klog.Infof("Updating the Policy Status %s namespace %s, %s.%s", instance.Name, instance.Namespace, instance.Kind, instance.APIVersion)
 		err := reconcilingAgent.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			klog.Info("updatePolicyStatus, reconcile update failed")
