@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang/glog"
 	policiesv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
 	corev1 "k8s.io/api/core/v1"
@@ -79,7 +80,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCertificatePolicy{client: mgr.GetClient(), scheme: mgr.GetScheme(), recorder: mgr.GetEventRecorderFor("certificatepolicy-controller")}
+	return &ReconcileCertificatePolicy{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -98,9 +99,9 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner CertificatePolicy
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &policiesv1.CertificatePolicy{},
+		OwnerType:    &policyv1.CertificatePolicy{},
 	})
 	if err != nil {
 		return err
