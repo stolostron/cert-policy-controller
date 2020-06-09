@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
@@ -19,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -146,28 +146,28 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		updateNeeded := false
 		if !ensureDefaultLabel(instance) {
-			glog.Info("Label update needed")
+			klog.Info("Label update needed")
 			updateNeeded = true
 		}
 		if updateNeeded {
 			if err := r.client.Update(context.Background(), instance); err != nil {
-				glog.Info("Requeing due to error updating the label")
+				klog.Info("Requeing due to error updating the label")
 				return reconcile.Result{Requeue: true}, nil
 			}
 		}
 		instance.Status.CompliancyDetails = nil //reset CompliancyDetails
 		err := handleAddingPolicy(instance)
 		if err != nil {
-			glog.V(3).Infof("Failed to handleAddingPolicy")
+			klog.V(3).Infof("Failed to handleAddingPolicy")
 		}
 	}
 
-	glog.Infof("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
+	klog.Infof("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
 	return reconcile.Result{}, nil
 }
 
 func ensureDefaultLabel(instance *policyv1.CertificatePolicy) (updateNeeded bool) {
-	glog.Info("ensureDefaultLabel")
+	klog.Info("ensureDefaultLabel")
 	//we need to ensure this label exists -> category: "System and Information Integrity"
 	if instance.ObjectMeta.Labels == nil {
 		newlbl := make(map[string]string)
@@ -188,7 +188,7 @@ func ensureDefaultLabel(instance *policyv1.CertificatePolicy) (updateNeeded bool
 
 // PeriodicallyExecCertificatePolicies always check status - let this be the only function in the controller
 func PeriodicallyExecCertificatePolicies(freq uint) {
-	glog.Info("PeriodicallyExecCertificatePolicies")
+	klog.Info("PeriodicallyExecCertificatePolicies")
 	var plcToUpdateMap map[string]*policyv1.CertificatePolicy
 	for {
 		start := time.Now()
@@ -199,10 +199,10 @@ func PeriodicallyExecCertificatePolicies(freq uint) {
 		// Loops through all of the cert policies
 		for resource, policy := range availablePolicies.PolicyMap {
 			namespace := strings.Split(resource, "/")[0]
-			glog.Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
+			klog.Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
 			update, nonCompliant, list := certExpiration(policy, namespace)
 			if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1.Enforce)) {
-				glog.Infof("Enforce is set, but ignored :-)")
+				klog.Infof("Enforce is set, but ignored :-)")
 			}
 			message := fmt.Sprintf("Found %d non compliant certificates in the namespace %s.\n", nonCompliant, namespace)
 			if nonCompliant > 0 {
@@ -211,19 +211,19 @@ func PeriodicallyExecCertificatePolicies(freq uint) {
 					message = fmt.Sprintf("%s%s expires in %s\n", message, cert, certDetails.Expiration)
 				}
 			}
-			glog.Info(message)
+			klog.Info(message)
 
 			if addViolationCount(policy, message, nonCompliant, namespace, list) || update {
 				plcToUpdateMap[policy.Name] = policy
 			}
 			checkComplianceBasedOnDetails(policy)
-			glog.Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
+			klog.Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 		}
 
 		//update status of all policies that changed:
 		faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
 		if err != nil {
-			glog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+			klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
 		}
 
 		//prometheus quantiles for processing delay in each cycle
@@ -241,7 +241,7 @@ func PeriodicallyExecCertificatePolicies(freq uint) {
 // Checks each namespace for certificates that are going to expire within 3 months
 // Returns the number of uncompliant certificates and a list of the uncompliant certificates
 func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
-	glog.Info("certExpiration")
+	klog.Info("certExpiration")
 	update := false
 	nonCompliantCertificates := make(map[string]policyv1.Cert, 0)
 	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
@@ -249,7 +249,7 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secretItem := range secretList.Items {
 		secret := secretItem
-		glog.V(3).Infof("Checking secret %s", secret.Name)
+		klog.V(3).Infof("Checking secret %s", secret.Name)
 		notCompliant, reason, expiration := checkExpiration(&secret, policy.Spec.MinDuration)
 		if notCompliant {
 			certName := secret.Name
@@ -259,9 +259,9 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 			} else if secret.Labels[certManagerNameLabel] != "" {
 				certName = secret.Labels[certManagerNameLabel]
 			}
-			glog.V(3).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
+			klog.V(3).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
 			msg := fmt.Sprintf("Certificate %s [secret name: %s] expires in %s", certName, secret.ObjectMeta.Name, expiration)
-			glog.V(3).Info(msg)
+			klog.V(3).Info(msg)
 			nonCompliantCertificates[certName] = policyv1.Cert{Secret: secret.Name, Expiration: expiration}
 			if policy.Status.ComplianceState != policyv1.NonCompliant {
 				update = true
@@ -273,20 +273,20 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 
 // Returns true only if the secret (certificate) is not compliant (expires within the given duration)
 func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bool, string, string) {
-	glog.Info("checkExpiration")
+	klog.Info("checkExpiration")
 	keyName := "certificate_key_name"
 	key := "tls.crt"
 	if secret.Labels != nil && secret.Labels[keyName] != "" {
 		key = secret.Labels[keyName]
 	}
-	glog.V(3).Infof("Checking secret %s with certificate key %s", secret.Name, key)
+	klog.V(3).Infof("Checking secret %s with certificate key %s", secret.Name, key)
 	// Get the certificate bytes
 	certBytes, _ := secret.Data[key]
 
 	// Get the x509 Certificates
 	certs := util.DecodeCertificateBytes(certBytes)
 	if len(certs) < 1 {
-		glog.Infof("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
+		klog.Infof("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
 		return false, "No certificates", ""
 	}
 	x509Cert := certs[0] // Certificate chains always begin with the end user certificate as a standard format
@@ -319,7 +319,7 @@ func convertMaptoPolicyNameKey() map[string]*policyv1.CertificatePolicy {
 // with the message passed into this function and the number of certificates
 // violated this policy.
 func addViolationCount(plc *policyv1.CertificatePolicy, message string, count uint, namespace string, certificates map[string]policyv1.Cert) bool {
-	glog.Info("addViolationCount")
+	klog.Info("addViolationCount")
 	changed := false
 	// Add in default/generic message that can be overridden
 	msg := fmt.Sprintf("%s violations detected in namespace `%s`", fmt.Sprint(count), namespace)
@@ -344,14 +344,14 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 		NonCompliantCertificatesList: certificates,
 		Message:                      msg,
 	}
-	glog.Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
+	klog.Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
 	return changed
 }
 
 // checkComplianceBasedOnDetails takes a certificate and sets whether
 // the policy is compliant or not based on the certificate's status
 func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
-	glog.Info("checkComplianceBasedOnDetails")
+	klog.Info("checkComplianceBasedOnDetails")
 	plc.Status.ComplianceState = policyv1.Compliant
 	if plc.Status.CompliancyDetails == nil {
 		return
@@ -361,14 +361,14 @@ func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
 	}
 	for namespace, details := range plc.Status.CompliancyDetails {
 		if details.NonCompliantCertificates > 0 {
-			glog.Infof("The number of violations in policy %s in namespace %s does not equal zero, therefore it is non compliant", plc.Name, namespace)
+			klog.Infof("The number of violations in policy %s in namespace %s does not equal zero, therefore it is non compliant", plc.Name, namespace)
 			plc.Status.ComplianceState = policyv1.NonCompliant
 		}
 	}
 }
 
 func checkComplianceChangeBasedOnDetails(plc *policyv1.CertificatePolicy) (complianceChanged bool) {
-	glog.Info("checkComplianceChangeBasedOnDetails")
+	klog.Info("checkComplianceChangeBasedOnDetails")
 	//used in case we also want to know not just the compliance state, but also whether the compliance changed or not.
 	previous := plc.Status.ComplianceState
 	if plc.Status.CompliancyDetails == nil {
@@ -398,18 +398,18 @@ func checkComplianceChangeBasedOnDetails(plc *policyv1.CertificatePolicy) (compl
 }
 
 func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*policyv1.CertificatePolicy, error) {
-	glog.Info("Updating the Policy Status")
+	klog.Info("Updating the Policy Status")
 	for _, instance := range policies { // policies is a map where: key = plc.Name, value = pointer to plc
 		err := reconcilingAgent.client.Status().Update(context.TODO(), instance)
 		if err != nil {
-			glog.Info("updatePolicyStatus, reconcile update failed")
+			klog.Info("updatePolicyStatus, reconcile update failed")
 			return instance, err
 		}
 		if EventOnParent != "no" {
 			createParentPolicyEvent(instance)
 		}
 		message := fmt.Sprintf("%v", instance.Status.ComplianceState)
-		glog.Infof("Policy %s Compliance State %s", instance.Name, message)
+		klog.Infof("Policy %s Compliance State %s", instance.Name, message)
 		for namespace, details := range instance.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
 				minDuration := DefaultDuration
@@ -420,7 +420,7 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 				for cert, certDetails := range details.NonCompliantCertificatesList {
 					message = fmt.Sprintf("%s [%s, %s]", message, cert, certDetails.Secret)
 				}
-				glog.Infof("Noncompliant certs %d %s", details.NonCompliantCertificates, message)
+				klog.Infof("Noncompliant certs %d %s", details.NonCompliantCertificates, message)
 			}
 		}
 		if instance.Status.ComplianceState == policyv1.NonCompliant {
@@ -433,7 +433,7 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 }
 
 func handleRemovingPolicy(name string) {
-	glog.Info("handleRemovingPolicy")
+	klog.Info("handleRemovingPolicy")
 	for k, v := range availablePolicies.PolicyMap {
 		if v.Name == name {
 			availablePolicies.RemoveObject(k)
@@ -442,11 +442,11 @@ func handleRemovingPolicy(name string) {
 }
 
 func handleAddingPolicy(plc *policyv1.CertificatePolicy) error {
-	glog.Info("handleAddingPolicy")
+	klog.Info("handleAddingPolicy")
 	allNamespaces, err := common.GetAllNamespaces()
 	if err != nil {
 
-		glog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, namespace: all, according to policy: %v, additional-info: %v\n", plc.Name, err)
+		klog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, namespace: all, according to policy: %v, additional-info: %v\n", plc.Name, err)
 
 		return err
 	}
@@ -482,7 +482,7 @@ func printMap(myMap map[string]*policyv1.CertificatePolicy) {
 }
 
 func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
-	glog.Info("createParentPolicyEvent")
+	klog.Info("createParentPolicyEvent")
 	if len(instance.OwnerReferences) == 0 {
 		return //there is nothing to do, since no owner is set
 	}
@@ -493,16 +493,16 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 
 	parentPlc := createParentPolicy(instance)
 	if instance.Status.ComplianceState == policyv1.NonCompliant {
-		glog.Info("Update parent policy, non-compliant policy")
+		klog.Info("Update parent policy, non-compliant policy")
 		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
 	} else {
-		glog.Info("Update parent policy, compliant policy")
+		klog.Info("Update parent policy, compliant policy")
 		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
 	}
 }
 
 func createParentPolicy(instance *policyv1.CertificatePolicy) policyv1.Policy {
-	glog.Info("createParentPolicy")
+	klog.Info("createParentPolicy")
 	ns := common.ExtractNamespaceLabel(instance)
 	if ns == "" {
 		ns = NamespaceWatched
