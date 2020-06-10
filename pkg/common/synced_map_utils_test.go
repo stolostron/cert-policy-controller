@@ -1,8 +1,16 @@
-// Licensed Materials - Property of IBM
-// (c) Copyright IBM Corporation 2018, 2019. All Rights Reserved.
-// Note to U.S. Government Users Restricted Rights:
-// Use, duplication or disclosure restricted by GSA ADP Schedule
-// Contract with IBM Corp.
+// Copyright 2019 The Kubernetes Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package admissionpolicy handles admissionpolicy controller logic
 package common
@@ -10,14 +18,14 @@ package common
 import (
 	"reflect"
 	"testing"
-	"time"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	policiesv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 )
 
 /*
-	apiVersion: mcm.ibm.com/v1alpha1
+	apiVersion: mcm.ibm.com/v1
 		kind: GRCPolicy
 		metadata:
 			name: GRC-policy
@@ -29,29 +37,25 @@ import (
 			conditions:
 				ownership: [ReplicaSet, Deployment, DeamonSet, ReplicationController]
 */
-
-var duration = &metav1.Duration{Duration: time.Hour * 24 * 120}
-
-var plc = &policyv1.CertificatePolicy{
+var plc = &policiesv1.CertificatePolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "testPolicy",
 		Namespace: "default",
 	},
-	Spec: policyv1.CertificatePolicySpec{
-		RemediationAction: policyv1.Enforce,
-		NamespaceSelector: policyv1.Target{
+	Spec: policiesv1.CertificatePolicySpec{
+		RemediationAction: policiesv1.Enforce,
+		NamespaceSelector: policiesv1.Target{
 			Include: []string{"default"},
 			Exclude: []string{"kube*"},
 		},
-		MinDuration: duration,
 	},
 }
 
 var sm = SyncedPolicyMap{
-	PolicyMap: make(map[string]*policyv1.CertificatePolicy),
+	PolicyMap: make(map[string]*policiesv1.CertificatePolicy),
 }
 
-//TestGetObject testing get object in map
+//TestGetObject testing get object in map.
 func TestGetObject(t *testing.T) {
 	_, found := sm.GetObject("void")
 	if found {
@@ -71,15 +75,17 @@ func TestGetObject(t *testing.T) {
 
 func TestAddObject(t *testing.T) {
 	sm.AddObject("default", plc)
-	plcName, found := sm.GetObject("ServiceInstance")
-	_, found = sm.GetObject("void")
-	if found {
-		t.Fatalf("expecting found = false, however found = %v", found)
+	plcName, found1 := sm.GetObject("ServiceInstance")
+	if found1 {
+		t.Fatalf("expecting found = false, however found = %v", found1)
+	}
+	_, found2 := sm.GetObject("void")
+	if found1 {
+		t.Fatalf("expecting found = false, however found = %v", found2)
 	}
 	if !reflect.DeepEqual(plc.Name, "testPolicy") {
 		t.Fatalf("expecting plcName = testPolicy, however plcName = %v", plcName)
 	}
-
 }
 
 func TestRemoveDataObject(t *testing.T) {

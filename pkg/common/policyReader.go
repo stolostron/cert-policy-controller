@@ -13,16 +13,17 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
+
 )
 
 func getObject() {
 	var namespaced bool
-	dd := KubeClient.Discovery()
+	dd := (*KubeClient).Discovery()
 	apigroups, err := restmapper.GetAPIGroupResources(dd)
 	if err != nil {
 		klog.Fatal(err)
@@ -105,7 +106,7 @@ func objectList(namespaced bool, namespace string, name string, rsrc schema.Grou
 func GetGenericObject(data []byte, namespace string) (unstructured.Unstructured, error) {
 	var unstruct unstructured.Unstructured
 	namespaced := true
-	dd := KubeClient.Discovery()
+	dd := (*KubeClient).Discovery()
 	apigroups, err := restmapper.GetAPIGroupResources(dd)
 	if err != nil {
 		klog.Fatal(err)
@@ -114,8 +115,9 @@ func GetGenericObject(data []byte, namespace string) (unstructured.Unstructured,
 	restmapper := restmapper.NewDiscoveryRESTMapper(apigroups)
 
 	klog.V(9).Infof("reading raw object: %v", string(data))
-	versions := &runtime.VersionedObjects{}
-	_, gvk, err := unstructured.UnstructuredJSONScheme.Decode(data, nil, versions)
+
+	decode := scheme.Codecs.UniversalDeserializer().Decode
+	_, gvk, err := decode(data, nil, nil)
 	if err != nil {
 		decodeErr := fmt.Sprintf("Decoding error, please check your policy file! error = `%v`", err)
 		klog.Errorf(decodeErr)

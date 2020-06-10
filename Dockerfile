@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.2-267
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 ARG VCS_REF
 ARG VCS_URL

@@ -5,9 +5,9 @@
 # The source code for this program is not published or otherwise divested of its trade secrets, irrespective of what has been deposited with the U.S. Copyright Office.
 # Copyright (c) 2020 Red Hat, Inc.
 
-include Configfile
-
 USE_VENDORIZED_BUILD_HARNESS ?=
+GOARCH = $(shell go env GOARCH)
+GOOS = $(shell go env GOOS)
 
 ifndef USE_VENDORIZED_BUILD_HARNESS
 -include $(shell curl -s -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
@@ -24,14 +24,9 @@ fmt vet generate go-coverage
 
 all: test manager
 
-# Run tests
-unit-test: generate fmt vet
-	curl -sL https://go.kubebuilder.io/dl/2.0.0-alpha.1/${GOOS}/${GOARCH} | tar -xz -C /tmp/
-
-	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
-	go test ./pkg/... ./cmd/... -v -coverprofile cover.out
-
 dependencies:
+	curl -sL https://go.kubebuilder.io/dl/2.0.0-alpha.1/${GOOS}/${GOARCH} | tar -xz -C /tmp/
+	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
 	go mod tidy
 	go mod download	
 
@@ -70,11 +65,3 @@ generate:
 copyright-check:
 	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
 
-go-coverage:
-	$(shell go test -coverprofile=coverage.out -json ./...\
-		$$(go list ./... | \
-			grep -v '/vendor/' | \
-			grep -v '/docs/' \
-		) > report.json)
-	gosec -fmt sonarqube -out gosec.json -no-fail ./...
-	sonar-scanner --debug || echo "Sonar scanner is not available"

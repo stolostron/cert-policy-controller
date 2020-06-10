@@ -11,26 +11,30 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package common
+package certificatepolicy
 
 import (
 	stdlog "log"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 
-	"github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/open-cluster-management/cert-policy-controller/pkg/apis"
+	policiesv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
 )
 
 var cfg *rest.Config
+
+var certPolicy = policiesv1.CertificatePolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "foo",
+		Namespace: "default",
+	}}
 
 func TestMain(m *testing.M) {
 	t := &envtest.Environment{
@@ -46,16 +50,4 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	t.Stop()
 	os.Exit(code)
-}
-
-// StartTestManager adds recFn.
-func StartTestManager(mgr manager.Manager, g *gomega.GomegaWithT) (chan struct{}, *sync.WaitGroup) {
-	stop := make(chan struct{})
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		g.Expect(mgr.Start(stop)).NotTo(gomega.HaveOccurred())
-		wg.Done()
-	}()
-	return stop, wg
 }

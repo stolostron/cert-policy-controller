@@ -42,7 +42,7 @@ func GetSelectedNamespaces(included, excluded, allNamespaces []string) []string 
 //GetAllNamespaces gets the list of all namespaces from k8s
 func GetAllNamespaces() (list []string, err error) {
 	//listOpt := &client.ListOptions{}
-	namespaces := KubeClient.CoreV1().Namespaces()
+	namespaces := (*KubeClient).CoreV1().Namespaces()
 	namespaceList, err := namespaces.List(metav1.ListOptions{})
 
 	namespacesNames := []string{}
