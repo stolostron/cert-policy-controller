@@ -175,7 +175,7 @@ func main() {
 	common.Initialize(&generatedClient, cfg)
 	policyStatusHandler.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and does the needed work to make sure the desired state is achieved
-	go policyStatusHandler.PeriodicallyExecCertificatePolicies(frequency)
+	go policyStatusHandler.PeriodicallyExecCertificatePolicies(frequency, true)
 
 	log.Info("Starting the Cmd.")
 

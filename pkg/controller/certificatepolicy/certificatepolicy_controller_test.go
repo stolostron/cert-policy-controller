@@ -135,7 +135,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	certPolicy.Spec.NamespaceSelector.Include = target
 	err = handleAddingPolicy(&certPolicy)
 	assert.Nil(t, err)
-	//PeriodicallyExecCertificatePolicies(1)
+	PeriodicallyExecCertificatePolicies(1, false)
 }
 
 func TestCheckComplianceBasedOnDetails(t *testing.T) {
@@ -177,6 +177,11 @@ func TestEnsureDefaultLabel(t *testing.T) {
 }
 
 func TestCheckComplianceChangeBasedOnDetails(t *testing.T) {
+	var certPolicy = policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		}}
 	var flag = checkComplianceChangeBasedOnDetails(&certPolicy)
 	assert.False(t, flag)
 }
@@ -206,7 +211,7 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 		CompliancyDetails: compliantDetails,
 	}
 	certPolicy.Status = certPolicyStatus
-	var policyInString = convertPolicyStatusToString(&certPolicy, time.Hour * 24 * 3)
+	var policyInString = convertPolicyStatusToString(&certPolicy, time.Hour*24*3)
 	assert.NotNil(t, policyInString)
 	checkComplianceChangeBasedOnDetails(&certPolicy)
 	checkComplianceBasedOnDetails(&certPolicy)
@@ -233,7 +238,6 @@ func TestHandleAddingPolicy(t *testing.T) {
 
 func TestPrintMap(t *testing.T) {
 	var policies = map[string]*policiesv1.CertificatePolicy{}
-        policies["policy1"] = &certPolicy
+	policies["policy1"] = &certPolicy
 	printMap(policies)
 }
-

@@ -187,7 +187,7 @@ func ensureDefaultLabel(instance *policyv1.CertificatePolicy) bool {
 }
 
 // PeriodicallyExecCertificatePolicies always check status - let this be the only function in the controller
-func PeriodicallyExecCertificatePolicies(freq uint) {
+func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 	klog.V(3).Info("PeriodicallyExecCertificatePolicies")
 	var plcToUpdateMap map[string]*policyv1.CertificatePolicy
 	for {
@@ -226,14 +226,18 @@ func PeriodicallyExecCertificatePolicies(freq uint) {
 			klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
 		}
 
-		//prometheus quantiles for processing delay in each cycle
-		elapsed := time.Since(start)
-		//making sure that if processing is > freq we don't sleep
-		//if freq > processing we sleep for the remaining duration
-		elapsed = time.Since(start) / 1000000000 // convert to seconds
-		if float64(freq) > float64(elapsed) {
-			remainingSleep := float64(freq) - float64(elapsed)
-			time.Sleep(time.Duration(remainingSleep) * time.Second)
+		if loopflag {
+			//prometheus quantiles for processing delay in each cycle
+			elapsed := time.Since(start)
+			//making sure that if processing is > freq we don't sleep
+			//if freq > processing we sleep for the remaining duration
+			elapsed = time.Since(start) / 1000000000 // convert to seconds
+			if float64(freq) > float64(elapsed) {
+				remainingSleep := float64(freq) - float64(elapsed)
+				time.Sleep(time.Duration(remainingSleep) * time.Second)
+			}
+		} else {
+			return
 		}
 	}
 }
@@ -423,10 +427,12 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 				klog.V(3).Infof("Noncompliant certs %d %s", details.NonCompliantCertificates, message)
 			}
 		}
-		if instance.Status.ComplianceState == policyv1.NonCompliant {
-			reconcilingAgent.recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
-		} else {
-			reconcilingAgent.recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+		if reconcilingAgent.recorder != nil {
+			if instance.Status.ComplianceState == policyv1.NonCompliant {
+				reconcilingAgent.recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
+			} else {
+				reconcilingAgent.recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+			}
 		}
 	}
 	return nil, nil
@@ -492,12 +498,14 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 	}
 
 	parentPlc := createParentPolicy(instance)
-	if instance.Status.ComplianceState == policyv1.NonCompliant {
-		klog.V(3).Info("Update parent policy, non-compliant policy")
-		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
-	} else {
-		klog.V(3).Info("Update parent policy, compliant policy")
-		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	if reconcilingAgent.recorder != nil {
+		if instance.Status.ComplianceState == policyv1.NonCompliant {
+			klog.V(3).Info("Update parent policy, non-compliant policy")
+			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+		} else {
+			klog.V(3).Info("Update parent policy, compliant policy")
+			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+		}
 	}
 }
 
