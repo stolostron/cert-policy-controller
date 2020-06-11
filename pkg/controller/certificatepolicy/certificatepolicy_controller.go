@@ -427,10 +427,12 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 				klog.V(3).Infof("Noncompliant certs %d %s", details.NonCompliantCertificates, message)
 			}
 		}
-		if instance.Status.ComplianceState == policyv1.NonCompliant {
-			reconcilingAgent.recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
-		} else {
-			reconcilingAgent.recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+		if reconcilingAgent.recorder != nil {
+			if instance.Status.ComplianceState == policyv1.NonCompliant {
+				reconcilingAgent.recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
+			} else {
+				reconcilingAgent.recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+			}
 		}
 	}
 	return nil, nil
@@ -496,12 +498,14 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 	}
 
 	parentPlc := createParentPolicy(instance)
-	if instance.Status.ComplianceState == policyv1.NonCompliant {
-		klog.V(3).Info("Update parent policy, non-compliant policy")
-		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
-	} else {
-		klog.V(3).Info("Update parent policy, compliant policy")
-		reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+	if reconcilingAgent.recorder != nil {
+		if instance.Status.ComplianceState == policyv1.NonCompliant {
+			klog.V(3).Info("Update parent policy, non-compliant policy")
+			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+		} else {
+			klog.V(3).Info("Update parent policy, compliant policy")
+			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+		}
 	}
 }
 

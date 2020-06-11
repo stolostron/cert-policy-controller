@@ -177,6 +177,11 @@ func TestEnsureDefaultLabel(t *testing.T) {
 }
 
 func TestCheckComplianceChangeBasedOnDetails(t *testing.T) {
+	var certPolicy = policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		}}
 	var flag = checkComplianceChangeBasedOnDetails(&certPolicy)
 	assert.False(t, flag)
 }
