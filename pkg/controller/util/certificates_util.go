@@ -29,8 +29,9 @@ func DecodeCertificateBytes(certBytes []byte) []*x509.Certificate {
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
 			klog.Infof("Error decoding certificate bytes, error: %s", err.Error())
+		} else {
+			certs = append(certs, cert)
 		}
-		certs = append(certs, cert)
 	}
 	return certs
 }
