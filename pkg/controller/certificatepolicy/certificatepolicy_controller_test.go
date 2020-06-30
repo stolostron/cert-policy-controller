@@ -199,24 +199,6 @@ func TestCreateParentPolicy(t *testing.T) {
 	createParentPolicyEvent(&certPolicy)
 }
 
-func TestConvertPolicyStatusToString(t *testing.T) {
-	var compliantDetail = policiesv1.CompliancyDetails{}
-	var compliantDetails = map[string]policiesv1.CompliancyDetails{}
-
-	compliantDetails["a"] = compliantDetail
-	compliantDetails["b"] = compliantDetail
-	compliantDetails["c"] = compliantDetail
-	certPolicyStatus := policiesv1.CertificatePolicyStatus{
-		ComplianceState:   "Compliant",
-		CompliancyDetails: compliantDetails,
-	}
-	certPolicy.Status = certPolicyStatus
-	var policyInString = convertPolicyStatusToString(&certPolicy, time.Hour*24*3)
-	assert.NotNil(t, policyInString)
-	checkComplianceChangeBasedOnDetails(&certPolicy)
-	checkComplianceBasedOnDetails(&certPolicy)
-}
-
 func TestHandleAddingPolicy(t *testing.T) {
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 	var typeMeta = metav1.TypeMeta{
