@@ -40,6 +40,7 @@ spec:
               description: Minimum duration before a certificate expires that it is
                 considered non-compliant. Golang's time units only
               type: string
+              pattern: ^[0-9][0-9hmnsu.]+
             namespaceSelector:
               description: selecting a list of namespaces where the policy applies
               properties:
