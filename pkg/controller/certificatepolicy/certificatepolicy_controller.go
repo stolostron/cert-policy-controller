@@ -248,6 +248,9 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 	klog.V(3).Info("certExpiration")
 	update := false
 	nonCompliantCertificates := make(map[string]policyv1.Cert, 0)
+	if namespace == "" {
+		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
+	}
 	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
@@ -465,9 +468,15 @@ func handleAddingPolicy(plc *policyv1.CertificatePolicy) error {
 			}
 		}
 	}
+	var addFlag = false
 	selectedNamespaces := common.GetSelectedNamespaces(plc.Spec.NamespaceSelector.Include, plc.Spec.NamespaceSelector.Exclude, allNamespaces)
 	for _, ns := range selectedNamespaces {
 		key := fmt.Sprintf("%s/%s", ns, plc.Name)
+		availablePolicies.AddObject(key, plc)
+		addFlag = true
+	}
+	if addFlag == false {
+		key := fmt.Sprintf("/%s", plc.Name)
 		availablePolicies.AddObject(key, plc)
 	}
 	return err
