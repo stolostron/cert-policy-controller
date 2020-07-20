@@ -205,6 +205,9 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 				klog.V(3).Infof("Enforce is set, but ignored :-)")
 			}
 			message := fmt.Sprintf("Found %d non compliant certificates in the namespace %s.\n", nonCompliant, namespace)
+			if namespace == "" {
+				message = fmt.Sprintf("Found %d non compliant certificates, no namespaces were selected.\n", nonCompliant)
+			}
 			if nonCompliant > 0 {
 				message = fmt.Sprintf("%sList of non compliant certificates:\n", message)
 				for cert, certDetails := range list {
