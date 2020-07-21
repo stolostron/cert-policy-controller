@@ -464,13 +464,9 @@ func handleAddingPolicy(plc *policyv1.CertificatePolicy) error {
 	}
 	//clean up that policy from the existing namepsaces, in case the modification is in the namespace selector
 	for _, ns := range allNamespaces {
-		key := fmt.Sprintf("%s/%s", ns, plc.Name)
-		if policy, found := availablePolicies.GetObject(key); found {
-			if policy.Name == plc.Name {
-				availablePolicies.RemoveObject(ns)
-			}
-		}
+		cleanupAvailablePolicies(ns, plc.Name)
 	}
+	cleanupAvailablePolicies("", plc.Name)
 	var addFlag = false
 	selectedNamespaces := common.GetSelectedNamespaces(plc.Spec.NamespaceSelector.Include, plc.Spec.NamespaceSelector.Exclude, allNamespaces)
 	for _, ns := range selectedNamespaces {
@@ -483,6 +479,15 @@ func handleAddingPolicy(plc *policyv1.CertificatePolicy) error {
 		availablePolicies.AddObject(key, plc)
 	}
 	return err
+}
+
+func cleanupAvailablePolicies(namespace string, name string) {
+	key := fmt.Sprintf("%s/%s", namespace, name)
+	if policy, found := availablePolicies.GetObject(key); found {
+		if policy.Name == name {
+			availablePolicies.RemoveObject(key)
+		}
+	}
 }
 
 //=================================================================
