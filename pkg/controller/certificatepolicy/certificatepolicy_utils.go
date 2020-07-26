@@ -29,7 +29,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 	result = string(plc.Status.ComplianceState)
 
 	if plc.Status.CompliancyDetails == nil {
-		return result
+		return fmt.Sprintf("%s; %s", result, "No namespaces matched the namespace selector.")
 	}
 
 	// Message format: NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
