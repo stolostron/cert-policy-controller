@@ -55,6 +55,14 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 			}
 		}
 		result = fmt.Sprintf("%s; %d %s: %s", result, count, message, certs)
+	} else if plc.Status.ComplianceState == policyv1.Compliant {
+		if len(plc.Status.CompliancyDetails) == 1 {
+			for namespace := range plc.Status.CompliancyDetails {
+				if namespace == "" {
+					return fmt.Sprintf("%s; %s", result, "No namespaces matched the namespace selector.")
+				}
+			}
+		}
 	}
 	return result
 }
