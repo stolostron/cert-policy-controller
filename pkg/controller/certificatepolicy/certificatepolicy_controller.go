@@ -383,11 +383,15 @@ func isCertificateSANPatternMismatch(cert *policyv1.Cert, policy *policyv1.Certi
 	// Check SAN entries to validate they match pattern specified
 	pattern := policy.Spec.AllowedSANPattern
 	if pattern != "" {
-		re := regexp.MustCompile(pattern)
-		for _, san := range cert.Sans {
-			match := re.MatchString(san)
-			if !match {
-				return true
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			klog.Errorf("The regular expression specified is not valid: %s: Error: %s", pattern, err)
+		} else {
+			for _, san := range cert.Sans {
+				match := re.MatchString(san)
+				if !match {
+					return true
+				}
 			}
 		}
 	}
