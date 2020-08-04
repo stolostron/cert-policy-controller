@@ -34,27 +34,86 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 	}
 
 	// Message format: NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
-	count := 0
+	expireCount := 0
+	expireCACount := 0
+	durationCount := 0
+	durationCACount := 0
+	patternMismatchCount := 0
 	if plc.Status.ComplianceState == policyv1.NonCompliant {
 		minDuration := defaultDuration
 		if plc.Spec.MinDuration != nil {
 			minDuration = plc.Spec.MinDuration.Duration
 		}
-		message := fmt.Sprintf("certificates expire in less than %s", minDuration.String())
-		certs := ""
+		message := ""
+		expiredCerts := ""
+		expiredCACerts := ""
+		durationCerts := ""
+		durationCACerts := ""
+		patternCerts := ""
 		for namespace, details := range plc.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
 				for _, certDetails := range details.NonCompliantCertificatesList {
-					if len(certs) > 0 {
-						certs = fmt.Sprintf("%s, %s:%s", certs, namespace, certDetails.Secret)
-					} else {
-						certs = fmt.Sprintf("%s:%s", namespace, certDetails.Secret)
+					if isCertificateExpiring(&certDetails, plc) {
+						if certDetails.CA && plc.Spec.MinCADuration != nil {
+							if len(expiredCACerts) > 0 {
+								expiredCACerts = fmt.Sprintf("%s, %s:%s", expiredCACerts, namespace, certDetails.Secret)
+							} else {
+								expiredCACerts = fmt.Sprintf("%s:%s", namespace, certDetails.Secret)
+							}
+							expireCACount++
+						} else {
+							if len(expiredCerts) > 0 {
+								expiredCerts = fmt.Sprintf("%s, %s:%s", expiredCerts, namespace, certDetails.Secret)
+							} else {
+								expiredCerts = fmt.Sprintf("%s:%s", namespace, certDetails.Secret)
+							}
+							expireCount++
+						}
 					}
-					count++
+					if isCertificateLongDuration(&certDetails, plc) {
+						if certDetails.CA && plc.Spec.MaxCADuration != nil {
+							if len(durationCACerts) > 0 {
+								durationCACerts = fmt.Sprintf("%s, %s:%s", durationCACerts, namespace, certDetails.Secret)
+							} else {
+								durationCACerts = fmt.Sprintf("%s:%s", namespace, certDetails.Secret)
+							}
+							durationCACount++
+						} else {
+							if len(durationCerts) > 0 {
+								durationCerts = fmt.Sprintf("%s, %s:%s", durationCerts, namespace, certDetails.Secret)
+							} else {
+								durationCerts = fmt.Sprintf("%s:%s", namespace, certDetails.Secret)
+							}
+							durationCount++
+						}
+					}
+					if isCertificateSANPatternMismatch(&certDetails, plc) {
+						if len(patternCerts) > 0 {
+							patternCerts = fmt.Sprintf("%s, %s:%s", patternCerts, namespace, certDetails.Secret)
+						} else {
+							patternCerts = fmt.Sprintf("%s:%s", namespace, certDetails.Secret)
+						}
+						patternMismatchCount++
+					}
 				}
 			}
 		}
-		result = fmt.Sprintf("%s; %d %s: %s", result, count, message, certs)
+		if expireCount > 0 {
+			message = fmt.Sprintf("%d certificates expire in less than %s: %s\n", expireCount, minDuration.String(), expiredCerts)
+		}
+		if expireCACount > 0 {
+			message = fmt.Sprintf("%s %d CA certificates expire in less than %s: %s\n", message, expireCACount, plc.Spec.MinCADuration, expiredCACerts)
+		}
+		if durationCount > 0 {
+			message = fmt.Sprintf("%s %d certificates exceed the maximum duration of %s: %s\n", message, durationCount, plc.Spec.MaxDuration, durationCerts)
+		}
+		if durationCACount > 0 {
+			message = fmt.Sprintf("%s %d CA certificates exceed the maximum duration of %s: %s\n", message, durationCACount, plc.Spec.MaxCADuration, durationCACerts)
+		}
+		if patternMismatchCount > 0 {
+			message = fmt.Sprintf("%s %d certificates defined SAN entris that do not match pattern %s: %s\n", message, patternMismatchCount, plc.Spec.AllowedSANPattern, patternCerts)
+		}
+		result = fmt.Sprintf("%s; %s", result, message)
 	} else if plc.Status.ComplianceState == policyv1.Compliant {
 		if len(plc.Status.CompliancyDetails) == 1 {
 			for namespace := range plc.Status.CompliancyDetails {

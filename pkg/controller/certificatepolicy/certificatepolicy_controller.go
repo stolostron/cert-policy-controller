@@ -3,8 +3,10 @@ package certificatepolicy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,7 +14,7 @@ import (
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -134,7 +136,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 	instance := &policyv1.CertificatePolicy{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			handleRemovingPolicy(request.NamespacedName.Name)
 			return reconcile.Result{}, nil
@@ -200,21 +202,11 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 		for resource, policy := range availablePolicies.PolicyMap {
 			namespace := strings.Split(resource, "/")[0]
 			klog.V(3).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
-			update, nonCompliant, list := certExpiration(policy, namespace)
+			update, nonCompliant, list := checkSecrets(policy, namespace)
 			if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1.Enforce)) {
 				klog.V(3).Infof("Enforce is set, but ignored :-)")
 			}
-			message := fmt.Sprintf("Found %d non compliant certificates in the namespace %s.\n", nonCompliant, namespace)
-			if namespace == "" {
-				message = fmt.Sprintf("Found %d non compliant certificates, no namespaces were selected.\n", nonCompliant)
-			}
-			if nonCompliant > 0 {
-				message = fmt.Sprintf("%sList of non compliant certificates:\n", message)
-				for cert, certDetails := range list {
-					message = fmt.Sprintf("%s%s expires in %s\n", message, cert, certDetails.Expiration)
-				}
-			}
-			klog.V(3).Info(message)
+			message := buildPolicyStatusMessage(list, nonCompliant, namespace, policy)
 
 			if addViolationCount(policy, message, nonCompliant, namespace, list) || update {
 				plcToUpdateMap[policy.Name] = policy
@@ -247,8 +239,8 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 
 // Checks each namespace for certificates that are going to expire within 3 months
 // Returns the number of uncompliant certificates and a list of the uncompliant certificates
-func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
-	klog.V(3).Info("certExpiration")
+func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
+	klog.V(3).Info("checkSecrets")
 	update := false
 	nonCompliantCertificates := make(map[string]policyv1.Cert, 0)
 	if namespace == "" {
@@ -260,8 +252,10 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 	for _, secretItem := range secretList.Items {
 		secret := secretItem
 		klog.V(3).Infof("Checking secret %s", secret.Name)
-		notCompliant, reason, expiration := checkExpiration(&secret, policy.Spec.MinDuration)
-		if notCompliant {
+		cert, err := parseCertificate(&secret)
+		if err != nil {
+			klog.V(3).Info(err.Error)
+		} else if !isCertificateCompliant(cert, policy) {
 			certName := secret.Name
 			// Gets the certificate's name if it exists
 			if secret.Labels[certNameLabel] != "" {
@@ -269,10 +263,9 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 			} else if secret.Labels[certManagerNameLabel] != "" {
 				certName = secret.Labels[certManagerNameLabel]
 			}
-			klog.V(3).Infof("reason: %v, secret: %v, according to policy: %v\n", reason, secret.ObjectMeta.Name, policy.Name)
-			msg := fmt.Sprintf("Certificate %s [secret name: %s] expires in %s", certName, secret.ObjectMeta.Name, expiration)
+			msg := fmt.Sprintf("Certificate %s [secret name: %s] is not compliant", certName, secret.ObjectMeta.Name)
 			klog.V(3).Info(msg)
-			nonCompliantCertificates[certName] = policyv1.Cert{Secret: secret.Name, Expiration: expiration}
+			nonCompliantCertificates[certName] = *cert
 			if policy.Status.ComplianceState != policyv1.NonCompliant {
 				update = true
 			}
@@ -281,8 +274,9 @@ func certExpiration(policy *policyv1.CertificatePolicy, namespace string) (bool,
 	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
 }
 
-// Returns true only if the secret (certificate) is not compliant (expires within the given duration)
-func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bool, string, string) {
+// Returns true only if the secret (certificate) is not compliant.
+func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
+	var err error
 	klog.V(3).Info("checkExpiration")
 	keyName := "certificate_key_name"
 	key := "tls.crt"
@@ -293,11 +287,12 @@ func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bo
 	// Get the certificate bytes
 	certBytes, _ := secret.Data[key]
 
+	var cert policyv1.Cert
 	// Get the x509 Certificates
 	certs := util.DecodeCertificateBytes(certBytes)
 	if len(certs) < 1 {
-		klog.V(3).Infof("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
-		return false, "No certificates", ""
+		msg := fmt.Sprintf("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
+		return nil, errors.New(msg)
 	}
 	x509Cert := certs[0] // Certificate chains always begin with the end user certificate as a standard format
 
@@ -305,16 +300,124 @@ func checkExpiration(secret *corev1.Secret, policyDuration *metav1.Duration) (bo
 	now := time.Now()
 	expiration := x509Cert.NotAfter
 	duration := expiration.Sub(now)
-	minimumDuration := DefaultDuration
 
+	maximumDuration := expiration.Sub(x509Cert.NotBefore)
+
+	cert = policyv1.Cert{
+		Secret:     secret.Name,
+		Expiration: duration.String(),
+		Expiry:     duration,
+		CA:         x509Cert.IsCA,
+		Duration:   maximumDuration,
+		Sans:       x509Cert.DNSNames,
+	}
+
+	return &cert, err
+}
+
+// Return false if the certificate fails any of the compliance checks
+func isCertificateCompliant(cert *policyv1.Cert, policy *policyv1.CertificatePolicy) bool {
+	// if the cert is expiring then return false
+	flag := isCertificateExpiring(cert, policy)
+	if flag {
+		return false
+	}
+
+	// if the cert has a duration that's too long then return false
+	flag = isCertificateLongDuration(cert, policy)
+	if flag {
+		return false
+	}
+
+	// if the SAN pattern doesn't match an entry return false
+	flag = isCertificateSANPatternMismatch(cert, policy)
+	if flag {
+		return false
+	}
+
+	return true
+}
+
+// isCertificateExpiring return true if the certificate is expired or expiring soon
+func isCertificateExpiring(cert *policyv1.Cert, policy *policyv1.CertificatePolicy) bool {
+	minimumDuration := DefaultDuration
+	policyDuration := policy.Spec.MinDuration
 	if policyDuration != nil {
 		minimumDuration = policyDuration.Duration
 	}
-	if duration < minimumDuration {
-		msg := fmt.Sprintf("Secret %s not compliant! Expires in %s, less than %s from now %s", secret.ObjectMeta.Name, duration.String(), minimumDuration.String(), now.String())
-		return true, msg, duration.String()
+
+	// Take a look at time left before the cert expires - check for CA scenario first if specified
+	minCADuration := policy.Spec.MinCADuration
+	if minCADuration != nil && cert.CA {
+		if cert.Expiry < minCADuration.Duration {
+			return true
+		}
+	} else {
+		if cert.Duration < minimumDuration {
+			// msg := fmt.Sprintf("Secret %s not compliant! Expires in %s, less than %s from now %s", secret.ObjectMeta.Name, duration.String(), minimumDuration.String(), now.String())
+			return true
+		}
 	}
-	return false, "", ""
+	return false
+}
+
+// isCertificateLongDuration returns true if the certificate duration is too long
+func isCertificateLongDuration(cert *policyv1.Cert, policy *policyv1.CertificatePolicy) bool {
+	// Take a look at full certificate duration - check for CA scenario first
+	maxCADuration := policy.Spec.MaxCADuration
+	maxDuration := policy.Spec.MaxDuration
+	if maxCADuration != nil && cert.CA {
+		if cert.Duration > maxCADuration.Duration {
+			return true
+		}
+	} else if maxDuration != nil {
+		if cert.Duration > maxDuration.Duration {
+			return true
+		}
+	}
+	return false
+}
+
+// isCertificateSANPatternMatching returns true if the SAN entries don't match the specified pattern
+func isCertificateSANPatternMismatch(cert *policyv1.Cert, policy *policyv1.CertificatePolicy) bool {
+	// Check SAN entries to validate they match pattern specified
+	pattern := policy.Spec.AllowedSANPattern
+	if pattern != "" {
+		re := regexp.MustCompile(pattern)
+		for _, san := range cert.Sans {
+			match := re.MatchString(san)
+			if !match {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// buildPolicyStatusMessage returns a message that details the non-compliant status
+func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespace string, policy *policyv1.CertificatePolicy) string {
+
+	message := fmt.Sprintf("Found %d non compliant certificates in the namespace %s.\n", count, namespace)
+	if namespace == "" {
+		message = fmt.Sprintf("Found %d non compliant certificates, no namespaces were selected.\n", count)
+	}
+	if count > 0 {
+		message = fmt.Sprintf("%sList of non compliant certificates:\n", message)
+		for cert, certDetails := range list {
+			if isCertificateExpiring(&certDetails, policy) {
+				message = fmt.Sprintf("%s%s expires in %s\n", message, cert, certDetails.Expiration)
+			}
+			if isCertificateLongDuration(&certDetails, policy) {
+				message = fmt.Sprintf("%s%s duration too long %s\n", message, cert, certDetails.Duration.String())
+			}
+			if isCertificateSANPatternMismatch(&certDetails, policy) {
+				message = fmt.Sprintf("%s%s SAN entry found not matching pattern %s\n", message, cert, policy.Spec.AllowedSANPattern)
+			}
+		}
+	}
+
+	klog.V(3).Info(message)
+	return message
 }
 
 func convertMaptoPolicyNameKey() map[string]*policyv1.CertificatePolicy {
@@ -422,11 +525,8 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 		klog.V(3).Infof("Policy %s Compliance State %s", instance.Name, message)
 		for namespace, details := range instance.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
-				minDuration := DefaultDuration
-				if instance.Spec.MinDuration != nil {
-					minDuration = instance.Spec.MinDuration.Duration
-				}
-				message = fmt.Sprintf("%s; Non-compliant certificates (expires in less than %s) in %s[%d]:", message, minDuration.String(), namespace, details.NonCompliantCertificates)
+
+				message = fmt.Sprintf("%s; Non-compliant certificates in %s[%d]:", message, namespace, details.NonCompliantCertificates)
 				for cert, certDetails := range details.NonCompliantCertificatesList {
 					message = fmt.Sprintf("%s [%s, %s]", message, cert, certDetails.Secret)
 				}
