@@ -263,11 +263,22 @@ func TestIsCertificateCompliant(t *testing.T) {
 		},
 	}
 	cert := &policiesv1.Cert{
-		Duration:   time.Hour * 24 * 35,
+		Duration:   time.Hour * 24 * 36,
 		Expiration: "1234",
-		Expiry:     time.Hour * 24 * 35,
+		Expiry:     time.Hour * 24 * 34,
 		Secret:     "test",
 		CA:         true,
 		Sans:       []string{"a", "b"},
 	}
+	assert.True(t, isCertificateCompliant(cert, instance))
+
+	cert = &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 36,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 34,
+		Secret:     "test",
+		CA:         false,
+		Sans:       []string{"a", "b"},
+	}
+	assert.True(t, isCertificateCompliant(cert, instance))
 }

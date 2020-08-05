@@ -52,8 +52,9 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 		patternCerts := ""
 		for namespace, details := range plc.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
-				for _, certDetails := range details.NonCompliantCertificatesList {
-					if isCertificateExpiring(&certDetails, plc) {
+				for _, details := range details.NonCompliantCertificatesList {
+					certDetails := &details
+					if isCertificateExpiring(certDetails, plc) {
 						if certDetails.CA && plc.Spec.MinCADuration != nil {
 							if len(expiredCACerts) > 0 {
 								expiredCACerts = fmt.Sprintf("%s, %s:%s", expiredCACerts, namespace, certDetails.Secret)
@@ -70,7 +71,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 							expireCount++
 						}
 					}
-					if isCertificateLongDuration(&certDetails, plc) {
+					if isCertificateLongDuration(certDetails, plc) {
 						if certDetails.CA && plc.Spec.MaxCADuration != nil {
 							if len(durationCACerts) > 0 {
 								durationCACerts = fmt.Sprintf("%s, %s:%s", durationCACerts, namespace, certDetails.Secret)
@@ -87,7 +88,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 							durationCount++
 						}
 					}
-					if isCertificateSANPatternMismatch(&certDetails, plc) {
+					if isCertificateSANPatternMismatch(certDetails, plc) {
 						if len(patternCerts) > 0 {
 							patternCerts = fmt.Sprintf("%s, %s:%s", patternCerts, namespace, certDetails.Secret)
 						} else {

@@ -423,13 +423,14 @@ func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespa
 	if count > 0 {
 		message = fmt.Sprintf("%sList of non compliant certificates:\n", message)
 		for cert, certDetails := range list {
-			if isCertificateExpiring(&certDetails, policy) {
+			details := &certDetails
+			if isCertificateExpiring(details, policy) {
 				message = fmt.Sprintf("%s%s expires in %s\n", message, cert, certDetails.Expiration)
 			}
-			if isCertificateLongDuration(&certDetails, policy) {
+			if isCertificateLongDuration(details, policy) {
 				message = fmt.Sprintf("%s%s duration too long %s\n", message, cert, certDetails.Duration.String())
 			}
-			if isCertificateSANPatternMismatch(&certDetails, policy) {
+			if isCertificateSANPatternMismatch(details, policy) {
 				pattern := getPatternsUsed(policy)
 				message = fmt.Sprintf("%s%s SAN entry found not matching pattern %s\n", message, cert, pattern)
 			}
