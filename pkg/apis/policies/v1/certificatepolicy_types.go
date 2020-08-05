@@ -48,15 +48,20 @@ type CertificatePolicySpec struct {
 	Severity string `json:"severity,omitempty"`
 	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only
 	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
-	// Minimum CA duration before a signing certificate expires that it is considered non-compliant. Golang's time units only
+	// Minimum CA duration before a signing certificate expires that it is considered non-compliant.
+	// Golang's time units only
 	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"`
-	// Maximum duration for a certificate, longer duration is considered non-compliant. Golang's time units only
+	// Maximum duration for a certificate, longer duration is considered non-compliant.
+	// Golang's time units only
 	MaxDuration *metav1.Duration `json:"maximumDuration,omitempty"`
-	// Maximum CA duration for a signing certificate, longer duration is considered non-compliant. Golang's time units only
+	// Maximum CA duration for a signing certificate, longer duration is considered non-compliant.
+	// Golang's time units only
 	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"`
-	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.  Golang's regexp symtax only
+	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
+	//  Golang's regexp symtax only
 	AllowedSANPattern string `json:"allowedSANPattern,omitempty"`
-	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.  Golang's regexp symtax only
+	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
+	// Golang's regexp symtax only
 	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"`
 }
 

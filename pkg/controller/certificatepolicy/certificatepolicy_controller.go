@@ -354,7 +354,6 @@ func isCertificateExpiring(cert *policyv1.Cert, policy *policyv1.CertificatePoli
 		}
 	} else {
 		if cert.Duration < minimumDuration {
-			// msg := fmt.Sprintf("Secret %s not compliant! Expires in %s, less than %s from now %s", secret.ObjectMeta.Name, duration.String(), minimumDuration.String(), now.String())
 			return true
 		}
 	}
@@ -414,7 +413,8 @@ func isCertificateSANPatternMismatch(cert *policyv1.Cert, policy *policyv1.Certi
 }
 
 // buildPolicyStatusMessage returns a message that details the non-compliant status
-func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespace string, policy *policyv1.CertificatePolicy) string {
+func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespace string,
+	policy *policyv1.CertificatePolicy) string {
 
 	message := fmt.Sprintf("Found %d non compliant certificates in the namespace %s.\n", count, namespace)
 	if namespace == "" {
@@ -423,14 +423,14 @@ func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespa
 	if count > 0 {
 		message = fmt.Sprintf("%sList of non compliant certificates:\n", message)
 		for cert, certDetails := range list {
-			details := &certDetails
-			if isCertificateExpiring(details, policy) {
-				message = fmt.Sprintf("%s%s expires in %s\n", message, cert, certDetails.Expiration)
+			details := certDetails
+			if isCertificateExpiring(&details, policy) {
+				message = fmt.Sprintf("%s%s expires in %s\n", message, cert, details.Expiration)
 			}
-			if isCertificateLongDuration(details, policy) {
-				message = fmt.Sprintf("%s%s duration too long %s\n", message, cert, certDetails.Duration.String())
+			if isCertificateLongDuration(&details, policy) {
+				message = fmt.Sprintf("%s%s duration too long %s\n", message, cert, details.Duration.String())
 			}
-			if isCertificateSANPatternMismatch(details, policy) {
+			if isCertificateSANPatternMismatch(&details, policy) {
 				pattern := getPatternsUsed(policy)
 				message = fmt.Sprintf("%s%s SAN entry found not matching pattern %s\n", message, cert, pattern)
 			}
@@ -557,7 +557,8 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 		for namespace, details := range instance.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
 
-				message = fmt.Sprintf("%s; Non-compliant certificates in %s[%d]:", message, namespace, details.NonCompliantCertificates)
+				message = fmt.Sprintf("%s; Non-compliant certificates in %s[%d]:",
+					message, namespace, details.NonCompliantCertificates)
 				for cert, certDetails := range details.NonCompliantCertificatesList {
 					message = fmt.Sprintf("%s [%s, %s]", message, cert, certDetails.Secret)
 				}
