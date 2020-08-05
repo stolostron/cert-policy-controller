@@ -3,6 +3,7 @@
 // Note to U.S. Government Users Restricted Rights:
 // Use, duplication or disclosure restricted by GSA ADP Schedule
 // Contract with IBM Corp.
+// Copyright (c) 2020 Red Hat, Inc.
 
 package certificatepolicy
 
@@ -29,7 +30,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 	result = string(plc.Status.ComplianceState)
 
 	if plc.Status.CompliancyDetails == nil {
-		return result
+		return fmt.Sprintf("%s; %s", result, "No namespaces matched the namespace selector.")
 	}
 
 	// Message format: NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
@@ -54,6 +55,14 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 			}
 		}
 		result = fmt.Sprintf("%s; %d %s: %s", result, count, message, certs)
+	} else if plc.Status.ComplianceState == policyv1.Compliant {
+		if len(plc.Status.CompliancyDetails) == 1 {
+			for namespace := range plc.Status.CompliancyDetails {
+				if namespace == "" {
+					return fmt.Sprintf("%s; %s", result, "No namespaces matched the namespace selector.")
+				}
+			}
+		}
 	}
 	return result
 }
