@@ -56,6 +56,8 @@ type CertificatePolicySpec struct {
 	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"`
 	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.  Golang's regexp symtax only
 	AllowedSANPattern string `json:"allowedSANPattern,omitempty"`
+	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.  Golang's regexp symtax only
+	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"`
 }
 
 // CertificatePolicyStatus defines the observed state of CertificatePolicy

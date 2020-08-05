@@ -38,6 +38,11 @@ spec:
                   the certificate for the certificate to be compliant.  Golang's regexp
                   symtax only
                 type: string
+              disallowedSANPattern:
+                description: A pattern that must not match any defined SAN entries
+                  in the certificate for the certificate to be compliant.  Golang's
+                  regexp symtax only
+                type: string
               labelSelector:
                 additionalProperties:
                   type: string

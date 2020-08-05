@@ -14,6 +14,7 @@
 package certificatepolicy
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -47,7 +48,12 @@ func TestReconcile(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			AllowedSANPattern:    "[[:alpha:]]",
+			DisallowedSANPattern: "[^\\*]",
+			MinCADuration:        &metav1.Duration{time.Hour * 24 * 35},
+			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 35},
+			MaxDuration:          &metav1.Duration{time.Hour * 24 * 35},
 		},
 	}
 
@@ -222,4 +228,46 @@ func TestPrintMap(t *testing.T) {
 	var policies = map[string]*policiesv1.CertificatePolicy{}
 	policies["policy1"] = &certPolicy
 	printMap(policies)
+}
+
+func TestGetPatternsUsed(t *testing.T) {
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			AllowedSANPattern:    "allowed",
+			DisallowedSANPattern: "disallowed",
+		},
+	}
+
+	pattern := getPatternsUsed(instance)
+	assert.True(t, pattern == fmt.Sprintf("Allowed: %s Disallowed: %s", "allowed", "disallowed"))
+}
+
+func TestIsCertificateCompliant(t *testing.T) {
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			AllowedSANPattern:    "allowed",
+			DisallowedSANPattern: "disallowed",
+			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 35},
+			MaxDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			MinCADuration:        &metav1.Duration{time.Hour * 24 * 35},
+		},
+	}
+	cert := &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 35,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 35,
+		Secret:     "test",
+		CA:         true,
+		Sans:       []string{"a", "b"},
+	}
 }

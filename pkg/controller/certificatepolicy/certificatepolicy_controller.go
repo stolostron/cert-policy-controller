@@ -385,11 +385,26 @@ func isCertificateSANPatternMismatch(cert *policyv1.Cert, policy *policyv1.Certi
 	if pattern != "" {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			klog.Errorf("The regular expression specified is not valid: %s: Error: %s", pattern, err)
+			klog.Errorf("The AllowedSANPattern regular expression specified is not valid: %s: Error: %s", pattern, err)
 		} else {
 			for _, san := range cert.Sans {
 				match := re.MatchString(san)
 				if !match {
+					return true
+				}
+			}
+		}
+	}
+	// Check SAN entries to validate they do not match the disallowed pattern
+	pattern = policy.Spec.DisallowedSANPattern
+	if pattern != "" {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			klog.Errorf("The DisallowedSANPattern regular expression specified is not valid: %s: Error: %s", pattern, err)
+		} else {
+			for _, san := range cert.Sans {
+				match := re.MatchString(san)
+				if match {
 					return true
 				}
 			}
@@ -415,7 +430,8 @@ func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespa
 				message = fmt.Sprintf("%s%s duration too long %s\n", message, cert, certDetails.Duration.String())
 			}
 			if isCertificateSANPatternMismatch(&certDetails, policy) {
-				message = fmt.Sprintf("%s%s SAN entry found not matching pattern %s\n", message, cert, policy.Spec.AllowedSANPattern)
+				pattern := getPatternsUsed(policy)
+				message = fmt.Sprintf("%s%s SAN entry found not matching pattern %s\n", message, cert, pattern)
 			}
 		}
 	}
@@ -424,6 +440,16 @@ func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespa
 	return message
 }
 
+func getPatternsUsed(policy *policyv1.CertificatePolicy) string {
+	pattern := ""
+	if policy.Spec.AllowedSANPattern != "" {
+		pattern = fmt.Sprintf("Allowed: %s", policy.Spec.AllowedSANPattern)
+	}
+	if policy.Spec.DisallowedSANPattern != "" {
+		pattern = fmt.Sprintf("%s Disallowed: %s", pattern, policy.Spec.DisallowedSANPattern)
+	}
+	return pattern
+}
 func convertMaptoPolicyNameKey() map[string]*policyv1.CertificatePolicy {
 	plcMap := make(map[string]*policyv1.CertificatePolicy)
 	for _, policy := range availablePolicies.PolicyMap {

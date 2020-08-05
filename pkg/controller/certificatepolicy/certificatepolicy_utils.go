@@ -102,16 +102,16 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 			message = fmt.Sprintf("%d certificates expire in less than %s: %s\n", expireCount, minDuration.String(), expiredCerts)
 		}
 		if expireCACount > 0 {
-			message = fmt.Sprintf("%s %d CA certificates expire in less than %s: %s\n", message, expireCACount, plc.Spec.MinCADuration, expiredCACerts)
+			message = fmt.Sprintf("%s %d CA certificates expire in less than %s: %s\n", message, expireCACount, plc.Spec.MinCADuration.String(), expiredCACerts)
 		}
 		if durationCount > 0 {
-			message = fmt.Sprintf("%s %d certificates exceed the maximum duration of %s: %s\n", message, durationCount, plc.Spec.MaxDuration, durationCerts)
+			message = fmt.Sprintf("%s %d certificates exceed the maximum duration of %s: %s\n", message, durationCount, plc.Spec.MaxDuration.String(), durationCerts)
 		}
 		if durationCACount > 0 {
-			message = fmt.Sprintf("%s %d CA certificates exceed the maximum duration of %s: %s\n", message, durationCACount, plc.Spec.MaxCADuration, durationCACerts)
+			message = fmt.Sprintf("%s %d CA certificates exceed the maximum duration of %s: %s\n", message, durationCACount, plc.Spec.MaxCADuration.String(), durationCACerts)
 		}
 		if patternMismatchCount > 0 {
-			message = fmt.Sprintf("%s %d certificates defined SAN entris that do not match pattern %s: %s\n", message, patternMismatchCount, plc.Spec.AllowedSANPattern, patternCerts)
+			message = fmt.Sprintf("%s %d certificates defined SAN entris that do not match pattern %s: %s\n", message, patternMismatchCount, getPatternsUsed(plc), patternCerts)
 		}
 		result = fmt.Sprintf("%s; %s", result, message)
 	} else if plc.Status.ComplianceState == policyv1.Compliant {
