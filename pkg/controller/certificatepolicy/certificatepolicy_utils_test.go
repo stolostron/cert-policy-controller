@@ -35,14 +35,16 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 		},
 		Status: policiesv1.CertificatePolicyStatus{
 			ComplianceState: policiesv1.NonCompliant,
-			CompliancyDetails: {
+			CompliancyDetails: map[string]policiesv1.CompliancyDetails{
 				"default": {
 					NonCompliantCertificates: 1,
-					NonCompliantCertificatesList: {
-						Secret:     "secretName",
-						Expiration: "expireTime",
-						Expiry:     7775545762671265,
-						Duration:   7776000000000000,
+					NonCompliantCertificatesList: map[string]policiesv1.Cert{
+						"secretName": {
+							Secret:     "secretName",
+							Expiration: "expireTime",
+							Expiry:     7775545762671265,
+							Duration:   7776000000000000,
+						},
 					},
 					Message: "NonCompliant; blah",
 				},

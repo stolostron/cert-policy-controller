@@ -85,15 +85,15 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 		}
 		if expireCACount > 0 {
 			message = fmt.Sprintf("%s %d CA certificates expire in less than %s: %s\n",
-				message, expireCACount, plc.Spec.MinCADuration.String(), expiredCACerts)
+				message, expireCACount, plc.Spec.MinCADuration.Duration.String(), expiredCACerts)
 		}
 		if durationCount > 0 {
 			message = fmt.Sprintf("%s %d certificates exceed the maximum duration of %s: %s\n",
-				message, durationCount, plc.Spec.MaxDuration.String(), durationCerts)
+				message, durationCount, plc.Spec.MaxDuration.Duration.String(), durationCerts)
 		}
 		if durationCACount > 0 {
 			message = fmt.Sprintf("%s %d CA certificates exceed the maximum duration of %s: %s\n",
-				message, durationCACount, plc.Spec.MaxCADuration.String(), durationCACerts)
+				message, durationCACount, plc.Spec.MaxCADuration.Duration.String(), durationCACerts)
 		}
 		if patternMismatchCount > 0 {
 			message = fmt.Sprintf("%s %d certificates defined SAN entris that do not match pattern %s: %s\n",

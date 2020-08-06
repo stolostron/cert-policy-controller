@@ -1,6 +1,12 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+    app: {{ include "controller.fullname" . }}
+    chart: {{ include "controller.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
   name: certificatepolicies.policy.open-cluster-management.io
 spec:
   group: policy.open-cluster-management.io

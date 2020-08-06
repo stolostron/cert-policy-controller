@@ -254,7 +254,7 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 		klog.V(3).Infof("Checking secret %s", secret.Name)
 		cert, err := parseCertificate(&secret)
 		if err != nil {
-			klog.V(3).Info(err.Error)
+			klog.V(3).Info(err.Error())
 		} else if !isCertificateCompliant(cert, policy) {
 			certName := secret.Name
 			// Gets the certificate's name if it exists
