@@ -335,7 +335,7 @@ func TestIsCertificateCompliant(t *testing.T) {
 
 	// allowed pattern fail
 	cert = &policiesv1.Cert{
-		Duration:   time.Hour * 24 * 51,
+		Duration:   time.Hour * 24 * 45,
 		Expiration: "1234",
 		Expiry:     time.Hour * 24 * 34,
 		Secret:     "test",
@@ -349,7 +349,7 @@ func TestIsCertificateCompliant(t *testing.T) {
 
 	// disallowed pattern fail
 	cert = &policiesv1.Cert{
-		Duration:   time.Hour * 24 * 51,
+		Duration:   time.Hour * 24 * 45,
 		Expiration: "1234",
 		Expiry:     time.Hour * 24 * 34,
 		Secret:     "test",

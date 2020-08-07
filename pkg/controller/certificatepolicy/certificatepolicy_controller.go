@@ -353,7 +353,7 @@ func isCertificateExpiring(cert *policyv1.Cert, policy *policyv1.CertificatePoli
 			return true
 		}
 	} else {
-		if cert.Duration < minimumDuration {
+		if cert.Expiry < minimumDuration {
 			return true
 		}
 	}

@@ -41,8 +41,8 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 					NonCompliantCertificatesList: map[string]policiesv1.Cert{
 						"secretName": {
 							Secret:     "secretName",
-							Expiration: "expireTime",
-							Expiry:     7775545762671265,
+							Expiration: "36h",
+							Expiry:     259200000000000,
 							Duration:   7776000000000000,
 						},
 					},
@@ -52,7 +52,7 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 		},
 	}
 
-	policyString := convertPolicyStatusToString(&certPolicy, time.Hour*24*3)
+	policyString := convertPolicyStatusToString(instance, time.Hour*24*10)
 	assert.True(t, strings.HasPrefix(policyString, "NonCompliant; "))
 
 	instance = &policiesv1.CertificatePolicy{
@@ -71,7 +71,7 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 	assert.True(t, policyString == "ComplianceState is still undetermined")
 
 	instance.Status.ComplianceState = policiesv1.Compliant
-	policyString = convertPolicyStatusToString(&certPolicy, time.Hour*24*3)
+	policyString = convertPolicyStatusToString(instance, time.Hour*24*3)
 	assert.NotNil(t, policyString)
 }
 
