@@ -96,7 +96,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 				message, durationCACount, plc.Spec.MaxCADuration.Duration.String(), durationCACerts)
 		}
 		if patternMismatchCount > 0 {
-			message = fmt.Sprintf("%s %d certificates defined SAN entris that do not match pattern %s: %s\n",
+			message = fmt.Sprintf("%s %d certificates defined SAN entries do not match pattern %s: %s\n",
 				message, patternMismatchCount, getPatternsUsed(plc), patternCerts)
 		}
 		result = fmt.Sprintf("%s; %s", result, message)
