@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -8,63 +10,82 @@ import (
 type RemediationAction string
 
 const (
-        // Enforce is an remediationAction to make changes
-        Enforce RemediationAction = "Enforce"
+	// Enforce is an remediationAction to make changes
+	Enforce RemediationAction = "Enforce"
 
-        // Inform is an remediationAction to only inform
-        Inform RemediationAction = "Inform"
+	// Inform is an remediationAction to only inform
+	Inform RemediationAction = "Inform"
 )
 
 // ComplianceState shows the state of enforcement
 type ComplianceState string
 
 const (
-        // Compliant is an ComplianceState
-        Compliant ComplianceState = "Compliant"
+	// Compliant is an ComplianceState
+	Compliant ComplianceState = "Compliant"
 
-        // NonCompliant is an ComplianceState
-        NonCompliant ComplianceState = "NonCompliant"
+	// NonCompliant is an ComplianceState
+	NonCompliant ComplianceState = "NonCompliant"
 
-        // UnknownCompliancy is an ComplianceState
-        UnknownCompliancy ComplianceState = "UnknownCompliancy"
+	// UnknownCompliancy is an ComplianceState
+	UnknownCompliancy ComplianceState = "UnknownCompliancy"
 )
 
 // Target defines the list of namespaces to include/exclude
 type Target struct {
-        Include []string `json:"include,omitempty"`
-        Exclude []string `json:"exclude,omitempty"`
+	Include []string `json:"include,omitempty"`
+	Exclude []string `json:"exclude,omitempty"`
 }
 
 // CertificatePolicySpec defines the desired state of CertificatePolicy
 type CertificatePolicySpec struct {
-        //enforce, inform
-        RemediationAction RemediationAction `json:"remediationAction,omitempty"`
-        // selecting a list of namespaces where the policy applies
-        NamespaceSelector Target            `json:"namespaceSelector,omitempty"`
-        LabelSelector     map[string]string `json:"labelSelector,omitempty"`
-        // low, medium, or high
-        Severity string `json:"severity,omitempty"`
-        // Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only
-        MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
+	//enforce, inform
+	RemediationAction RemediationAction `json:"remediationAction,omitempty"`
+	// selecting a list of namespaces where the policy applies
+	NamespaceSelector Target            `json:"namespaceSelector,omitempty"`
+	LabelSelector     map[string]string `json:"labelSelector,omitempty"`
+	// low, medium, or high
+	Severity string `json:"severity,omitempty"`
+	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only
+	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
+	// Minimum CA duration before a signing certificate expires that it is considered non-compliant.
+	// Golang's time units only
+	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"`
+	// Maximum duration for a certificate, longer duration is considered non-compliant.
+	// Golang's time units only
+	MaxDuration *metav1.Duration `json:"maximumDuration,omitempty"`
+	// Maximum CA duration for a signing certificate, longer duration is considered non-compliant.
+	// Golang's time units only
+	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"`
+	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
+	//  Golang's regexp symtax only
+	AllowedSANPattern string `json:"allowedSANPattern,omitempty"`
+	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
+	// Golang's regexp symtax only
+	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"`
 }
 
 // CertificatePolicyStatus defines the observed state of CertificatePolicy
 type CertificatePolicyStatus struct {
-        ComplianceState   ComplianceState              `json:"compliant,omitempty"`         // Compliant, NonCompliant, UnkownCompliancy
-        CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"` // map of namespaces to its compliancy details
+	ComplianceState   ComplianceState              `json:"compliant,omitempty"`         // Compliant, NonCompliant, UnkownCompliancy
+	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"` // map of namespaces to its compliancy details
 }
 
 // CompliancyDetails defines the all the details related to whether or not the policy is compliant
 type CompliancyDetails struct {
-        NonCompliantCertificates     uint            `json:"NonCompliantCertificates,omitempty"`
-        NonCompliantCertificatesList map[string]Cert `json:"NonCompliantCertificatesList,omitEmpty"`
-        Message                      string          `json:"message,omitempty"` // Overall message of this compliance
+	NonCompliantCertificates     uint            `json:"NonCompliantCertificates,omitempty"`
+	NonCompliantCertificatesList map[string]Cert `json:"NonCompliantCertificatesList,omitEmpty"`
+	Message                      string          `json:"message,omitempty"` // Overall message of this compliance
 }
 
 // Cert contains its related secret and when it expires
 type Cert struct {
-        Secret     string `json:"secretName,omitempty"`
-        Expiration string `json:"expiration,omitempty"`
+	Secret     string        `json:"secretName,omitempty"`
+	Expiration string        `json:"expiration,omitempty"`
+	Expiry     time.Duration `json:"expiry,omitempty"`
+	CA         bool          `json:"ca,omitempty"`
+	Duration   time.Duration `json:"duration,omitempty"`
+	Sans       []string      `json:"sans,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -84,8 +105,8 @@ type CertificatePolicy struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +genclient
 type Policy struct {
-        metav1.TypeMeta   `json:",inline"`
-        metav1.ObjectMeta `json:"metadata"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -101,10 +122,10 @@ type CertificatePolicyList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:lister-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type PolicyList struct {
-        metav1.TypeMeta `json:",inline"`
-        metav1.ListMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
 
-        Items []Policy `json:"items"`
+	Items []Policy `json:"items"`
 }
 
 func init() {

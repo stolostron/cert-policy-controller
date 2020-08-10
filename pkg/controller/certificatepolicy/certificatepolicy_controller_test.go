@@ -14,6 +14,7 @@
 package certificatepolicy
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -47,7 +48,12 @@ func TestReconcile(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			AllowedSANPattern:    "[[:alpha:]]",
+			DisallowedSANPattern: "[^\\*]",
+			MinCADuration:        &metav1.Duration{time.Hour * 24 * 35},
+			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 35},
+			MaxDuration:          &metav1.Duration{time.Hour * 24 * 35},
 		},
 	}
 
@@ -222,4 +228,136 @@ func TestPrintMap(t *testing.T) {
 	var policies = map[string]*policiesv1.CertificatePolicy{}
 	policies["policy1"] = &certPolicy
 	printMap(policies)
+}
+
+func TestGetPatternsUsed(t *testing.T) {
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			AllowedSANPattern:    "allowed",
+			DisallowedSANPattern: "disallowed",
+		},
+	}
+
+	pattern := getPatternsUsed(instance)
+	assert.True(t, pattern == fmt.Sprintf("Allowed: %s Disallowed: %s", "allowed", "disallowed"))
+}
+
+func TestIsCertificateCompliant(t *testing.T) {
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 10},
+			AllowedSANPattern:    "[ab]",
+			DisallowedSANPattern: "[\\*]",
+			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 100},
+			MaxDuration:          &metav1.Duration{time.Hour * 24 * 50},
+			MinCADuration:        &metav1.Duration{time.Hour * 24 * 20},
+		},
+	}
+
+	// all ok
+	cert := &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 36,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 34,
+		Secret:     "test",
+		CA:         true,
+		Sans:       []string{"a", "b"},
+	}
+	assert.True(t, isCertificateCompliant(cert, instance))
+	assert.False(t, isCertificateExpiring(cert, instance))
+	assert.False(t, isCertificateLongDuration(cert, instance))
+	assert.False(t, isCertificateSANPatternMismatch(cert, instance))
+
+	// expiring non CA
+	cert = &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 35,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 9,
+		Secret:     "test",
+		CA:         false,
+		Sans:       []string{"a", "b"},
+	}
+	assert.False(t, isCertificateCompliant(cert, instance))
+	assert.True(t, isCertificateExpiring(cert, instance))
+	assert.False(t, isCertificateLongDuration(cert, instance))
+	assert.False(t, isCertificateSANPatternMismatch(cert, instance))
+
+	// expiring CA
+	cert = &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 75,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 19,
+		Secret:     "test",
+		CA:         true,
+		Sans:       []string{"a", "b"},
+	}
+	assert.False(t, isCertificateCompliant(cert, instance))
+	assert.True(t, isCertificateExpiring(cert, instance))
+	assert.False(t, isCertificateLongDuration(cert, instance))
+	assert.False(t, isCertificateSANPatternMismatch(cert, instance))
+
+	// long duration non CA
+	cert = &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 60,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 35,
+		Secret:     "test",
+		CA:         false,
+		Sans:       []string{"a", "b"},
+	}
+	assert.False(t, isCertificateCompliant(cert, instance))
+	assert.False(t, isCertificateExpiring(cert, instance))
+	assert.True(t, isCertificateLongDuration(cert, instance))
+	assert.False(t, isCertificateSANPatternMismatch(cert, instance))
+
+	// long duration CA
+	cert = &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 120,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 35,
+		Secret:     "test",
+		CA:         true,
+		Sans:       []string{"a", "b"},
+	}
+	assert.False(t, isCertificateCompliant(cert, instance))
+	assert.False(t, isCertificateExpiring(cert, instance))
+	assert.True(t, isCertificateLongDuration(cert, instance))
+	assert.False(t, isCertificateSANPatternMismatch(cert, instance))
+
+	// allowed pattern fail
+	cert = &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 45,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 34,
+		Secret:     "test",
+		CA:         false,
+		Sans:       []string{"a", "c"},
+	}
+	assert.False(t, isCertificateCompliant(cert, instance))
+	assert.False(t, isCertificateExpiring(cert, instance))
+	assert.False(t, isCertificateLongDuration(cert, instance))
+	assert.True(t, isCertificateSANPatternMismatch(cert, instance))
+
+	// disallowed pattern fail
+	cert = &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 45,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 34,
+		Secret:     "test",
+		CA:         false,
+		Sans:       []string{"*", "b"},
+	}
+	assert.False(t, isCertificateCompliant(cert, instance))
+	assert.False(t, isCertificateExpiring(cert, instance))
+	assert.False(t, isCertificateLongDuration(cert, instance))
+	assert.True(t, isCertificateSANPatternMismatch(cert, instance))
 }

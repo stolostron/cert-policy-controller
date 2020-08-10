@@ -34,36 +34,45 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
 		},
 		Status: policiesv1.CertificatePolicyStatus{
-			ComplianceState: "",
+			ComplianceState: policiesv1.NonCompliant,
+			CompliancyDetails: map[string]policiesv1.CompliancyDetails{
+				"default": {
+					NonCompliantCertificates: 1,
+					NonCompliantCertificatesList: map[string]policiesv1.Cert{
+						"secretName": {
+							Secret:     "secretName",
+							Expiration: "36h",
+							Expiry:     259200000000000,
+							Duration:   7776000000000000,
+						},
+					},
+					Message: "NonCompliant; blah",
+				},
+			},
 		},
 	}
 
-	result := convertPolicyStatusToString(instance, time.Hour*300)
-	assert.True(t, result == "ComplianceState is still undetermined")
+	policyString := convertPolicyStatusToString(instance, time.Hour*24*10)
+	assert.True(t, strings.HasPrefix(policyString, "NonCompliant; "))
 
-	var compliantDetail = policiesv1.CompliancyDetails{}
-	var compliantDetails = map[string]policiesv1.CompliancyDetails{}
-
-	compliantDetails["a"] = compliantDetail
-	compliantDetails["b"] = compliantDetail
-	compliantDetails["c"] = compliantDetail
-	certPolicyStatus := policiesv1.CertificatePolicyStatus{
-		ComplianceState:   "Compliant",
-		CompliancyDetails: compliantDetails,
+	instance = &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+		},
+		Status: policiesv1.CertificatePolicyStatus{
+			ComplianceState: "",
+		},
 	}
-	certPolicy.Status = certPolicyStatus
-	var policyInString = convertPolicyStatusToString(&certPolicy, time.Hour*24*3)
-	assert.NotNil(t, policyInString)
-	checkComplianceChangeBasedOnDetails(&certPolicy)
-	checkComplianceBasedOnDetails(&certPolicy)
+	policyString = convertPolicyStatusToString(instance, time.Hour*300)
+	assert.True(t, policyString == "ComplianceState is still undetermined")
 
-	certPolicyStatus = policiesv1.CertificatePolicyStatus{
-		ComplianceState:   policiesv1.NonCompliant,
-		CompliancyDetails: compliantDetails,
-	}
-	certPolicy.Status = certPolicyStatus
-	policyInString = convertPolicyStatusToString(&certPolicy, time.Hour*24*3)
-	assert.True(t, strings.HasPrefix(policyInString, "NonCompliant; "))
+	instance.Status.ComplianceState = policiesv1.Compliant
+	policyString = convertPolicyStatusToString(instance, time.Hour*24*3)
+	assert.NotNil(t, policyString)
 }
 
 // Do not run this test due to fatal log entry
