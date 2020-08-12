@@ -1,6 +1,17 @@
 # CertificatePolicy Policy Controller
 ## Description
 A controller that watches certificatepolicies created to monitor a kubernetes cluster to ensure certificates don't expire within a given amount of time. The controller shows whether or not a given `CertificatePolicy` is compliant.
+In addition to checking the expiration of certificates, several optional checks are also available.
+
+| Field | Description |
+| ---- | ---- |
+| minimumDuration | Required: Parameter specifies the smallest duration (in hours) before a certificate is considered non-compliant. When the certificate expiration is greater than the minimumDuration, then the certificate is considered compliant. Default value is 100h. The parameter value uses the time duration format from Golang. See Golang Parse Duration for more information. |
+| minimumCADuration | Optional: Identify signing certificates that expire soon with a different value from other certificates.  If not specified CA certificate expiration is managed with the `minimumDuration` setting. The parameter value uses the time duration format from Golang. See Golang Parse Duration for more information. |
+| maximumDuration | Optional: Identify certificates that have been created with a duration that exceeds your desired limit. The parameter value uses the time duration format from Golang. See Golang Parse Duration for more information. |
+| maximumCADuration | Optional: Identify signing certificates that have been created with a duration that exceeds your desired limit.  If not specified, the CA certificate maximum duration is monitored using the `maximumDuration` setting. The parameter value uses the time duration format from Golang. See Golang Parse Duration for more information. |
+| allowedSANPattern | Optional: A regular expression that must match every SAN entry you have defined in your certificates. See Golang Regular Expression syntax for more inforamtion: https://golang.org/pkg/regexp/syntax/ |
+| disallowedSANPattern | Optional: A regular expression that must not match any SAN entries you have defined in your certificates.  See Golang Regular Expression syntax for more inforamtion: https://golang.org/pkg/regexp/syntax/ |
+
 
 ## Usage
 The controller can be run as a stand-alone program or as an integrated part of governing risk with Red Hat Advanced Cluster Management for Kubernetes.
