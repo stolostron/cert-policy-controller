@@ -52,7 +52,7 @@ jobs:
           make component/build
           make component/push
           make security/scans
-        - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then 
+        - if [ "$TRAVIS_PULL_REQUEST" == "false" && "$TRAVIS_BRANCH" == "master" ]; then 
             export COMPONENT_NEWTAG="latest-dev";
             make component/tag;
             export COMPONENT_VERSION="latest";
