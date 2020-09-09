@@ -478,6 +478,9 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 		changed = true
 	}
 
+	if count == 0 && plc.Status.ComplianceState == policyv1.NonCompliant {
+		changed = true
+	}
 	// The number of non-compliant certificates has changed, so change the overall compliance state
 	if plc.Status.CompliancyDetails[namespace].NonCompliantCertificates != count {
 		changed = true
