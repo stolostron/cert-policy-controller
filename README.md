@@ -14,7 +14,7 @@ apiVersion: policy.open-cluster-management.io/v1
 kind: CertificatePolicy
 metadata:
   name: certificate-policy-1
-  namespace: kube-system
+  namespace: default
   label:
     category: "System-Integrity"
 spec:
