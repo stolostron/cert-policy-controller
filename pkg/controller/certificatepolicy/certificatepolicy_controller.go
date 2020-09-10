@@ -485,6 +485,12 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	if plc.Status.CompliancyDetails[namespace].NonCompliantCertificates != count {
 		changed = true
 	}
+	if count > 0 && plc.Status.ComplianceState == policyv1.Compliant {
+		changed = true
+	}
+	if message != plc.Status.CompliancyDetails[namespace].Message {
+		changed = true
+	}
 
 	plc.Status.CompliancyDetails[namespace] = policyv1.CompliancyDetails{
 		NonCompliantCertificates:     count,
