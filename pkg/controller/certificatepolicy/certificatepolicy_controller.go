@@ -239,7 +239,8 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 }
 
 // Checks each namespace for certificates that are going to expire within 3 months
-// Returns whether a state change is happening, the number of uncompliant certificates and a list of the uncompliant certificates
+// Returns whether a state change is happening, the number of uncompliant certificates
+// and a list of the uncompliant certificates
 func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
 	klog.V(3).Info("checkSecrets")
 	update := false
@@ -247,7 +248,7 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	if namespace == "" {
 		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
 	}
-	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
+	//GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secretItem := range secretList.Items {
@@ -497,7 +498,7 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 		klog.Infof("The policy %s has a new message: %s", plc.Name, msg)
 		changed = true
 	}
-	// TODO: I think we need to compare certificates and set changed = true if we detect changes
+
 	plc.Status.CompliancyDetails[namespace] = policyv1.CompliancyDetails{
 		NonCompliantCertificates:     count,
 		NonCompliantCertificatesList: certificates,
