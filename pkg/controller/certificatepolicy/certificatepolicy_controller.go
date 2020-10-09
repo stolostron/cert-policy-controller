@@ -494,8 +494,13 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 		klog.Infof("The policy %s should not be compliant", plc.Name)
 		changed = true
 	}
-	if msg != plc.Status.CompliancyDetails[namespace].Message {
-		klog.Infof("The policy %s has a new message: %s", plc.Name, msg)
+	// The message contains the amount of time until expiration which changes each cycle
+	// Do not compare the message
+	//if msg != plc.Status.CompliancyDetails[namespace].Message {
+	//	klog.Infof("The policy %s has a new message: %s", plc.Name, msg)
+	//	changed = true
+	//}
+	if haveNewNonCompliantCertificate(plc, namespace, certificates) {
 		changed = true
 	}
 
@@ -506,6 +511,27 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	}
 	klog.Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
 	return changed
+}
+
+// haveNewNonCompliantCertificate returns true if a new certificate needs to be added
+// to the list of certificates that are not compliant
+func haveNewNonCompliantCertificate(plc *policyv1.CertificatePolicy, namespace string, certificates map[string]policyv1.Cert) bool {
+	result := false
+	for name := range certificates {
+		found := false
+		for existing := range plc.Status.CompliancyDetails[namespace].NonCompliantCertificatesList {
+			if name == existing {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// we can stop now
+			result = true
+			break
+		}
+	}
+	return result
 }
 
 // checkComplianceBasedOnDetails takes a certificate and sets whether
