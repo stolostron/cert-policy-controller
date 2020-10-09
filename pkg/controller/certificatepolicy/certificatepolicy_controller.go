@@ -191,6 +191,7 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 
 		plcToUpdateMap = make(map[string]*policyv1.CertificatePolicy)
 
+		stateChange := false
 		// Loops through all of the cert policies
 		for resource, policy := range availablePolicies.PolicyMap {
 			namespace := strings.Split(resource, "/")[0]
@@ -203,15 +204,19 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 
 			if addViolationCount(policy, message, nonCompliant, namespace, list) || update {
 				plcToUpdateMap[policy.Name] = policy
+				stateChange = true
 			}
+
 			checkComplianceBasedOnDetails(policy)
 			klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 		}
 
-		//update status of all policies that changed:
-		faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
-		if err != nil {
-			klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+		if stateChange {
+			//update status of all policies that changed:
+			faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
+			if err != nil {
+				klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+			}
 		}
 
 		if loopflag {
@@ -231,7 +236,7 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 }
 
 // Checks each namespace for certificates that are going to expire within 3 months
-// Returns the number of uncompliant certificates and a list of the uncompliant certificates
+// Returns whether a state change is happening, the number of uncompliant certificates and a list of the uncompliant certificates
 func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
 	klog.V(3).Info("checkSecrets")
 	update := false
@@ -484,7 +489,7 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	if message != plc.Status.CompliancyDetails[namespace].Message {
 		changed = true
 	}
-
+	// TODO: I think we need to compare certificates and set changed = true if we detect changes
 	plc.Status.CompliancyDetails[namespace] = policyv1.CompliancyDetails{
 		NonCompliantCertificates:     count,
 		NonCompliantCertificatesList: certificates,
