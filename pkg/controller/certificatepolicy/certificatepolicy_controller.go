@@ -202,8 +202,11 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 			}
 			message := buildPolicyStatusMessage(list, nonCompliant, namespace, policy)
 
-			if addViolationCount(policy, message, nonCompliant, namespace, list) || update {
+			countUpdated := addViolationCount(policy, message, nonCompliant, namespace, list)
+			if countUpdated || update {
 				plcToUpdateMap[policy.Name] = policy
+			}
+			if countUpdated {
 				stateChange = true
 			}
 
