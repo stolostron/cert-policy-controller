@@ -476,20 +476,25 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 		plc.Status.CompliancyDetails = make(map[string]policyv1.CompliancyDetails)
 	}
 	if _, ok := plc.Status.CompliancyDetails[namespace]; !ok {
+		klog.Infof("The policy %s has been updated is missing the namespace", plc.Name)
 		changed = true
 	}
 
 	if count == 0 && plc.Status.ComplianceState == policyv1.NonCompliant {
+		klog.Infof("The policy %s has a compliance mismatch", plc.Name)
 		changed = true
 	}
 	// The number of non-compliant certificates has changed, so change the overall compliance state
 	if plc.Status.CompliancyDetails[namespace].NonCompliantCertificates != count {
+		klog.Infof("The policy %s has the wrong count", plc.Name)
 		changed = true
 	}
 	if count > 0 && plc.Status.ComplianceState == policyv1.Compliant {
+		klog.Infof("The policy %s should not be compliant", plc.Name)
 		changed = true
 	}
-	if message != plc.Status.CompliancyDetails[namespace].Message {
+	if msg != plc.Status.CompliancyDetails[namespace].Message {
+		klog.Infof("The policy %s has a new message: %s", plc.Name, msg)
 		changed = true
 	}
 	// TODO: I think we need to compare certificates and set changed = true if we detect changes
