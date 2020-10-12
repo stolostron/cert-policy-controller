@@ -515,7 +515,8 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 
 // haveNewNonCompliantCertificate returns true if a new certificate needs to be added
 // to the list of certificates that are not compliant
-func haveNewNonCompliantCertificate(plc *policyv1.CertificatePolicy, namespace string, certificates map[string]policyv1.Cert) bool {
+func haveNewNonCompliantCertificate(plc *policyv1.CertificatePolicy, namespace string,
+	certificates map[string]policyv1.Cert) bool {
 	result := false
 	for name := range certificates {
 		found := false
