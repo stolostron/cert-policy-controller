@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -92,16 +93,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource CertificatePolicy
-	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to CertificatePolicy resources
-	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &policyv1.CertificatePolicy{},
-	})
+	pred := predicate.GenerationChangedPredicate{}
+	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForObject{}, pred)
 	if err != nil {
 		return err
 	}
@@ -198,6 +191,7 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 
 		plcToUpdateMap = make(map[string]*policyv1.CertificatePolicy)
 
+		stateChange := false
 		// Loops through all of the cert policies
 		for resource, policy := range availablePolicies.PolicyMap {
 			namespace := strings.Split(resource, "/")[0]
@@ -208,17 +202,24 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 			}
 			message := buildPolicyStatusMessage(list, nonCompliant, namespace, policy)
 
-			if addViolationCount(policy, message, nonCompliant, namespace, list) || update {
+			countUpdated := addViolationCount(policy, message, nonCompliant, namespace, list)
+			if countUpdated || update {
 				plcToUpdateMap[policy.Name] = policy
 			}
+			if countUpdated {
+				stateChange = true
+			}
+
 			checkComplianceBasedOnDetails(policy)
 			klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 		}
 
-		//update status of all policies that changed:
-		faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
-		if err != nil {
-			klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+		if stateChange {
+			//update status of all policies that changed:
+			faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
+			if err != nil {
+				klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+			}
 		}
 
 		if loopflag {
@@ -238,7 +239,8 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 }
 
 // Checks each namespace for certificates that are going to expire within 3 months
-// Returns the number of uncompliant certificates and a list of the uncompliant certificates
+// Returns whether a state change is happening, the number of uncompliant certificates
+// and a list of the uncompliant certificates
 func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
 	klog.V(3).Info("checkSecrets")
 	update := false
@@ -246,7 +248,7 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	if namespace == "" {
 		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
 	}
-	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
+	//GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secretItem := range secretList.Items {
@@ -488,7 +490,13 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	if count > 0 && plc.Status.ComplianceState == policyv1.Compliant {
 		changed = true
 	}
-	if message != plc.Status.CompliancyDetails[namespace].Message {
+	// The message contains the amount of time until expiration which changes each cycle
+	// Do not compare the message
+	//if msg != plc.Status.CompliancyDetails[namespace].Message {
+	//	klog.Infof("The policy %s has a new message: %s", plc.Name, msg)
+	//	changed = true
+	//}
+	if haveNewNonCompliantCertificate(plc, namespace, certificates) {
 		changed = true
 	}
 
@@ -499,6 +507,28 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	}
 	klog.Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
 	return changed
+}
+
+// haveNewNonCompliantCertificate returns true if a new certificate needs to be added
+// to the list of certificates that are not compliant
+func haveNewNonCompliantCertificate(plc *policyv1.CertificatePolicy, namespace string,
+	certificates map[string]policyv1.Cert) bool {
+	result := false
+	for name := range certificates {
+		found := false
+		for existing := range plc.Status.CompliancyDetails[namespace].NonCompliantCertificatesList {
+			if name == existing {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// we can stop now
+			result = true
+			break
+		}
+	}
+	return result
 }
 
 // checkComplianceBasedOnDetails takes a certificate and sets whether
