@@ -361,3 +361,34 @@ func TestIsCertificateCompliant(t *testing.T) {
 	assert.False(t, isCertificateLongDuration(cert, instance))
 	assert.True(t, isCertificateSANPatternMismatch(cert, instance))
 }
+
+func TestHaveNewNonCompliantCertificate(t *testing.T) {
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 10},
+			AllowedSANPattern:    "[ab]",
+			DisallowedSANPattern: "[\\*]",
+			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 100},
+			MaxDuration:          &metav1.Duration{time.Hour * 24 * 50},
+			MinCADuration:        &metav1.Duration{time.Hour * 24 * 20},
+		},
+	}
+
+	// all ok
+	cert := &policiesv1.Cert{
+		Duration:   time.Hour * 24 * 36,
+		Expiration: "1234",
+		Expiry:     time.Hour * 24 * 34,
+		Secret:     "test",
+		CA:         true,
+		Sans:       []string{"a", "b"},
+	}
+	var certmap = map[string]policiesv1.Cert{}
+	assert.False(t, haveNewNonCompliantCertificate(instance, "default", certmap))
+	certmap["test"] = *cert
+	assert.True(t, haveNewNonCompliantCertificate(instance, "default", certmap))
+}
