@@ -14,6 +14,7 @@
 package certificatepolicy
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	coretypes "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -391,4 +393,101 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 	assert.False(t, haveNewNonCompliantCertificate(instance, "default", certmap))
 	certmap["test"] = *cert
 	assert.True(t, haveNewNonCompliantCertificate(instance, "default", certmap))
+}
+
+func TestParseCertificate(t *testing.T) {
+
+	var nstypeMeta = metav1.TypeMeta{
+		Kind: "namespace",
+	}
+	var nsobjMeta = metav1.ObjectMeta{
+		Name: "default",
+	}
+	var ns = coretypes.Namespace{
+		TypeMeta:   nstypeMeta,
+		ObjectMeta: nsobjMeta,
+	}
+
+	var typeMeta = metav1.TypeMeta{
+		Kind: "Secret",
+	}
+	var objMeta = metav1.ObjectMeta{
+		Name:      "foo",
+		Namespace: "default",
+	}
+
+	crt := `-----BEGIN CERTIFICATE-----
+MIIDRjCCAi4CCQCCORszFlswxjANBgkqhkiG9w0BAQsFADBlMQswCQYDVQQGEwJV
+UzELMAkGA1UECAwCTkMxEDAOBgNVBAcMB1JhbGVpZ2gxEDAOBgNVBAoMB1JlZCBI
+YXQxEjAQBgNVBAsMCU9wZW5TaGlmdDERMA8GA1UEAwwIcG9saWNpZXMwHhcNMjAw
+MzA1MTQwNjQzWhcNMjAwMzEwMTQwNjQzWjBlMQswCQYDVQQGEwJVUzELMAkGA1UE
+CAwCTkMxEDAOBgNVBAcMB1JhbGVpZ2gxEDAOBgNVBAoMB1JlZCBIYXQxEjAQBgNV
+BAsMCU9wZW5TaGlmdDERMA8GA1UEAwwIcG9saWNpZXMwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQC5WwmD2ebCa5hM4yi4TCYFRY/DA4eBLpT5+BqKEL12
+inPGSQP37XHF6f6VFqnK/Nr/uzs//24SHDHMUyrFdfYEGFQ9iRcnC4KCYLAeFQ4G
+B0DRZSeSzxVVp0sbNMrzoOF5YTuCb+yUr+8Zx5Q7V5JNr/MVRYs33Rj8M+WQ45bb
+oy0ehCuvnfvEgzzQY32gkxcB09d6V3sZbth1s88P/pAqcrUQua7XD6eYVGSD8zeY
+7Mahqt4lvPiIj6T3qhauH1/sUfl/X98mdabsCkhIgx6fP9Xvx/U/PsjmOBC1ED2E
+Jwk5X7U9Nx9tj0KMRHetE5Hn6H/hBqCunWHF18PsDXbfAgMBAAEwDQYJKoZIhvcN
+AQELBQADggEBAADBYj6epTrRQ9B+StWEp9x1O+WP0c9BXljW1OtQ/QSVWcIfcdI5
+8oGACTPBSyGdHMKJ2zw5bGP8nDwk33d6AcFVsERLHz2VUTajeAFFKSEpVIgqFyDw
+ViB36ya7lnJ+RLReJmYI/E55kv/p2x0C0t/BynA0gIFSmIj7IpccimDPJiAyCEtB
+uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
+9MGk0Ozkk5mqeHjfpsrmbyfADasUY2rMc6fwT6UiP80C5m/KEtL8xU92PQDKAhdO
+1uwcab91yRPT7mmQ9oeY6k8SMhb1doHA8vc=
+-----END CERTIFICATE-----`
+
+	//crt := "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURSakNDQWk0Q0NRQ0NPUnN6Rmxzd3hqQU5CZ2txaGtpRzl3MEJBUXNGQURCbE1Rc3dDUVlEVlFRR0V3SlYKVXpFTE1Ba0dBMVVFQ0F3Q1RrTXhFREFPQmdOVkJBY01CMUpoYkdWcFoyZ3hFREFPQmdOVkJBb01CMUpsWkNCSQpZWFF4RWpBUUJnTlZCQXNNQ1U5d1pXNVRhR2xtZERFUk1BOEdBMVVFQXd3SWNHOXNhV05wWlhNd0hoY05NakF3Ck16QTFNVFF3TmpReldoY05NakF3TXpFd01UUXdOalF6V2pCbE1Rc3dDUVlEVlFRR0V3SlZVekVMTUFrR0ExVUUKQ0F3Q1RrTXhFREFPQmdOVkJBY01CMUpoYkdWcFoyZ3hFREFPQmdOVkJBb01CMUpsWkNCSVlYUXhFakFRQmdOVgpCQXNNQ1U5d1pXNVRhR2xtZERFUk1BOEdBMVVFQXd3SWNHOXNhV05wWlhNd2dnRWlNQTBHQ1NxR1NJYjNEUUVCCkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDNVd3bUQyZWJDYTVoTTR5aTRUQ1lGUlkvREE0ZUJMcFQ1K0JxS0VMMTIKaW5QR1NRUDM3WEhGNmY2VkZxbksvTnIvdXpzLy8yNFNIREhNVXlyRmRmWUVHRlE5aVJjbkM0S0NZTEFlRlE0RwpCMERSWlNlU3p4VlZwMHNiTk1yem9PRjVZVHVDYit5VXIrOFp4NVE3VjVKTnIvTVZSWXMzM1JqOE0rV1E0NWJiCm95MGVoQ3V2bmZ2RWd6elFZMzJna3hjQjA5ZDZWM3NaYnRoMXM4OFAvcEFxY3JVUXVhN1hENmVZVkdTRDh6ZVkKN01haHF0NGx2UGlJajZUM3FoYXVIMS9zVWZsL1g5OG1kYWJzQ2toSWd4NmZQOVh2eC9VL1Bzam1PQkMxRUQyRQpKd2s1WDdVOU54OXRqMEtNUkhldEU1SG42SC9oQnFDdW5XSEYxOFBzRFhiZkFnTUJBQUV3RFFZSktvWklodmNOCkFRRUxCUUFEZ2dFQkFBREJZajZlcFRyUlE5QitTdFdFcDl4MU8rV1AwYzlCWGxqVzFPdFEvUVNWV2NJZmNkSTUKOG9HQUNUUEJTeUdkSE1LSjJ6dzViR1A4bkR3azMzZDZBY0ZWc0VSTEh6MlZVVGFqZUFGRktTRXBWSWdxRnlEdwpWaUIzNnlhN2xuSitSTFJlSm1ZSS9FNTVrdi9wMngwQzB0L0J5bkEwZ0lGU21JajdJcGNjaW1EUEppQXlDRXRCCnVGUE81K2pCYVBUMy9HMHoxZERyWlpET3hoVFNrRnV5TFRYbmFFaEliWlFXME1uaXExbTVuc3dPQWdmb21wbUEKOU1HazBPemtrNW1xZUhqZnBzcm1ieWZBRGFzVVkyck1jNmZ3VDZVaVA4MEM1bS9LRXRMOHhVOTJQUURLQWhkTwoxdXdjYWI5MXlSUFQ3bW1ROW9lWTZrOFNNaGIxZG9IQTh2Yz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo="
+	data := make(map[string][]byte)
+	data["tls.crt"] = []byte(crt)
+	var secret = coretypes.Secret{
+		TypeMeta:   typeMeta,
+		ObjectMeta: objMeta,
+		Data:       data,
+	}
+
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+		},
+	}
+
+	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+
+	simpleClient.CoreV1().Namespaces().Create(&ns)
+	s, err := simpleClient.CoreV1().Secrets("default").Create(&secret)
+	assert.NotNil(t, s)
+	assert.Nil(t, err)
+	if err != nil {
+		t.Logf("Error creating a secret: %s", err)
+	}
+
+	output, _ := json.Marshal(s)
+	t.Log(string(output))
+
+	var target = []string{"default"}
+	instance.Spec.NamespaceSelector.Include = target
+	common.Initialize(&simpleClient, nil)
+	err = handleAddingPolicy(instance)
+	assert.Nil(t, err)
+
+	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
+	assert.True(t, len(secretList.Items) == 1)
+
+	cert, err := parseCertificate(&secretList.Items[0])
+	assert.Nil(t, err)
+	assert.NotNil(t, cert)
+
+	update, nonCompliant, list := checkSecrets(instance, "default")
+	assert.Nil(t, err)
+	t.Logf("Count of secrets found: %d", nonCompliant)
+	assert.True(t, nonCompliant == 1)
+	assert.True(t, update)
+
+	message := buildPolicyStatusMessage(list, nonCompliant, "default", instance)
+	assert.NotNil(t, message)
 }
