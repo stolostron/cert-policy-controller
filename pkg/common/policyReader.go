@@ -100,7 +100,8 @@ func GetGenericObject(data []byte, namespace string) (unstructured.Unstructured,
 
 }
 
-func getTheObject(namespaced bool, namespace string, name string, rsrc schema.GroupVersionResource, unstruct unstructured.Unstructured, dclient dynamic.Interface) (*unstructured.Unstructured, error) {
+func getTheObject(namespaced bool, namespace string, name string, rsrc schema.GroupVersionResource,
+        unstruct unstructured.Unstructured, dclient dynamic.Interface) (*unstructured.Unstructured, error) {
 	if !namespaced {
 		res := dclient.Resource(rsrc)
 		instance, err := res.Get(name, metav1.GetOptions{})

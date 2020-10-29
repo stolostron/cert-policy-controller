@@ -490,4 +490,69 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	message := buildPolicyStatusMessage(list, nonCompliant, "default", instance)
 	assert.NotNil(t, message)
+
+	handleRemovingPolicy("foo")
+
+	crt = `-----BEGIN CERTIFICATE-----
+MIIC8TCCAdmgAwIBAgIQJHdwEog9UZAGSgMMmG9giDANBgkqhkiG9w0BAQsFADAY
+MRYwFAYDVQQDEw10ZWFtcy5pYm0uY29tMB4XDTIwMTAyODE3MjcyMFoXDTIwMTIx
+NzE3MjcyMFowGDEWMBQGA1UEAxMNdGVhbXMuaWJtLmNvbTCCASIwDQYJKoZIhvcN
+AQEBBQADggEPADCCAQoCggEBAMDFIiih358zPhzZ9bcgz8ACdznKogMAey+yWyUX
+utYc00HEkq6XeKrOMcWT5bCQ5IqsEkCBQtHUT7kKwyG8yF+4QD33/dsEkqyhfKFI
+yxqKxRb0R8ATPnI4dzdmrYEDdvGrI0ddfBAMnWwDv2S7bqADvx2OWkFIRUtCK1fE
+l6iPAoSzjNs5wn2F2hNpcty+vQ6dygqjCL2rwzSaR14GZNaAvpKFTNdA8dCkoSZN
+LA2nwDQEdszNVQZzRfxaCZc/jwmyglJY1hj2xTZHsw3DpLrWLrBihx4uXHku5aMs
+j7JEkRudLvjB6Z9dizEyU1oX6lc3UOd9/qVDDvIOfe4J7A0CAwEAAaM3MDUwDgYD
+VR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAwFQYDVR0RBA4wDIIKKi50ZXN0LmNv
+bTANBgkqhkiG9w0BAQsFAAOCAQEAr3cWZowiRt98v7e8c/4CwhhCmT1VPX1i6Nlx
+XFBu7PdR/UtY1I/1rT2YbSFNuboYYBcQtziTGkNWyJSw+PBpT0nrUbOLROVRHYmB
+14d+qwQ9qDwrRKc8fo7ITKdOLpuQi6LbdYU+jytDCbXWalLjiceLHWYxWPpkgktS
+16Xucz9C7/VP9/VhFIU1rhtqpcUFO5BUAuDZ3LrTEE+JAZQuzVvinIwGMBSYxhTp
+xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
+6IKHLAbLnpMLsbbTXFpp4NiSUssKbPxrJLOMB7xTvwNHnQS/og==
+-----END CERTIFICATE-----`
+
+	data["tls.crt"] = []byte(crt)
+	objMeta = metav1.ObjectMeta{
+		Name:      "bar",
+		Namespace: "default",
+	}
+	secret = coretypes.Secret{
+		TypeMeta:   typeMeta,
+		ObjectMeta: objMeta,
+		Data:       data,
+	}
+
+	instance = &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			DisallowedSANPattern: "[\\*]",
+			MaxDuration:          &metav1.Duration{time.Hour * 24 * 375},
+		},
+	}
+
+	s, err = simpleClient.CoreV1().Secrets("default").Create(&secret)
+	assert.NotNil(t, s)
+	assert.Nil(t, err)
+
+	target = []string{"default"}
+	instance.Spec.NamespaceSelector.Include = target
+	err = handleAddingPolicy(instance)
+	assert.Nil(t, err)
+
+	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
+	assert.True(t, len(secretList.Items) == 2)
+
+	update, nonCompliant, list = checkSecrets(instance, "default")
+	assert.Nil(t, err)
+	t.Logf("Count of secrets found: %d", nonCompliant)
+	assert.True(t, nonCompliant == 2)
+	assert.True(t, update)
+
+	message = buildPolicyStatusMessage(list, nonCompliant, "default", instance)
+	assert.NotNil(t, message)
 }
