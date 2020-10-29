@@ -56,9 +56,12 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 		for namespace, details := range plc.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
 				for _, details := range details.NonCompliantCertificatesList {
-					updateExpired(details, namespace, plc, expiredCACerts, expireCACount, expiredCerts, expireCount)
-					updateLifetime(details, namespace, plc, durationCACerts, durationCACount, durationCerts, durationCount)
-					updateAllowed(details, namespace, plc, patternCerts, patternMismatchCount)
+					expiredCACerts, expireCACount, expiredCerts, expireCount = updateExpired(details, namespace, plc,
+						expiredCACerts, expireCACount, expiredCerts, expireCount)
+					durationCACerts, durationCACount, durationCerts, durationCount = updateLifetime(details, namespace,
+						plc, durationCACerts, durationCACount, durationCerts, durationCount)
+					patternCerts, patternMismatchCount = updateAllowed(details, namespace, plc, patternCerts,
+						patternMismatchCount)
 				}
 			}
 		}
