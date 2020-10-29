@@ -67,8 +67,10 @@ type CertificatePolicySpec struct {
 
 // CertificatePolicyStatus defines the observed state of CertificatePolicy
 type CertificatePolicyStatus struct {
-	ComplianceState   ComplianceState              `json:"compliant,omitempty"`         // Compliant, NonCompliant, UnkownCompliancy
-	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"` // map of namespaces to its compliancy details
+        // Compliant, NonCompliant, UnkownCompliancy
+	ComplianceState   ComplianceState              `json:"compliant,omitempty"`
+        // map of namespaces to its compliancy details 
+	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"`
 }
 
 // CompliancyDetails defines the all the details related to whether or not the policy is compliant

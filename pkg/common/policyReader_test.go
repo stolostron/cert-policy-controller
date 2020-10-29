@@ -30,4 +30,13 @@ func TestGetGenericObject(t *testing.T) {
 	found, err := GetGenericObject(data, "default")
 	assert.NotNil(t, err)
 	assert.NotNil(t, found)
+
+}
+
+func TestJoinStrs(t *testing.T) {
+	test := joinStr("")
+	assert.True(t, test == "")
+
+	test = joinStr("a", "b")
+	assert.True(t, test == "ab")
 }

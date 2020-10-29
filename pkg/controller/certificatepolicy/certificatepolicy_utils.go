@@ -20,6 +20,8 @@ import (
 	"k8s.io/klog"
 )
 
+var format string = "%s; %s"
+
 //=================================================================
 // convertPolicyStatusToString to be able to pass the status as event
 func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuration time.Duration) (results string) {
@@ -30,10 +32,11 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 	result = string(plc.Status.ComplianceState)
 
 	if plc.Status.CompliancyDetails == nil {
-		return fmt.Sprintf("%s; %s", result, "No namespaces matched the namespace selector.")
+		return fmt.Sprintf(format, result, "No namespaces matched the namespace selector.")
 	}
 
-	// Message format: NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, namespace:secretname
+	// Message format:
+	//  NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, ...
 	expireCount := 0
 	expireCACount := 0
 	durationCount := 0
@@ -53,29 +56,9 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 		for namespace, details := range plc.Status.CompliancyDetails {
 			if details.NonCompliantCertificates > 0 {
 				for _, details := range details.NonCompliantCertificatesList {
-					certDetails := details
-					if isCertificateExpiring(&certDetails, plc) {
-						if certDetails.CA && plc.Spec.MinCADuration != nil {
-							expiredCACerts = buildComplianceSubmessage(expiredCACerts, namespace, certDetails.Secret)
-							expireCACount++
-						} else {
-							expiredCerts = buildComplianceSubmessage(expiredCerts, namespace, certDetails.Secret)
-							expireCount++
-						}
-					}
-					if isCertificateLongDuration(&certDetails, plc) {
-						if certDetails.CA && plc.Spec.MaxCADuration != nil {
-							durationCACerts = buildComplianceSubmessage(durationCACerts, namespace, certDetails.Secret)
-							durationCACount++
-						} else {
-							durationCerts = buildComplianceSubmessage(durationCerts, namespace, certDetails.Secret)
-							durationCount++
-						}
-					}
-					if isCertificateSANPatternMismatch(&certDetails, plc) {
-						patternCerts = buildComplianceSubmessage(patternCerts, namespace, certDetails.Secret)
-						patternMismatchCount++
-					}
+					updateExpired(details, namespace, plc, expiredCACerts, expireCACount, expiredCerts, expireCount)
+					updateLifetime(details, namespace, plc, durationCACerts, durationCACount, durationCerts, durationCount)
+					updateAllowed(details, namespace, plc, patternCerts, patternMismatchCount)
 				}
 			}
 		}
@@ -99,17 +82,57 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 			message = fmt.Sprintf("%s %d certificates defined SAN entries do not match pattern %s: %s\n",
 				message, patternMismatchCount, getPatternsUsed(plc), patternCerts)
 		}
-		result = fmt.Sprintf("%s; %s", result, message)
+		result = fmt.Sprintf(format, result, message)
 	} else if plc.Status.ComplianceState == policyv1.Compliant {
 		if len(plc.Status.CompliancyDetails) == 1 {
 			for namespace := range plc.Status.CompliancyDetails {
 				if namespace == "" {
-					return fmt.Sprintf("%s; %s", result, "No namespaces matched the namespace selector.")
+					return fmt.Sprintf(format, result, "No namespaces matched the namespace selector.")
 				}
 			}
 		}
 	}
 	return result
+}
+
+func updateExpired(details policyv1.Cert, namespace string, plc *policyv1.CertificatePolicy,
+	expiredCACerts string, expireCACount int, expiredCerts string, expireCount int) (string, int, string, int) {
+	certDetails := details
+	if isCertificateExpiring(&certDetails, plc) {
+		if certDetails.CA && plc.Spec.MinCADuration != nil {
+			expiredCACerts = buildComplianceSubmessage(expiredCACerts, namespace, certDetails.Secret)
+			expireCACount++
+		} else {
+			expiredCerts = buildComplianceSubmessage(expiredCerts, namespace, certDetails.Secret)
+			expireCount++
+		}
+	}
+	return expiredCACerts, expireCACount, expiredCerts, expireCount
+}
+
+func updateLifetime(details policyv1.Cert, namespace string, plc *policyv1.CertificatePolicy,
+	durationCACerts string, durationCACount int, durationCerts string, durationCount int) (string, int, string, int) {
+	certDetails := details
+	if isCertificateLongDuration(&certDetails, plc) {
+		if certDetails.CA && plc.Spec.MaxCADuration != nil {
+			durationCACerts = buildComplianceSubmessage(durationCACerts, namespace, certDetails.Secret)
+			durationCACount++
+		} else {
+			durationCerts = buildComplianceSubmessage(durationCerts, namespace, certDetails.Secret)
+			durationCount++
+		}
+	}
+	return durationCACerts, durationCACount, durationCerts, durationCount
+}
+
+func updateAllowed(details policyv1.Cert, namespace string, plc *policyv1.CertificatePolicy,
+	patternCerts string, patternMismatchCount int) (string, int) {
+	certDetails := details
+	if isCertificateSANPatternMismatch(&certDetails, plc) {
+		patternCerts = buildComplianceSubmessage(patternCerts, namespace, certDetails.Secret)
+		patternMismatchCount++
+	}
+	return patternCerts, patternMismatchCount
 }
 
 func buildComplianceSubmessage(inputmsg string, namespace string, secret string) string {
@@ -146,7 +169,8 @@ func createGenericObjectEvent(name, namespace string) {
 		metadata := md.(map[string]interface{})
 		if objectUID, ok := metadata["uid"]; ok {
 			plc.ObjectMeta.UID = types.UID(objectUID.(string))
-			reconcilingAgent.recorder.Event(plc, corev1.EventTypeWarning, "reporting --> forward", fmt.Sprintf("eventing on policy %s/%s", plc.Namespace, plc.Name))
+			reconcilingAgent.recorder.Event(plc, corev1.EventTypeWarning, "reporting --> forward",
+				fmt.Sprintf("eventing on policy %s/%s", plc.Namespace, plc.Name))
 		} else {
 			klog.Errorf("the objectUID is missing from policy %s/%s", plc.Namespace, plc.Name)
 			return
@@ -154,11 +178,12 @@ func createGenericObjectEvent(name, namespace string) {
 	}
 
 	/*
-		//in case we want to use a generic recorder:
-		eventBroadcaster := record.NewBroadcaster()
-		eventBroadcaster.StartLogging(klog.Infof)
-		eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: KubeClient.CoreV1().Events("")})
-		recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "controllerAgentName"})
-		recorder.Event(plc, corev1.EventTypeWarning, "some reason", fmt.Sprintf("eventing on policy %s/%s", plc.Namespace, plc.Name))
+				//in case we want to use a generic recorder:
+				eventBroadcaster := record.NewBroadcaster()
+				eventBroadcaster.StartLogging(klog.Infof)
+				eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: KubeClient.CoreV1().Events("")})
+				recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "controllerAgentName"})
+				recorder.Event(plc, corev1.EventTypeWarning, "some reason", fmt.Sprintf("eventing on policy %s/%s", plc.Namespace,
+		                        plc.Name))
 	*/
 }
