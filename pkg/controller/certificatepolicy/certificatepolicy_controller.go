@@ -701,11 +701,13 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 		if instance.Status.ComplianceState == policyv1.NonCompliant {
 			klog.V(3).Info("Update parent policy, non-compliant policy")
 			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s",
-                                instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+                                instance.Namespace, instance.Name), 
+                                convertPolicyStatusToString(instance, DefaultDuration))
 		} else {
 			klog.V(3).Info("Update parent policy, compliant policy")
 			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s",
-                                instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+                                instance.Namespace, instance.Name), 
+                                convertPolicyStatusToString(instance, DefaultDuration))
 		}
 	}
 }
