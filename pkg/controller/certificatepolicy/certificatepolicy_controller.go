@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -54,13 +55,15 @@ var NamespaceWatched string
 // EventOnParent specifies if we also want to send events to the parent policy. Available options are yes/no/ifpresent
 var EventOnParent string
 
-// DefaultDuration is the default minimum duration (if one isn't specified in a policy) that a certificate can be valid for to be compliant
+// DefaultDuration is the default minimum duration (if one isn't specified in a policy) that a certificate can be valid
+// for to be compliant
 var DefaultDuration time.Duration
 
 var log = logf.Log.WithName("controller_certificatepolicy")
 
 // Initialize to initialize some controller varaibles
-func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, namespace, eventParent string, defaultDuration time.Duration) (err error) {
+func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, namespace, eventParent string, 
+	defaultDuration time.Duration) (err error) {
 	KubeClient = kClient
 	PlcChan = make(chan *policyv1.CertificatePolicy, 100) //buffering up to 100 policies for update
 
@@ -72,15 +75,16 @@ func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, namespace, e
 	return nil
 }
 
-// Add creates a new CertificatePolicy Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
+// Add creates a new CertificatePolicy Controller and adds it to the Manager. The Manager will set fields on the
+// Controller and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCertificatePolicy{client: mgr.GetClient(), scheme: mgr.GetScheme(), recorder: mgr.GetEventRecorderFor("certificatepolicy-controller")}
+	return &ReconcileCertificatePolicy{client: mgr.GetClient(), scheme: mgr.GetScheme(), 
+                recorder: mgr.GetEventRecorderFor("certificatepolicy-controller")}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -92,16 +96,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource CertificatePolicy
-	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to CertificatePolicy resources
-	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &policyv1.CertificatePolicy{},
-	})
+	pred := predicate.GenerationChangedPredicate{}
+	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForObject{}, pred)
 	if err != nil {
 		return err
 	}
@@ -164,7 +160,8 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 		}
 	}
 
-	klog.Infof("reason: successful processing, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: none\n", instance.Name, instance.Namespace, instance.Name)
+	klog.Infof("reason: successful processing, subject: policy/%v, namespace: %v, policy: %v\n",
+                instance.Name, instance.Namespace, instance.Name)
 	return reconcile.Result{}, nil
 }
 
@@ -198,6 +195,7 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 
 		plcToUpdateMap = make(map[string]*policyv1.CertificatePolicy)
 
+		stateChange := false
 		// Loops through all of the cert policies
 		for resource, policy := range availablePolicies.PolicyMap {
 			namespace := strings.Split(resource, "/")[0]
@@ -208,17 +206,25 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 			}
 			message := buildPolicyStatusMessage(list, nonCompliant, namespace, policy)
 
-			if addViolationCount(policy, message, nonCompliant, namespace, list) || update {
+			countUpdated := addViolationCount(policy, message, nonCompliant, namespace, list)
+			if countUpdated || update {
 				plcToUpdateMap[policy.Name] = policy
 			}
+			if countUpdated {
+				stateChange = true
+			}
+
 			checkComplianceBasedOnDetails(policy)
 			klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 		}
 
-		//update status of all policies that changed:
-		faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
-		if err != nil {
-			klog.Errorf("reason: policy update error, subject: policy/%v, namespace: %v, according to policy: %v, additional-info: %v\n", faultyPlc.Name, faultyPlc.Namespace, faultyPlc.Name, err)
+		if stateChange {
+			//update status of all policies that changed:
+			faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
+			if err != nil {
+				klog.Errorf("reason: policy update error: policy/%v, namespace: %v, error: %v",
+                                        faultyPlc.Name, faultyPlc.Namespace, err)
+			}
 		}
 
 		if loopflag {
@@ -238,7 +244,8 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 }
 
 // Checks each namespace for certificates that are going to expire within 3 months
-// Returns the number of uncompliant certificates and a list of the uncompliant certificates
+// Returns whether a state change is happening, the number of uncompliant certificates
+// and a list of the uncompliant certificates
 func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
 	klog.V(3).Info("checkSecrets")
 	update := false
@@ -246,9 +253,10 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	if namespace == "" {
 		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
 	}
-	//TODO: Want the label selector to find secrets with certificates only!! -> is-certificate
+	//GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
-	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
+	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(
+                metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secretItem := range secretList.Items {
 		secret := secretItem
 		klog.V(3).Infof("Checking secret %s", secret.Name)
@@ -462,7 +470,8 @@ func convertMaptoPolicyNameKey() map[string]*policyv1.CertificatePolicy {
 // addViolationCount takes in a certificate policy and updates its status
 // with the message passed into this function and the number of certificates
 // violated this policy.
-func addViolationCount(plc *policyv1.CertificatePolicy, message string, count uint, namespace string, certificates map[string]policyv1.Cert) bool {
+func addViolationCount(plc *policyv1.CertificatePolicy, message string, count uint, namespace string, 
+        certificates map[string]policyv1.Cert) bool {
 	klog.V(3).Info("addViolationCount")
 	changed := false
 	// Add in default/generic message that can be overridden
@@ -488,7 +497,13 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	if count > 0 && plc.Status.ComplianceState == policyv1.Compliant {
 		changed = true
 	}
-	if message != plc.Status.CompliancyDetails[namespace].Message {
+	// The message contains the amount of time until expiration which changes each cycle
+	// Do not compare the message
+	//if msg != plc.Status.CompliancyDetails[namespace].Message {
+	//	klog.Infof("The policy %s has a new message: %s", plc.Name, msg)
+	//	changed = true
+	//}
+	if haveNewNonCompliantCertificate(plc, namespace, certificates) {
 		changed = true
 	}
 
@@ -499,6 +514,28 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	}
 	klog.Infof("The policy %s has been updated with the message: %s", plc.Name, msg)
 	return changed
+}
+
+// haveNewNonCompliantCertificate returns true if a new certificate needs to be added
+// to the list of certificates that are not compliant
+func haveNewNonCompliantCertificate(plc *policyv1.CertificatePolicy, namespace string,
+	certificates map[string]policyv1.Cert) bool {
+	result := false
+	for name := range certificates {
+		found := false
+		for existing := range plc.Status.CompliancyDetails[namespace].NonCompliantCertificatesList {
+			if name == existing {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// we can stop now
+			result = true
+			break
+		}
+	}
+	return result
 }
 
 // checkComplianceBasedOnDetails takes a certificate and sets whether
@@ -514,7 +551,8 @@ func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
 	}
 	for namespace, details := range plc.Status.CompliancyDetails {
 		if details.NonCompliantCertificates > 0 {
-			klog.Infof("The number of violations in policy %s in namespace %s does not equal zero, therefore it is non compliant", plc.Name, namespace)
+			klog.Infof("Violations count in policy/%s, namespace: %s, does not equal zero, " +
+                                   "therefore it is non compliant", plc.Name, namespace)
 			plc.Status.ComplianceState = policyv1.NonCompliant
 		}
 	}
@@ -553,7 +591,8 @@ func checkComplianceChangeBasedOnDetails(plc *policyv1.CertificatePolicy) (compl
 func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*policyv1.CertificatePolicy, error) {
 	klog.V(3).Info("Updating the Policy Status")
 	for _, instance := range policies { // policies is a map where: key = plc.Name, value = pointer to plc
-		klog.V(3).Infof("Updating the Policy Status %s namespace %s, %s.%s", instance.Name, instance.Namespace, instance.Kind, instance.APIVersion)
+		klog.V(3).Infof("Updating the Policy Status %s namespace %s, %s.%s", instance.Name, instance.Namespace,
+                        instance.Kind, instance.APIVersion)
 		err := reconcilingAgent.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			return instance, err
@@ -599,7 +638,8 @@ func handleAddingPolicy(plc *policyv1.CertificatePolicy) error {
 	allNamespaces, err := common.GetAllNamespaces()
 	if err != nil {
 
-		klog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, namespace: all, according to policy: %v, additional-info: %v\n", plc.Name, err)
+		klog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, " +
+                        "namespace: all, according to policy: %v, additional-info: %v\n", plc.Name, err)
 
 		return err
 	}
@@ -609,7 +649,8 @@ func handleAddingPolicy(plc *policyv1.CertificatePolicy) error {
 	}
 	cleanupAvailablePolicies("", plc.Name)
 	var addFlag = false
-	selectedNamespaces := common.GetSelectedNamespaces(plc.Spec.NamespaceSelector.Include, plc.Spec.NamespaceSelector.Exclude, allNamespaces)
+	selectedNamespaces := common.GetSelectedNamespaces(plc.Spec.NamespaceSelector.Include, 
+                plc.Spec.NamespaceSelector.Exclude, allNamespaces)
 	for _, ns := range selectedNamespaces {
 		key := fmt.Sprintf("%s/%s", ns, plc.Name)
 		availablePolicies.AddObject(key, plc)
@@ -659,10 +700,14 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 	if reconcilingAgent.recorder != nil {
 		if instance.Status.ComplianceState == policyv1.NonCompliant {
 			klog.V(3).Info("Update parent policy, non-compliant policy")
-			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s",
+                                instance.Namespace, instance.Name), 
+                                convertPolicyStatusToString(instance, DefaultDuration))
 		} else {
 			klog.V(3).Info("Update parent policy, compliant policy")
-			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name), convertPolicyStatusToString(instance, DefaultDuration))
+			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s",
+                                instance.Namespace, instance.Name), 
+                                convertPolicyStatusToString(instance, DefaultDuration))
 		}
 	}
 }
