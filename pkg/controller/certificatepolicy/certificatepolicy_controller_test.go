@@ -395,6 +395,22 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 	assert.True(t, haveNewNonCompliantCertificate(instance, "default", certmap))
 }
 
+func TestConvertMaptoPolicyNameKey(t *testing.T) {
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+		},
+	}
+	err := handleAddingPolicy(instance)
+	assert.Nil(t, err)
+	pmap := convertMaptoPolicyNameKey()
+	assert.NotNil(t, pmap)
+}
+
 func TestParseCertificate(t *testing.T) {
 
 	var nstypeMeta = metav1.TypeMeta{
