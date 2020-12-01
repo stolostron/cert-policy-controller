@@ -8,16 +8,10 @@
 package certificatepolicy
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
 	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
 )
 
 var format string = "%s; %s"
@@ -146,47 +140,4 @@ func buildComplianceSubmessage(inputmsg string, namespace string, secret string)
 		message = fmt.Sprintf("%s:%s", namespace, secret)
 	}
 	return message
-}
-
-func createGenericObjectEvent(name, namespace string) {
-
-	plc := &policyv1.Policy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Policy",
-			APIVersion: "policy.open-cluster-management.io/v1",
-		},
-	}
-	data, err := json.Marshal(plc)
-	if err != nil {
-		klog.Fatal(err)
-	}
-	found, err := common.GetGenericObject(data, namespace)
-	if err != nil {
-		klog.Fatal(err)
-	}
-	if md, ok := found.Object["metadata"]; ok {
-		metadata := md.(map[string]interface{})
-		if objectUID, ok := metadata["uid"]; ok {
-			plc.ObjectMeta.UID = types.UID(objectUID.(string))
-			reconcilingAgent.recorder.Event(plc, corev1.EventTypeWarning, "reporting --> forward",
-				fmt.Sprintf("eventing on policy %s/%s", plc.Namespace, plc.Name))
-		} else {
-			klog.Errorf("the objectUID is missing from policy %s/%s", plc.Namespace, plc.Name)
-			return
-		}
-	}
-
-	/*
-				//in case we want to use a generic recorder:
-				eventBroadcaster := record.NewBroadcaster()
-				eventBroadcaster.StartLogging(klog.Infof)
-				eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: KubeClient.CoreV1().Events("")})
-				recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "controllerAgentName"})
-				recorder.Event(plc, corev1.EventTypeWarning, "some reason", fmt.Sprintf("eventing on policy %s/%s", plc.Namespace,
-		                        plc.Name))
-	*/
 }

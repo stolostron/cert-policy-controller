@@ -74,8 +74,3 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 	policyString = convertPolicyStatusToString(instance, time.Hour*24*3)
 	assert.NotNil(t, policyString)
 }
-
-// Do not run this test due to fatal log entry
-//func TestCreateGenericObjectEvent(t *testing.T) {
-//	createGenericObjectEvent("name", "namespace")
-//}
