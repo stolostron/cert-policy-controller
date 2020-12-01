@@ -141,9 +141,11 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	t.Log(res)
 	var target = []string{"default"}
 	certPolicy.Spec.NamespaceSelector.Include = target
-	err = handleAddingPolicy(&certPolicy)
-	assert.Nil(t, err)
+	handleAddingPolicy(&certPolicy)
 	PeriodicallyExecCertificatePolicies(1, false)
+	policy, found := availablePolicies.GetObject(certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 }
 
 func TestCheckComplianceBasedOnDetails(t *testing.T) {
@@ -221,8 +223,10 @@ func TestHandleAddingPolicy(t *testing.T) {
 	}
 	simpleClient.CoreV1().Namespaces().Create(&ns)
 	common.Initialize(&simpleClient, nil)
-	err := handleAddingPolicy(&certPolicy)
-	assert.Nil(t, err)
+	handleAddingPolicy(&certPolicy)
+	policy, found := availablePolicies.GetObject(certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 	handleRemovingPolicy(certPolicy.Name)
 }
 
@@ -395,7 +399,7 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 	assert.True(t, haveNewNonCompliantCertificate(instance, "default", certmap))
 }
 
-func TestConvertMaptoPolicyNameKey(t *testing.T) {
+func TestProcessPolicies(t *testing.T) {
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -405,10 +409,10 @@ func TestConvertMaptoPolicyNameKey(t *testing.T) {
 			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
 		},
 	}
-	err := handleAddingPolicy(instance)
-	assert.Nil(t, err)
-	pmap := convertMaptoPolicyNameKey()
-	assert.NotNil(t, pmap)
+	handleAddingPolicy(instance)
+	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
+	value := ProcessPolicies(plcToUpdateMap)
+	assert.False(t, value)
 }
 
 func TestParseCertificate(t *testing.T) {
@@ -488,8 +492,10 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	var target = []string{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 	common.Initialize(&simpleClient, nil)
-	err = handleAddingPolicy(instance)
-	assert.Nil(t, err)
+	handleAddingPolicy(instance)
+	policy, found := availablePolicies.GetObject(certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 
 	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
 	assert.True(t, len(secretList.Items) == 1)
@@ -557,8 +563,10 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 
 	target = []string{"default"}
 	instance.Spec.NamespaceSelector.Include = target
-	err = handleAddingPolicy(instance)
-	assert.Nil(t, err)
+	handleAddingPolicy(instance)
+	policy, found = availablePolicies.GetObject(certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 
 	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
 	assert.True(t, len(secretList.Items) == 2)
