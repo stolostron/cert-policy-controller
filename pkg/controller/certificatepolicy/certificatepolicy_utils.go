@@ -9,6 +9,7 @@ package certificatepolicy
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
@@ -47,7 +48,16 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 		durationCerts := ""
 		durationCACerts := ""
 		patternCerts := ""
-		for namespace, details := range plc.Status.CompliancyDetails {
+
+		// keep the flageed namespaces sorted
+		keys := make([]string, 0, len(plc.Status.CompliancyDetails))
+		for k := range plc.Status.CompliancyDetails {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, namespace := range keys {
+			details := plc.Status.CompliancyDetails[namespace]
 			if details.NonCompliantCertificates > 0 {
 				for _, details := range details.NonCompliantCertificatesList {
 					expiredCACerts, expireCACount, expiredCerts, expireCount = updateExpired(details, namespace, plc,
