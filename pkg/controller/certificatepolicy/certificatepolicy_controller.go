@@ -249,10 +249,10 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 		// add availablePolicy if not present
 		for _, ns := range selectedNamespaces {
 			key := fmt.Sprintf("%s/%s", ns, plc.Name)
-			p, found := availablePolicies.GetObject(key)
+			_, found := availablePolicies.GetObject(key)
 			if !found {
-				availablePolicies.AddObject(key, p)
-				plcMap[p.Name] = p
+				availablePolicies.AddObject(key, plc)
+				plcMap[plc.Name] = plc
 			}
 		}
 		handleNamespaceRemovals(plc, plcToUpdateMap, selectedNamespaces)
