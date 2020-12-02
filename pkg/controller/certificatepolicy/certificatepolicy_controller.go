@@ -721,6 +721,9 @@ func cleanupAvailablePolicies(namespace string, name string) {
 	if policy, found := availablePolicies.GetObject(key); found {
 		if policy.Name == name {
 			availablePolicies.RemoveObject(key)
+			if policy.Status.CompliancyDetails != nil {
+				delete(policy.Status.CompliancyDetails, namespace)
+			}
 		}
 	}
 }
