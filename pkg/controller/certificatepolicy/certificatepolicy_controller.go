@@ -238,19 +238,12 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool {
 	stateChange := false
 
-	// remove policies associated with namespaces that have been deleted
-	for key, policy := range availablePolicies.PolicyMap {
-		namespace := strings.Split(key, "/")[0]
-		selectedNamespaces := GetSelectedNamespaces(policy)
-		handleNamespaceRemovals(namespace, policy, plcToUpdateMap, selectedNamespaces)
-	}
-
 	plcMap := make(map[string]*policyv1.CertificatePolicy)
 	// create a map of all policies
 	for _, policy := range availablePolicies.PolicyMap {
 		plcMap[policy.Name] = policy
 	}
-	// update available policies if there are new namespaces
+	// update available policies if there are changed namespaces
 	for _, plc := range plcMap {
 		selectedNamespaces := GetSelectedNamespaces(plc)
 		// add availablePolicy if not present
@@ -262,6 +255,7 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 				plcMap[p.Name] = p
 			}
 		}
+		handleNamespaceRemovals(plc, plcToUpdateMap, selectedNamespaces)
 	}
 	if len(plcToUpdateMap) > 0 {
 		stateChange = true
@@ -294,16 +288,25 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 }
 
 // handleNamespaceRemovals make sure policies get updated for cases where a namespace has been removed
-func handleNamespaceRemovals(namespace string, policy *policyv1.CertificatePolicy,
+func handleNamespaceRemovals(policy *policyv1.CertificatePolicy,
 	plcToUpdateMap map[string]*policyv1.CertificatePolicy, selectedNamespaces []string) {
-	for _, ns := range selectedNamespaces {
-		if ns == namespace {
-			return
+	for key, plc := range availablePolicies.PolicyMap {
+		namespace := strings.Split(key, "/")[0]
+		if plc.Name == policy.Name {
+			found := false
+			for _, ns := range selectedNamespaces {
+				if ns == namespace {
+					found = true
+					break
+				}
+			}
+			if !found {
+				// the namespace was not found, clean up
+				cleanupAvailablePolicies(namespace, policy.Name)
+				plcToUpdateMap[policy.Name] = policy
+			}
 		}
 	}
-	// the namespace was not found, clean up
-	cleanupAvailablePolicies(namespace, policy.Name)
-	plcToUpdateMap[policy.Name] = policy
 }
 
 // Checks each namespace for certificates that are going to expire within 3 months
