@@ -237,50 +237,73 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 // ProcessPolicies reads each policy and looks for violations returning true if a change is found.
 func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool {
 	stateChange := false
-	// Loops through all of the cert policies
+
+	// remove policies associated with namespaces that have been deleted
 	for key, policy := range availablePolicies.PolicyMap {
 		namespace := strings.Split(key, "/")[0]
 		selectedNamespaces := GetSelectedNamespaces(policy)
-		stateChange = handleNamespaceRemovals(namespace, policy, plcToUpdateMap, selectedNamespaces)
+		handleNamespaceRemovals(namespace, policy, plcToUpdateMap, selectedNamespaces)
+	}
 
-		for _, namespace := range selectedNamespaces {
-
-			klog.V(3).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
-			update, nonCompliant, list := checkSecrets(policy, namespace)
-			if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1.Enforce)) {
-				klog.V(3).Infof("Enforce is set, but ignored :-)")
+	plcMap := make(map[string]*policyv1.CertificatePolicy)
+	// create a map of all policies
+	for _, policy := range availablePolicies.PolicyMap {
+		plcMap[policy.Name] = policy
+	}
+	// update available policies if there are new namespaces
+	for _, plc := range plcMap {
+		selectedNamespaces := GetSelectedNamespaces(plc)
+		// add availablePolicy if not present
+		for _, ns := range selectedNamespaces {
+			key := fmt.Sprintf("%s/%s", ns, plc.Name)
+			p, found := availablePolicies.GetObject(key)
+			if !found {
+				availablePolicies.AddObject(key, p)
+				plcMap[p.Name] = p
 			}
-			message := buildPolicyStatusMessage(list, nonCompliant, namespace, policy)
-
-			countUpdated := addViolationCount(policy, message, nonCompliant, namespace, list)
-			if countUpdated || update {
-				plcToUpdateMap[policy.Name] = policy
-			}
-			if countUpdated {
-				stateChange = true
-			}
-
-			checkComplianceBasedOnDetails(policy)
-			klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 		}
+	}
+	if len(plcToUpdateMap) > 0 {
+		stateChange = true
+	}
+
+	// Loops through all of the cert policies looking for violations
+	for key, policy := range availablePolicies.PolicyMap {
+		namespace := strings.Split(key, "/")[0]
+
+		klog.V(3).Infof("Checking certificates in namespace %s defined in policy %s", namespace, policy.Name)
+		update, nonCompliant, list := checkSecrets(policy, namespace)
+		if strings.ToLower(string(policy.Spec.RemediationAction)) == strings.ToLower(string(policyv1.Enforce)) {
+			klog.V(3).Infof("Enforce is set, but ignored :-)")
+		}
+		message := buildPolicyStatusMessage(list, nonCompliant, namespace, policy)
+
+		countUpdated := addViolationCount(policy, message, nonCompliant, namespace, list)
+		if countUpdated || update {
+			plcToUpdateMap[policy.Name] = policy
+		}
+		if countUpdated {
+			stateChange = true
+		}
+
+		checkComplianceBasedOnDetails(policy)
+		klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
+
 	}
 	return stateChange
 }
 
 // handleNamespaceRemovals make sure policies get updated for cases where a namespace has been removed
 func handleNamespaceRemovals(namespace string, policy *policyv1.CertificatePolicy,
-	plcToUpdateMap map[string]*policyv1.CertificatePolicy, selectedNamespaces []string) bool {
-	result := false
+	plcToUpdateMap map[string]*policyv1.CertificatePolicy, selectedNamespaces []string) {
 	for _, ns := range selectedNamespaces {
 		if ns == namespace {
-			return false
+			return
 		}
 	}
 	// the namespace was not found, clean up
 	cleanupAvailablePolicies(namespace, policy.Name)
 	plcToUpdateMap[policy.Name] = policy
-	result = true
-	return result
 }
 
 // Checks each namespace for certificates that are going to expire within 3 months
