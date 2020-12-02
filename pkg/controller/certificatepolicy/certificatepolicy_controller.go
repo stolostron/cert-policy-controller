@@ -238,9 +238,10 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool {
 	stateChange := false
 	// Loops through all of the cert policies
-	for _, policy := range availablePolicies.PolicyMap {
-
+	for key, policy := range availablePolicies.PolicyMap {
+		namespace := strings.Split(key, "/")[0]
 		selectedNamespaces := GetSelectedNamespaces(policy)
+		stateChange = handleNamespaceRemovals(namespace, policy, plcToUpdateMap, selectedNamespaces)
 
 		for _, namespace := range selectedNamespaces {
 
@@ -264,6 +265,22 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 		}
 	}
 	return stateChange
+}
+
+// handleNamespaceRemovals make sure policies get updated for cases where a namespace has been removed
+func handleNamespaceRemovals(namespace string, policy *policyv1.CertificatePolicy,
+	plcToUpdateMap map[string]*policyv1.CertificatePolicy, selectedNamespaces []string) bool {
+	result := false
+	for _, ns := range selectedNamespaces {
+		if ns == namespace {
+			return false
+		}
+	}
+	// the namespace was not found, clean up
+	cleanupAvailablePolicies(namespace, policy.Name)
+	plcToUpdateMap[policy.Name] = policy
+	result = true
+	return result
 }
 
 // Checks each namespace for certificates that are going to expire within 3 months
@@ -652,14 +669,29 @@ func handleRemovingPolicy(name string) {
 func handleAddingPolicy(plc *policyv1.CertificatePolicy) {
 	klog.V(3).Info("handleAddingPolicy")
 
-	//clean up that policy from the existing namepsaces, in case the modification is in the namespace selector
-	cleanupAvailablePolicies(plc.Name)
+	//clean up that policy from the availablePolicies list, in case the modification is in the namespace selector
+	for key, policy := range availablePolicies.PolicyMap {
+		if policy.Name == plc.Name {
+			availablePolicies.RemoveObject(key)
+		}
+	}
+	cleanupAvailablePolicies("", plc.Name)
 
-	availablePolicies.AddObject(plc.Name, plc)
+	var addFlag = false
+	selectedNamespaces := GetSelectedNamespaces(plc)
+	for _, ns := range selectedNamespaces {
+		key := fmt.Sprintf("%s/%s", ns, plc.Name)
+		availablePolicies.AddObject(key, plc)
+		addFlag = true
+	}
+	if addFlag == false {
+		key := fmt.Sprintf("/%s", plc.Name)
+		availablePolicies.AddObject(key, plc)
+	}
 }
 
-func cleanupAvailablePolicies(name string) {
-	key := name
+func cleanupAvailablePolicies(namespace string, name string) {
+	key := fmt.Sprintf("%s/%s", namespace, name)
 	if policy, found := availablePolicies.GetObject(key); found {
 		if policy.Name == name {
 			availablePolicies.RemoveObject(key)

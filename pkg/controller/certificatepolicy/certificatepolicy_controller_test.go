@@ -143,7 +143,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	certPolicy.Spec.NamespaceSelector.Include = target
 	handleAddingPolicy(&certPolicy)
 	PeriodicallyExecCertificatePolicies(1, false)
-	policy, found := availablePolicies.GetObject(certPolicy.Name)
+	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 }
@@ -224,7 +224,7 @@ func TestHandleAddingPolicy(t *testing.T) {
 	simpleClient.CoreV1().Namespaces().Create(&ns)
 	common.Initialize(&simpleClient, nil)
 	handleAddingPolicy(&certPolicy)
-	policy, found := availablePolicies.GetObject(certPolicy.Name)
+	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 	handleRemovingPolicy(certPolicy.Name)
@@ -412,7 +412,7 @@ func TestProcessPolicies(t *testing.T) {
 	handleAddingPolicy(instance)
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
 	value := ProcessPolicies(plcToUpdateMap)
-	assert.False(t, value)
+	assert.True(t, value)
 }
 
 func TestParseCertificate(t *testing.T) {
@@ -493,7 +493,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	instance.Spec.NamespaceSelector.Include = target
 	common.Initialize(&simpleClient, nil)
 	handleAddingPolicy(instance)
-	policy, found := availablePolicies.GetObject(certPolicy.Name)
+	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
@@ -564,7 +564,7 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 	target = []string{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 	handleAddingPolicy(instance)
-	policy, found = availablePolicies.GetObject(certPolicy.Name)
+	policy, found = availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
