@@ -16,6 +16,7 @@ package certificatepolicy
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -141,9 +142,11 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	t.Log(res)
 	var target = []string{"default"}
 	certPolicy.Spec.NamespaceSelector.Include = target
-	err = handleAddingPolicy(&certPolicy)
-	assert.Nil(t, err)
+	handleAddingPolicy(&certPolicy)
 	PeriodicallyExecCertificatePolicies(1, false)
+	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 }
 
 func TestCheckComplianceBasedOnDetails(t *testing.T) {
@@ -221,8 +224,10 @@ func TestHandleAddingPolicy(t *testing.T) {
 	}
 	simpleClient.CoreV1().Namespaces().Create(&ns)
 	common.Initialize(&simpleClient, nil)
-	err := handleAddingPolicy(&certPolicy)
-	assert.Nil(t, err)
+	handleAddingPolicy(&certPolicy)
+	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 	handleRemovingPolicy(certPolicy.Name)
 }
 
@@ -395,7 +400,7 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 	assert.True(t, haveNewNonCompliantCertificate(instance, "default", certmap))
 }
 
-func TestConvertMaptoPolicyNameKey(t *testing.T) {
+func TestProcessPolicies(t *testing.T) {
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -405,10 +410,10 @@ func TestConvertMaptoPolicyNameKey(t *testing.T) {
 			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
 		},
 	}
-	err := handleAddingPolicy(instance)
-	assert.Nil(t, err)
-	pmap := convertMaptoPolicyNameKey()
-	assert.NotNil(t, pmap)
+	handleAddingPolicy(instance)
+	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
+	value := ProcessPolicies(plcToUpdateMap)
+	assert.True(t, value)
 }
 
 func TestParseCertificate(t *testing.T) {
@@ -488,8 +493,10 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	var target = []string{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 	common.Initialize(&simpleClient, nil)
-	err = handleAddingPolicy(instance)
-	assert.Nil(t, err)
+	handleAddingPolicy(instance)
+	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 
 	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
 	assert.True(t, len(secretList.Items) == 1)
@@ -557,8 +564,10 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 
 	target = []string{"default"}
 	instance.Spec.NamespaceSelector.Include = target
-	err = handleAddingPolicy(instance)
-	assert.Nil(t, err)
+	handleAddingPolicy(instance)
+	policy, found = availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
 
 	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
 	assert.True(t, len(secretList.Items) == 2)
@@ -571,4 +580,124 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 
 	message = buildPolicyStatusMessage(list, nonCompliant, "default", instance)
 	assert.NotNil(t, message)
+}
+
+func TestMultipleNamespaces(t *testing.T) {
+
+	var nstypeMeta = metav1.TypeMeta{
+		Kind: "namespace",
+	}
+	var nsobjMeta1 = metav1.ObjectMeta{
+		Name: "default1",
+	}
+	var nsobjMeta2 = metav1.ObjectMeta{
+		Name: "default2",
+	}
+	var ns1 = coretypes.Namespace{
+		TypeMeta:   nstypeMeta,
+		ObjectMeta: nsobjMeta1,
+	}
+	var ns2 = coretypes.Namespace{
+		TypeMeta:   nstypeMeta,
+		ObjectMeta: nsobjMeta2,
+	}
+
+	var typeMeta = metav1.TypeMeta{
+		Kind: "Secret",
+	}
+	var objMeta1 = metav1.ObjectMeta{
+		Name:      "foo1",
+		Namespace: "default1",
+	}
+	var objMeta2 = metav1.ObjectMeta{
+		Name:      "foo2",
+		Namespace: "default2",
+	}
+
+	crt := `-----BEGIN CERTIFICATE-----
+MIIDRjCCAi4CCQCCORszFlswxjANBgkqhkiG9w0BAQsFADBlMQswCQYDVQQGEwJV
+UzELMAkGA1UECAwCTkMxEDAOBgNVBAcMB1JhbGVpZ2gxEDAOBgNVBAoMB1JlZCBI
+YXQxEjAQBgNVBAsMCU9wZW5TaGlmdDERMA8GA1UEAwwIcG9saWNpZXMwHhcNMjAw
+MzA1MTQwNjQzWhcNMjAwMzEwMTQwNjQzWjBlMQswCQYDVQQGEwJVUzELMAkGA1UE
+CAwCTkMxEDAOBgNVBAcMB1JhbGVpZ2gxEDAOBgNVBAoMB1JlZCBIYXQxEjAQBgNV
+BAsMCU9wZW5TaGlmdDERMA8GA1UEAwwIcG9saWNpZXMwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQC5WwmD2ebCa5hM4yi4TCYFRY/DA4eBLpT5+BqKEL12
+inPGSQP37XHF6f6VFqnK/Nr/uzs//24SHDHMUyrFdfYEGFQ9iRcnC4KCYLAeFQ4G
+B0DRZSeSzxVVp0sbNMrzoOF5YTuCb+yUr+8Zx5Q7V5JNr/MVRYs33Rj8M+WQ45bb
+oy0ehCuvnfvEgzzQY32gkxcB09d6V3sZbth1s88P/pAqcrUQua7XD6eYVGSD8zeY
+7Mahqt4lvPiIj6T3qhauH1/sUfl/X98mdabsCkhIgx6fP9Xvx/U/PsjmOBC1ED2E
+Jwk5X7U9Nx9tj0KMRHetE5Hn6H/hBqCunWHF18PsDXbfAgMBAAEwDQYJKoZIhvcN
+AQELBQADggEBAADBYj6epTrRQ9B+StWEp9x1O+WP0c9BXljW1OtQ/QSVWcIfcdI5
+8oGACTPBSyGdHMKJ2zw5bGP8nDwk33d6AcFVsERLHz2VUTajeAFFKSEpVIgqFyDw
+ViB36ya7lnJ+RLReJmYI/E55kv/p2x0C0t/BynA0gIFSmIj7IpccimDPJiAyCEtB
+uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
+9MGk0Ozkk5mqeHjfpsrmbyfADasUY2rMc6fwT6UiP80C5m/KEtL8xU92PQDKAhdO
+1uwcab91yRPT7mmQ9oeY6k8SMhb1doHA8vc=
+-----END CERTIFICATE-----`
+
+	data := make(map[string][]byte)
+	data["tls.crt"] = []byte(crt)
+	var secret1 = coretypes.Secret{
+		TypeMeta:   typeMeta,
+		ObjectMeta: objMeta1,
+		Data:       data,
+	}
+	var secret2 = coretypes.Secret{
+		TypeMeta:   typeMeta,
+		ObjectMeta: objMeta2,
+		Data:       data,
+	}
+
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default2",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			NamespaceSelector: policiesv1.Target{
+				Include: []string{"def*"},
+			},
+			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+		},
+	}
+
+	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+
+	simpleClient.CoreV1().Namespaces().Create(&ns1)
+	simpleClient.CoreV1().Namespaces().Create(&ns2)
+	s, err := simpleClient.CoreV1().Secrets("default1").Create(&secret1)
+	assert.NotNil(t, s)
+	assert.Nil(t, err)
+	if err != nil {
+		t.Logf("Error creating secret 1: %s", err)
+	}
+	s, err = simpleClient.CoreV1().Secrets("default2").Create(&secret2)
+	assert.NotNil(t, s)
+	assert.Nil(t, err)
+	if err != nil {
+		t.Logf("Error creating secret 2: %s", err)
+	}
+
+	target := []string{"def*"}
+	instance.Spec.NamespaceSelector.Include = target
+	common.Initialize(&simpleClient, nil)
+	handleAddingPolicy(instance)
+	policy, found := availablePolicies.GetObject("default1/foo")
+	assert.True(t, found)
+	assert.NotNil(t, policy)
+
+	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
+
+	stateChange := ProcessPolicies(plcToUpdateMap)
+	assert.True(t, stateChange)
+
+	message := convertPolicyStatusToString(instance, DefaultDuration)
+	assert.NotNil(t, message)
+	t.Logf("Message created for policy: %s", message)
+	first := strings.Index(message, "default1")
+	second := strings.Index(message, "default2")
+	assert.True(t, first < second)
+
+	handleRemovingPolicy("foo")
+
 }
