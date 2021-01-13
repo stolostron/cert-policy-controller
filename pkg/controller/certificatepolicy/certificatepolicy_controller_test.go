@@ -414,6 +414,9 @@ func TestProcessPolicies(t *testing.T) {
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
 	value := ProcessPolicies(plcToUpdateMap)
 	assert.True(t, value)
+
+	_, found := availablePolicies.GetObject("/foo")
+	assert.True(t, found)
 }
 
 func TestParseCertificate(t *testing.T) {
