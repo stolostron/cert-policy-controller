@@ -260,7 +260,7 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 				availablePolicies.AddObject(key, plc)
 				plcToUpdateMap[plc.Name] = plc
 				// remove the dummy entry not matching namespaces if it exists
-				key = fmt.Sprintf("-/%s", plc.Name)
+				key = fmt.Sprintf("/%s", plc.Name)
 				_, found = availablePolicies.GetObject(key)
 				if found {
 					availablePolicies.RemoveObject(key)
@@ -270,7 +270,7 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 		handleNamespaceRemovals(plc, plcToUpdateMap, selectedNamespaces)
 		if len(selectedNamespaces) == 0 {
 			// add a dummy entry to force updates when no namespaces match
-			key := fmt.Sprintf("-/%s", plc.Name)
+			key := fmt.Sprintf("/%s", plc.Name)
 			_, found := availablePolicies.GetObject(key)
 			if !found {
 				availablePolicies.AddObject(key, plc)
