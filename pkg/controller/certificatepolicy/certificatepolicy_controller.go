@@ -259,6 +259,7 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 			if !found {
 				availablePolicies.AddObject(key, plc)
 				plcMap[plc.Name] = plc
+				stateChange = true
 			}
 		}
 		handleNamespaceRemovals(plc, plcToUpdateMap, selectedNamespaces)
