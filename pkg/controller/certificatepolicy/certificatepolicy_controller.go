@@ -298,9 +298,13 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 			stateChange = true
 		}
 
-		checkComplianceBasedOnDetails(policy)
+		klog.Infof("%s: Count updated: %v; update: %v, stateChange: %v, state: %s", key, countUpdated, update, stateChange, policy.Status.ComplianceState)
 		klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 
+	}
+	for _, policy := range availablePolicies.PolicyMap {
+		checkComplianceBasedOnDetails(policy)
+		klog.Infof("Policy: %s; state: %s", policy.Name, policy.Status.ComplianceState)
 	}
 	return stateChange
 }
@@ -547,7 +551,7 @@ func getPatternsUsed(policy *policyv1.CertificatePolicy) string {
 // addViolationCount takes in a certificate policy and updates its status
 // with the message passed into this function and the number of certificates
 // violated this policy.
-func addViolationCount(plc *policyv1.CertificatePolicy, message string, count uint, namespace string, 
+func addViolationCount(plc *policyv1.CertificatePolicy, message string, count uint, namespace string,
 	certificates map[string]policyv1.Cert) bool {
 	klog.V(3).Info("addViolationCount")
 	changed := false
@@ -628,7 +632,7 @@ func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
 	}
 	for namespace, details := range plc.Status.CompliancyDetails {
 		if details.NonCompliantCertificates > 0 {
-			klog.Infof("Violations count in policy/%s, namespace: %s, does not equal zero, " +
+			klog.Infof("Violations count in policy/%s, namespace: %s, does not equal zero, "+
 				"therefore it is non compliant", plc.Name, namespace)
 			plc.Status.ComplianceState = policyv1.NonCompliant
 		}
