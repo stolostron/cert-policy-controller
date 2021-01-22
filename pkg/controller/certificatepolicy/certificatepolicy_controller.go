@@ -298,7 +298,8 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 			stateChange = true
 		}
 
-		klog.Infof("%s: Count updated: %v; update: %v, stateChange: %v, state: %s", key, countUpdated, update, stateChange, policy.Status.ComplianceState)
+		klog.Infof("%s: Count updated: %v; update: %v, stateChange: %v, state: %s", key, countUpdated, update,
+			stateChange, policy.Status.ComplianceState)
 		klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 
 	}
