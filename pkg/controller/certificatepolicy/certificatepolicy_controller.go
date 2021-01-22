@@ -298,9 +298,19 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 			stateChange = true
 		}
 
-		checkComplianceBasedOnDetails(policy)
+		klog.Infof("%s: Count updated: %v; update: %v, stateChange: %v, state: %s", key, countUpdated, update,
+			stateChange, policy.Status.ComplianceState)
 		klog.V(3).Infof("Finished processing policy %s, on namespace %s", policy.Name, namespace)
 
+	}
+	for _, policy := range plcMap {
+		// need to see if we change from noncompliant to compliant
+		currentStatus := policy.Status.ComplianceState
+		checkComplianceBasedOnDetails(policy)
+		klog.Infof("Policy: %s; state: %s", policy.Name, policy.Status.ComplianceState)
+		if currentStatus != policy.Status.ComplianceState {
+			stateChange = true
+		}
 	}
 	return stateChange
 }
@@ -564,13 +574,17 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 		changed = true
 	}
 
-	if count == 0 && plc.Status.ComplianceState == policyv1.NonCompliant {
-		changed = true
-	}
+	// Do not flag the following as a state change since some namespaces could be NonCompliant so
+	// we don't want a compliant namespace in the same policy to falsely set changed as true
+	//if count == 0 && plc.Status.ComplianceState == policyv1.NonCompliant {
+	//	changed = true
+	//}
+
 	// The number of non-compliant certificates has changed, so change the overall compliance state
 	if plc.Status.CompliancyDetails[namespace].NonCompliantCertificates != count {
 		changed = true
 	}
+	// this is a clear change in state so the multiple namespace concern doesn't apply here
 	if count > 0 && plc.Status.ComplianceState == policyv1.Compliant {
 		changed = true
 	}
