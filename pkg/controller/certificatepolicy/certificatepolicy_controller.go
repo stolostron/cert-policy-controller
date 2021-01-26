@@ -168,21 +168,6 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 	return reconcile.Result{}, nil
 }
 
-// GetSelectedNamespaces returns a string array of all namespaces that match the selector for the policy.
-func GetSelectedNamespaces(policy *policyv1.CertificatePolicy) []string {
-	selectedNamespaces := []string{}
-	allNamespaces, err := common.GetAllNamespaces()
-	if err != nil {
-
-		klog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, "+
-			"namespace: all, according to policy: %v, additional-info: %v\n", policy.Name, err)
-	} else {
-		selectedNamespaces = common.GetSelectedNamespaces(policy.Spec.NamespaceSelector.Include,
-			policy.Spec.NamespaceSelector.Exclude, allNamespaces)
-	}
-	return selectedNamespaces
-}
-
 func ensureDefaultLabel(instance *policyv1.CertificatePolicy) bool {
 	klog.V(3).Info("ensureDefaultLabel")
 	//we need to ensure this label exists -> category: "System and Information Integrity"
@@ -201,6 +186,21 @@ func ensureDefaultLabel(instance *policyv1.CertificatePolicy) bool {
 		return true
 	}
 	return false
+}
+
+// GetSelectedNamespaces returns a string array of all namespaces that match the selector for the policy.
+func GetSelectedNamespaces(policy *policyv1.CertificatePolicy) []string {
+	selectedNamespaces := []string{}
+	allNamespaces, err := common.GetAllNamespaces()
+	if err != nil {
+
+		klog.Errorf("reason: error fetching the list of available namespaces, subject: K8s API server, "+
+			"namespace: all, according to policy: %v, additional-info: %v\n", policy.Name, err)
+	} else {
+		selectedNamespaces = common.GetSelectedNamespaces(policy.Spec.NamespaceSelector.Include,
+			policy.Spec.NamespaceSelector.Exclude, allNamespaces)
+	}
+	return selectedNamespaces
 }
 
 // PeriodicallyExecCertificatePolicies always check status - let this be the only function in the controller
@@ -753,6 +753,9 @@ func cleanupAvailablePolicies(namespace string, name string) {
 	if policy, found := availablePolicies.GetObject(key); found {
 		if policy.Name == name {
 			availablePolicies.RemoveObject(key)
+			if policy.Status.CompliancyDetails != nil {
+				delete(policy.Status.CompliancyDetails, namespace)
+			}
 		}
 	}
 }
