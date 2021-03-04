@@ -18,7 +18,7 @@ addons:
 
 branches:
   only:
-    - master
+    - main
     - /^[0-9]+\..*$/
     - /^v[0-9]+\..*$/
     - /^release-[0-9]+\..*$/
@@ -52,7 +52,7 @@ jobs:
           make component/build
           make component/push
           make security/scans
-        - if [ "$TRAVIS_PULL_REQUEST" == "false" -a "$TRAVIS_BRANCH" == "master" ]; then 
+        - if [ "$TRAVIS_PULL_REQUEST" == "false" -a "$TRAVIS_BRANCH" == "main" ]; then 
             export COMPONENT_NEWTAG="latest-dev";
             make component/tag;
             export COMPONENT_VERSION="latest";
