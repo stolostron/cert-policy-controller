@@ -1,4 +1,6 @@
 // NOTE: Boilerplate only.  Ignore this file.
+// Copyright Contributors to the Open Cluster Management project
+
 
 // Package v1 contains API Schema definitions for the policies v1 API group
 // +k8s:deepcopy-gen=package,register
