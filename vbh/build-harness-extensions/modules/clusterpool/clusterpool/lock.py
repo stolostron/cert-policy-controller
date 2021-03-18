@@ -95,7 +95,7 @@ class GitRepo(object):
             iterations += 1
             lockfile_contents = self._read_from_lockfile(sleep_max=2)
             module_logger.debug('lockfile contents as read from git: {}'.format(lockfile_contents))
- 
+
             if iterations >= self.max_iterations:
                 raise(Exception('Lock file could not be claimed in {} iterations; failing'.format(
                     self.max_iterations)))
