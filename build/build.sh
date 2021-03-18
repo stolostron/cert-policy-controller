@@ -5,5 +5,5 @@ set -e
 
 export DOCKER_IMAGE_AND_TAG=${1}
 export GOARCH=$(go env GOARCH)
-make build-prod
+make build
 make docker/build

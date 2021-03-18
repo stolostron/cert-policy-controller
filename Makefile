@@ -12,7 +12,7 @@ GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
 
 ifndef USE_VENDORIZED_BUILD_HARNESS
--include $(shell curl -s -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
+-include $(shell curl -s -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
 else
 -include vbh/.build-harness-bootstrap
 endif
@@ -21,7 +21,7 @@ endif
 default::
 	@echo "Build Harness Bootstrapped"
 
-.PHONY: all test dependencies build-prod image rhel-image manager run deploy install \
+.PHONY: all test dependencies build image rhel-image manager run deploy install \
 fmt vet generate go-coverage
 
 all: test manager
@@ -32,8 +32,8 @@ dependencies:
 	go mod tidy
 	go mod download	
 
-build-prod:
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./cert-policy ./cmd/manager
+build:
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./build/_output/bin/cert-policy-controller ./cmd/manager
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet

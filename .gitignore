@@ -1,7 +1,7 @@
 build-harness-extensions/
 build-harness/
 .build-harness-bootstrap
-cert-policy
+build/_output
 
 # override build harness vendoring
 !vbh/.build-harness-bootstrap
