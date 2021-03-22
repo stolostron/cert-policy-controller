@@ -1,6 +1,6 @@
 [comment]: # ( Copyright Contributors to the Open Cluster Management project )
 
-# CertificatePolicy Policy Controller
+# Certificate Policy Controller [![KinD tests](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml/badge.svg?branch=main&event=push)](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml)
 ## Description
 A controller that watches certificatepolicies created to monitor a kubernetes cluster to ensure certificates don't expire within a given amount of time. The controller shows whether or not a given `CertificatePolicy` is compliant.
 In addition to checking the expiration of certificates, several optional checks are also available.
