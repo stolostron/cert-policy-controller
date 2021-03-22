@@ -10,6 +10,19 @@
 USE_VENDORIZED_BUILD_HARNESS ?=
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
+TAG ?= latest
+KIND_VERSION ?= latest
+ifneq $(KIND_VERSION), 'latest'
+	KIND_ARGS = '--image kindest/node:$(KIND_VERSION)'
+else
+	KIND_ARGS = ''
+endif
+
+# Image URL to use all building/pushing image targets;
+# Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
+IMG ?= $(shell cat COMPONENT_NAME 2> /dev/null)
+REGISTRY ?= quay.io/open-cluster-management
+TAG ?= latest
 
 ifndef USE_VENDORIZED_BUILD_HARNESS
 -include $(shell curl -s -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
@@ -106,7 +119,7 @@ kind-deploy-controller-dev:
 
 kind-create-cluster:
 	@echo "creating cluster"
-	kind create cluster --name test-managed --image kindest/node:$(KIND_VERSION)
+	kind create cluster --name test-managed $(KIND_ARGS)
 	kind get kubeconfig --name test-managed > $(PWD)/kubeconfig_managed
 
 kind-delete-cluster:
