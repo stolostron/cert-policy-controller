@@ -118,9 +118,9 @@ kind-deploy-controller-dev:
 	kubectl create ns multicluster-endpoint
 	kubectl apply -f deploy/ -n multicluster-endpoint
 	@echo "Patch deployment image"
-	kubectl patch deployment cert-policy-ctrl -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-ctrl\",\"imagePullPolicy\":\"Never\"}]}}}}"
-	kubectl patch deployment cert-policy-ctrl -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-ctrl\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
-	kubectl rollout status -n multicluster-endpoint deployment cert-policy-ctrl --timeout=180s
+	kubectl patch deployment cert-policy-controller -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-controller\",\"imagePullPolicy\":\"Never\"}]}}}}"
+	kubectl patch deployment cert-policy-controller -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-controller\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
+	kubectl rollout status -n multicluster-endpoint deployment cert-policy-controller --timeout=180s
 
 kind-create-cluster:
 	@echo "creating cluster"
