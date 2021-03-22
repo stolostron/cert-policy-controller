@@ -1,5 +1,6 @@
 
 language: go
+
 go:
   - 1.14.x
 
@@ -9,77 +10,32 @@ os:
 services:
   - docker
 
-addons:
-  sonarcloud:
-    organization: "open-cluster-management"
-    token:
-      secure: "wMr8gaOM2vGUDOVzk5Oj6EbFd0CM+3dNX/RmpXZKjTUKD4vnt8A8CBlZzplnBl/pqAO1rOP3uofvxn3le7ZmbKebCr31jixeYgi6wfdsyimW3z1UOrN/bCp6G3eOH3KOX6fG2gepwnWFP2BpmVX8Tp2jKbPl3fiYRjsfpO2cYUQtemvNpwZtGaPuyn7fC3EjMnmNPruh+RokpZD3mRsvLpvQSbccmWchf/HfmqQdEOKgJdRHzO7r5i3C6gnHGTPXegQZ4U9cWH8L/ELfEvg6GAR1utZ/Dkia5Cxce+7EaDs4JLWieNMIZblJztAFqiefdvStq7tRTG/4bMlY5C6DMANR21m/QtFc8vVz93J+KYe76DHAQ6pqle2lgoPi2E9BE8gH1u2Wxm2yVG/gDQqRdmPLmLVCsTKhY8zFL9YMb15Kl5pD42NHvnLhxccimm4es23r4rOySSvw1eEYyy3tzkDZWklE2dQVoEjN+3xLTuzTvYEINejq3U4Y7OxrE8XF89ZaogiTU+6AkjIYA+Cm9RvOLcttkjlpRVEZVqcPObSVClr6C7YtFTq1aHkxTsgrAXkJqRSQmiOOmY/n/we5XnSdmc0F048B+WQW+WPOKbJzipF807JViE3dLXRmSVPHAl1oeFIsIqnOxeL/S2Mv7lptEPzOBzw8mA515uir8os="
-
-
 branches:
   only:
     - main
-    - /^[0-9]+\..*$/
-    - /^v[0-9]+\..*$/
-    - /^release-[0-9]+\..*$/
 
 env:
   global:
     # Required
     - OS=linux
-    - COMPONENT_TAG_EXTENSION="-${TRAVIS_COMMIT}"
     # Component Specific
     - COMPONENT_TYPE="make"
     - COMPONENT_INIT_COMMAND=${TRAVIS_BUILD_DIR}/build/install-dependencies.sh
     - COMPONENT_BUILD_COMMAND=${TRAVIS_BUILD_DIR}/build/build.sh
-    - COMPONENT_E2E_TEST_COMMAND=${TRAVIS_BUILD_DIR}/build/run-e2e-tests.sh
 
 stages:
   - build
-  - unit-test
-  - test-e2e
-  - publish
 
 jobs:
   include:
     - stage: build
-      name: "Build the image and push"
+      name: "Build the image with latest-dev tag and push it"
+      if: type = push AND branch = main
       script:
-        - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then export COMPONENT_TAG_EXTENSION="-PR${TRAVIS_PULL_REQUEST}-${TRAVIS_COMMIT}"; fi;
+        - set -e
+        - export COMPONENT_VERSION="latest"
+        - export COMPONENT_TAG_EXTENSION="-dev"
         - |
           make
-          make copyright-check TRAVIS_BRANCH=${TRAVIS_BRANCH} TRAVIS_PULL_REQUEST_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH}
           make component/build
           make component/push
-          make security/scans
-        - if [ "$TRAVIS_PULL_REQUEST" == "false" -a "$TRAVIS_BRANCH" == "main" ]; then 
-            export COMPONENT_NEWTAG="latest-dev";
-            make component/tag;
-            export COMPONENT_VERSION="latest";
-            export COMPONENT_TAG_EXTENSION="-dev";
-            make component/push;
-          fi;
-    - stage: unit-test
-      name: "Build and run unit tests"
-      script:
-        - |
-          make
-          make dependencies
-          make sonar/go
-    - stage: test-e2e
-      name: "Run e2e tests"
-      if: type = pull_request
-      script:
-        - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then export COMPONENT_TAG_EXTENSION="-PR${TRAVIS_PULL_REQUEST}-${TRAVIS_COMMIT}"; fi;
-        - |
-          make
-          make component/pull
-          make component/test/e2e
-    - stage: publish
-      name: "Publish the image to quay with an official version/sha tag and publish entry to integration pipeline stage"
-      if: type = push AND branch =~ /^release-[0-9]+\..*$/
-      script:
-        - |
-          make
-          make pipeline-manifest/update PIPELINE_MANIFEST_COMPONENT_SHA256=${TRAVIS_COMMIT} PIPELINE_MANIFEST_COMPONENT_REPO=${TRAVIS_REPO_SLUG} PIPELINE_MANIFEST_BRANCH=${TRAVIS_BRANCH}
-
