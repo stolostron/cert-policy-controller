@@ -51,7 +51,7 @@ build:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./build/_output/bin/cert-policy-controller ./cmd/manager
 
 build-images:
-	@docker build -t ${IMAGE_NAME_AND_VERSION} -f build/Dockerfile .
+	@docker build -t ${IMAGE_NAME_AND_VERSION} -f ./Dockerfile .
 	@docker tag ${IMAGE_NAME_AND_VERSION} $(REGISTRY)/$(IMG):$(TAG)
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
