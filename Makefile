@@ -10,12 +10,12 @@
 USE_VENDORIZED_BUILD_HARNESS ?=
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
-TAG ?= "latest"
-KIND_VERSION ?= "latest"
-ifneq ($(KIND_VERSION), "latest")
-	KIND_ARGS = "--image kindest/node:$(KIND_VERSION)"
+TAG ?= latest
+KIND_VERSION ?= latest
+ifneq ($(KIND_VERSION), latest)
+	KIND_ARGS = --image kindest/node:$(KIND_VERSION)
 else
-	KIND_ARGS = ""
+	KIND_ARGS =
 endif
 
 # Image URL to use all building/pushing image targets;
