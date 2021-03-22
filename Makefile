@@ -26,11 +26,13 @@ fmt vet generate go-coverage
 
 all: test manager
 
-dependencies:
+dependencies: dependencies-go
 	curl -sL https://go.kubebuilder.io/dl/2.0.0-alpha.1/${GOOS}/${GOARCH} | tar -xz -C /tmp/
 	sudo mv /tmp/kubebuilder_2.0.0-alpha.1_${GOOS}_${GOARCH} /usr/local/kubebuilder
+
+dependencies-go:
 	go mod tidy
-	go mod download	
+	go mod download
 
 build:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./build/_output/bin/cert-policy-controller ./cmd/manager
@@ -60,6 +62,9 @@ fmt:
 vet:
 	go vet ./pkg/... ./cmd/...
 
+test:
+	go test ./...
+
 # Generate code
 generate:
 	go generate ./pkg/... ./cmd/...
@@ -67,3 +72,53 @@ generate:
 copyright-check:
 	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
 
+# e2e test section
+.PHONY: kind-bootstrap-cluster
+kind-bootstrap-cluster: kind-create-cluster install-crds kind-deploy-controller install-resources
+
+.PHONY: kind-bootstrap-cluster-dev
+kind-bootstrap-cluster-dev: kind-create-cluster install-crds install-resources
+
+check-env:
+ifndef DOCKER_USER
+	$(error DOCKER_USER is undefined)
+endif
+ifndef DOCKER_PASS
+	$(error DOCKER_PASS is undefined)
+endif
+
+kind-deploy-controller: check-env
+	@echo installing cert policy controller
+	kubectl create ns multicluster-endpoint
+	kubectl create secret -n multicluster-endpoint docker-registry multiclusterhub-operator-pull-secret --docker-server=quay.io --docker-username=${DOCKER_USER} --docker-password=${DOCKER_PASS}
+	kubectl apply -f deploy/ -n multicluster-endpoint
+
+kind-deploy-controller-dev:
+	@echo Pushing image to KinD cluster
+	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name test-managed
+	@echo Installing cert policy controller
+	kubectl create ns multicluster-endpoint
+	kubectl apply -f deploy/ -n multicluster-endpoint
+	@echo "Patch deployment image"
+	kubectl patch deployment cert-policy-ctrl -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-ctrl\",\"imagePullPolicy\":\"Never\"}]}}}}"
+	kubectl patch deployment cert-policy-ctrl -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-ctrl\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
+	kubectl rollout status -n multicluster-endpoint deployment cert-policy-ctrl --timeout=180s
+
+kind-create-cluster:
+	@echo "creating cluster"
+	kind create cluster --name test-managed --image kindest/node:$(KIND_VERSION)
+	kind get kubeconfig --name test-managed > $(PWD)/kubeconfig_managed
+
+kind-delete-cluster:
+	kind delete cluster --name test-managed
+
+install-crds:
+	@echo installing crds
+	kubectl apply -f deploy/crds/policy.open-cluster-management.io_certificatepolicies_crd.yaml
+
+install-resources:
+	@echo creating namespaces
+	kubectl create ns managed
+
+e2e-test:
+	${GOPATH}/bin/ginkgo -v --failFast --slowSpecThreshold=10 test/e2e
