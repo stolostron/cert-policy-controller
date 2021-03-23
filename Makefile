@@ -10,6 +10,9 @@
 USE_VENDORIZED_BUILD_HARNESS ?=
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
+# Handle KinD configuration
+KIND_NAME ?= test-managed
+KIND_NAMESPACE ?= multicluster-endpoint
 KIND_VERSION ?= latest
 ifneq ($(KIND_VERSION), latest)
 	KIND_ARGS = --image kindest/node:$(KIND_VERSION)
@@ -113,22 +116,22 @@ kind-deploy-controller: check-env
 
 kind-deploy-controller-dev:
 	@echo Pushing image to KinD cluster
-	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name test-managed
-	@echo Installing cert policy controller
-	kubectl create ns multicluster-endpoint
-	kubectl apply -f deploy/ -n multicluster-endpoint
+	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name $(KIND_NAME)
+	@echo Installing $(IMG)
+	kubectl create ns $(KIND_NAMESPACE)
+	kubectl apply -f deploy/ -n $(KIND_NAMESPACE)
 	@echo "Patch deployment image"
-	kubectl patch deployment cert-policy-controller -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-controller\",\"imagePullPolicy\":\"Never\"}]}}}}"
-	kubectl patch deployment cert-policy-controller -n multicluster-endpoint -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"cert-policy-controller\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
-	kubectl rollout status -n multicluster-endpoint deployment cert-policy-controller --timeout=180s
+	kubectl patch deployment $(IMG) -n $(KIND_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"imagePullPolicy\":\"Never\"}]}}}}"
+	kubectl patch deployment $(IMG) -n $(KIND_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
+	kubectl rollout status -n $(KIND_NAMESPACE) deployment $(IMG) --timeout=180s
 
 kind-create-cluster:
 	@echo "creating cluster"
-	kind create cluster --name test-managed $(KIND_ARGS)
-	kind get kubeconfig --name test-managed > $(PWD)/kubeconfig_managed
+	kind create cluster --name $(KIND_NAME) $(KIND_ARGS)
+	kind get kubeconfig --name $(KIND_NAME) > $(PWD)/kubeconfig_managed
 
 kind-delete-cluster:
-	kind delete cluster --name test-managed
+	kind delete cluster --name $(KIND_NAME)
 
 install-crds:
 	@echo installing crds
