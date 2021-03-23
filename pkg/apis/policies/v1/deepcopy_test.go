@@ -31,9 +31,9 @@ var certPolicy = CertificatePolicy{
 	}}
 
 var certPolicySpec = CertificatePolicySpec{
-	Severity:                        "high",
-	RemediationAction:               "enforce",
-	MinDuration:                     &metav1.Duration{time.Hour * 24 * 35},
+	Severity:          "high",
+	RemediationAction: "enforce",
+	MinDuration:       &metav1.Duration{time.Hour * 24 * 35},
 }
 
 var typeMeta = metav1.TypeMeta{
@@ -134,16 +134,16 @@ func TestCertificatePolicyListDeepCopyInto(t *testing.T) {
 func TestCertificatePolicyStatusDeepCopy(t *testing.T) {
 	certList := map[string]Cert{}
 	cert := Cert{
-		Secret: "secret",
+		Secret:     "secret",
 		Expiration: "expired",
 	}
 
 	certList["a"] = cert
 
 	compliancyDetails := CompliancyDetails{
-		NonCompliantCertificates: 1,
+		NonCompliantCertificates:     1,
 		NonCompliantCertificatesList: certList,
-		Message: "A message for you sir",
+		Message:                      "A message for you sir",
 	}
 	detailList := map[string]CompliancyDetails{}
 	detailList["b"] = compliancyDetails
@@ -157,24 +157,24 @@ func TestCertificatePolicyStatusDeepCopy(t *testing.T) {
 
 func TestCertificatePolicyStatusDeepCopyInto(t *testing.T) {
 	certList := map[string]Cert{}
-        cert := Cert{
-                Secret: "secret",
-                Expiration: "expired",
-        }
+	cert := Cert{
+		Secret:     "secret",
+		Expiration: "expired",
+	}
 
-        certList["a"] = cert
+	certList["a"] = cert
 
-        compliancyDetails := CompliancyDetails{
-                NonCompliantCertificates: 1,
-                NonCompliantCertificatesList: certList,
-                Message: "A message for you sir",
-        }
-        detailList := map[string]CompliancyDetails{}
-        detailList["b"] = compliancyDetails
-        certPolicyStatus := CertificatePolicyStatus{
-                ComplianceState:   "Compliant",
-                CompliancyDetails: detailList,
-        }
+	compliancyDetails := CompliancyDetails{
+		NonCompliantCertificates:     1,
+		NonCompliantCertificatesList: certList,
+		Message:                      "A message for you sir",
+	}
+	detailList := map[string]CompliancyDetails{}
+	detailList["b"] = compliancyDetails
+	certPolicyStatus := CertificatePolicyStatus{
+		ComplianceState:   "Compliant",
+		CompliancyDetails: detailList,
+	}
 	var certPolicyStatus2 CertificatePolicyStatus
 	certPolicyStatus.DeepCopyInto(&certPolicyStatus2)
 	assert.True(t, reflect.DeepEqual(certPolicyStatus, certPolicyStatus2))

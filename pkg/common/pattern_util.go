@@ -5,7 +5,6 @@
 // Contract with IBM Corp.
 // Copyright Contributors to the Open Cluster Management project
 
-
 package common
 
 import (
