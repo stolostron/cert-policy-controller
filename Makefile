@@ -150,6 +150,10 @@ e2e-test:
 	${GOPATH}/bin/ginkgo -v --failFast --slowSpecThreshold=10 test/e2e
 
 e2e-dependencies:
+	go get github.com/onsi/ginkgo/ginkgo
+	go get github.com/onsi/gomega/...
+
+e2e-debug:
 	kubectl get all -n $(KIND_NAMESPACE)
 	kubectl get all -n managed
 	kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
