@@ -86,6 +86,11 @@ vet:
 test:
 	go test ./...
 
+test-dependencies:
+	curl -L https://go.kubebuilder.io/dl/2.3.0/"$(go env GOOS)"/"$(go env GOARCH)" | tar -xz -C /tmp/
+	sudo mv /tmp/kubebuilder_2.3.0_"$(go env GOOS)"_"$(go env GOARCH)" /usr/local/kubebuilder
+	export PATH=$PATH:/usr/local/kubebuilder/bin
+
 # Generate code
 generate:
 	go generate ./pkg/... ./cmd/...
@@ -143,3 +148,10 @@ install-resources:
 
 e2e-test:
 	${GOPATH}/bin/ginkgo -v --failFast --slowSpecThreshold=10 test/e2e
+
+e2e-dependencies:
+	kubectl get all -n $(KIND_NAMESPACE)
+	kubectl get all -n managed
+	kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
+	kubectl describe pods -n $(KIND_NAMESPACE)
+	kubectl logs $(kubectl get pods -n $(KIND_NAMESPACE) -o name | grep $(IMG)) -n $(KIND_NAMESPACE)
