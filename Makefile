@@ -76,7 +76,6 @@ manifests:
 
 # Run go fmt against code
 fmt:
-	@echo $(KIND_ARGS)
 	go fmt ./pkg/... ./cmd/...
 
 # Run go vet against code
@@ -114,7 +113,7 @@ ifndef DOCKER_PASS
 endif
 
 kind-deploy-controller: check-env
-	@echo installing cert policy controller
+	@echo installing $(IMG)
 	kubectl create ns multicluster-endpoint
 	kubectl create secret -n multicluster-endpoint docker-registry multiclusterhub-operator-pull-secret --docker-server=quay.io --docker-username=${DOCKER_USER} --docker-password=${DOCKER_PASS}
 	kubectl apply -f deploy/ -n multicluster-endpoint
@@ -158,4 +157,4 @@ e2e-debug:
 	kubectl get all -n managed
 	kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
 	kubectl describe pods -n $(KIND_NAMESPACE)
-	kubectl logs $(kubectl get pods -n $(KIND_NAMESPACE) -o name | grep $(IMG)) -n $(KIND_NAMESPACE)
+	kubectl logs $$(kubectl get pods -n $(KIND_NAMESPACE) -o name | grep $(IMG)) -n $(KIND_NAMESPACE)
