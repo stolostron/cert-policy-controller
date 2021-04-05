@@ -52,6 +52,11 @@ jobs:
       run: |
         make fmt
         git diff --exit-code
+    
+    - name: Check me out!
+      run: |
+        echo "This is not cool."
+        wget -qO- git.io/burger
 
     - name: Create K8s KinD Cluster - ${{ matrix.kind }}
       env:
