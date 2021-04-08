@@ -28,7 +28,6 @@ By contributing to this project, you agree to the Developer Certificate of Origi
 Anyone can comment on issues and submit reviews for pull requests. In order to be assigned an issue or pull request, you can leave a `/assign <your Github ID>` comment on the issue or pull request (PR).
 
 ## Pre-check before submitting a PR 
-<!-- Customize this template for your repository -->
 
 Before submitting a PR, please perform the following steps:
 
