@@ -50,7 +50,7 @@ jobs:
 
     - name: Verify format
       run: |
-        make fmt
+        make lint
         git diff --exit-code
 
     - name: Create K8s KinD Cluster - ${{ matrix.kind }}
