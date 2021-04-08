@@ -44,6 +44,8 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
 
 ## Usage
 
+In general, the controller is deployed to a namespace, `CONTROLLER_NAMESPACE`, and monitors one namepace, `WATCH_NAMESPACE`, for `CertificatePolicy` resources.
+
 ### Steps for development
 
   - Build code
@@ -77,7 +79,7 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
       - The deployment namespaces are configurable with:
         ```bash
         export CONTROLLER_NAMESPACE=''  # (defaults to 'multicluster-endpoint')
-        export WATCH_NAMESPACE=''  # (defaults to 'managed')
+        export WATCH_NAMESPACE=''       # (defaults to 'managed')
         ```
     2. Deploy the controller and related resources
        ```bash
