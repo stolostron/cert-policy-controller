@@ -44,8 +44,6 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
 
 ## Usage
 
-In general, the controller is deployed to a namespace, `CONTROLLER_NAMESPACE`, and monitors one namepace, `WATCH_NAMESPACE`, for `CertificatePolicy` resources.
-
 ### Steps for development
 
   - Build code
@@ -57,7 +55,7 @@ In general, the controller is deployed to a namespace, `CONTROLLER_NAMESPACE`, a
     export WATCH_NAMESPACE=<namespace>
     make run
     ```
-    (`WATCH_NAMESPACE` can be any namespace on the cluster that you want to monitor for policies)
+    (`WATCH_NAMESPACE` can be any namespace on the cluster that you want the controller to monitor for policies.)
 
 ### Steps for deployment
 
@@ -72,20 +70,23 @@ In general, the controller is deployed to a namespace, `CONTROLLER_NAMESPACE`, a
       export TAG=''       # (defaults to 'latest')
       ```
   - Deploy controller to a cluster
+
+    The controller is deployed to a namespace defined in `CONTROLLER_NAMESPACE` and monitors the namepace defined in `WATCH_NAMESPACE` for `CertificatePolicy` resources.
+
     1. Create the deployment namespaces
        ```bash
        make create-ns
        ```
-      - The deployment namespaces are configurable with:
-        ```bash
-        export CONTROLLER_NAMESPACE=''  # (defaults to 'multicluster-endpoint')
-        export WATCH_NAMESPACE=''       # (defaults to 'managed')
-        ```
+       The deployment namespaces are configurable with:
+       ```bash
+       export CONTROLLER_NAMESPACE=''  # (defaults to 'multicluster-endpoint')
+       export WATCH_NAMESPACE=''       # (defaults to 'managed')
+       ```
     2. Deploy the controller and related resources
        ```bash
        make deploy
        ```
-    - **NOTE:** Please be aware of the community's [deployment images](https://github.com/open-cluster-management/community#deployment-images) special note.
+    **NOTE:** Please be aware of the community's [deployment images](https://github.com/open-cluster-management/community#deployment-images) special note.
 
 ### Steps for test
 
