@@ -10,9 +10,11 @@
 USE_VENDORIZED_BUILD_HARNESS ?=
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
+# Deployment configuration
+CONTROLLER_NAMESPACE ?= multicluster-endpoint
+WATCH_NAMESPACE ?= managed
 # Handle KinD configuration
 KIND_NAME ?= test-managed
-CONTROLLER_NAMESPACE ?= multicluster-endpoint
 KIND_VERSION ?= latest
 ifneq ($(KIND_VERSION), latest)
 	KIND_ARGS = --image kindest/node:$(KIND_VERSION)
@@ -69,8 +71,13 @@ build-images:
 
 # Install necessary resources into a cluster
 deploy:
-	kubectl apply -f deploy/
-	kubectl apply -f deploy/crds/
+	kubectl apply -f deploy/ -n $(CONTROLLER_NAMESPACE)
+	kubectl apply -f deploy/crds/ -n $(CONTROLLER_NAMESPACE)
+	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
+
+create-ns:
+	@kubectl create namespace $(CONTROLLER_NAMESPACE) || true
+	@kubectl create namespace $(WATCH_NAMESPACE) || true
 
 ############################################################
 # lint
@@ -79,7 +86,6 @@ deploy:
 # Lint code
 lint:
 	go fmt ./pkg/... ./cmd/...
-	git diff --exit-code
 
 # Run go vet against code
 vet:
@@ -143,7 +149,7 @@ install-crds:
 
 install-resources:
 	@echo creating namespaces
-	kubectl create ns managed
+	kubectl create ns $(WATCH_NAMESPACE)
 
 e2e-test:
 	${GOPATH}/bin/ginkgo -v --failFast --slowSpecThreshold=10 test/e2e
@@ -154,7 +160,7 @@ e2e-dependencies:
 
 e2e-debug:
 	kubectl get all -n $(CONTROLLER_NAMESPACE)
-	kubectl get all -n managed
+	kubectl get all -n $(WATCH_NAMESPACE)
 	kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
 	kubectl describe pods -n $(CONTROLLER_NAMESPACE)
 	kubectl logs $$(kubectl get pods -n $(CONTROLLER_NAMESPACE) -o name | grep $(IMG)) -n $(CONTROLLER_NAMESPACE)

@@ -70,13 +70,19 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
       export TAG=''       # (defaults to 'latest')
       ```
   - Deploy controller to a cluster
-    ```bash
-    make deploy
-    ```
-    - The deployment namespace is configurable with:
-      ```bash
-      export CONTROLLER_NAMESPACE=''  # (defaults to 'multicluster-endpoint')
-      ```
+    1. Create the deployment namespaces
+       ```bash
+       make create-ns
+       ```
+      - The deployment namespaces are configurable with:
+        ```bash
+        export CONTROLLER_NAMESPACE=''  # (defaults to 'multicluster-endpoint')
+        export WATCH_NAMESPACE=''  # (defaults to 'managed')
+        ```
+    2. Deploy the controller and related resources
+       ```bash
+       make deploy
+       ```
     - **NOTE:** Please be aware of the community's [deployment images](https://github.com/open-cluster-management/community#deployment-images) special note.
 
 ### Steps for test
@@ -96,18 +102,18 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
       ```
   - E2E tests (**NOTE:** Currently there are no E2E tests to run)
     1. Prerequisites:
-      - [docker](https://docs.docker.com/get-docker/)
-      - [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
+       - [docker](https://docs.docker.com/get-docker/)
+       - [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
     2. Start KinD cluster (make sure Docker is running first)
-      ```bash
-      make kind-bootstrap-cluster-dev
-      ```
+       ```bash
+       make kind-bootstrap-cluster-dev
+       ```
     3. Start the controller locally (see [Steps for development](#steps-for-development))
     4. Run E2E tests:
-      ```bash
-      export WATCH_NAMESPACE=managed
-      make e2e-test
-      ```
+       ```bash
+       export WATCH_NAMESPACE=managed
+       make e2e-test
+       ```
 
 ## References
 

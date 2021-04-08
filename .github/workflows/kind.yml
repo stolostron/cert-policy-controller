@@ -51,6 +51,7 @@ jobs:
     - name: Verify format
       run: |
         make lint
+        git diff --exit-code
 
     - name: Create K8s KinD Cluster - ${{ matrix.kind }}
       env:
