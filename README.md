@@ -1,9 +1,14 @@
 [comment]: # ( Copyright Contributors to the Open Cluster Management project )
 
-# Certificate Policy Controller [![KinD tests](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml/badge.svg?branch=main&event=push)](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml)
+# Certificate Policy Controller
+
+[![KinD tests](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml/badge.svg?branch=main&event=push)](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml) [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
+
 ## Description
-A controller that watches certificatepolicies created to monitor a kubernetes cluster to ensure certificates don't expire within a given amount of time. The controller shows whether or not a given `CertificatePolicy` is compliant.
-In addition to checking the expiration of certificates, several optional checks are also available.
+
+The Certificate Policy Controller is a controller that watches `CertificatePolicies` created to monitor a Kubernetes cluster to ensure all certificates in given namespaces will not expire within a given amount of time. The `CertificatePolicy` is the Custom Resource Definition (CRD), created for this controller to monitor. The controller can be run as a stand-alone program or as an integrated part of governing risk with Red Hat Advanced Cluster Management for Kubernetes.
+
+In addition to checking the expiration of certificates, several optional checks are also available:
 
 | Field | Description |
 | ---- | ---- |
@@ -14,13 +19,7 @@ In addition to checking the expiration of certificates, several optional checks 
 | allowedSANPattern | Optional: A regular expression that must match every SAN entry you have defined in your certificates. See Golang Regular Expression syntax for more inforamtion: https://golang.org/pkg/regexp/syntax/ |
 | disallowedSANPattern | Optional: A regular expression that must not match any SAN entries you have defined in your certificates.  See Golang Regular Expression syntax for more inforamtion: https://golang.org/pkg/regexp/syntax/ |
 
-
-## Usage
-The controller can be run as a stand-alone program or as an integrated part of governing risk with Red Hat Advanced Cluster Management for Kubernetes.
-
-`CertificatePolicy` is the custom resource definition created by this controller. It watches specific namespaces and shows whether or not those namespaces and the policy as a whole is compliant.
-
-The controller watches for `CertificatePolicy` objects in Kubernetes. This is an example spec of a `CertificatePolicy` object:
+This is an example spec of a `CertificatePolicy` object:
 
 ```
 apiVersion: policy.open-cluster-management.io/v1
@@ -40,3 +39,77 @@ spec:
   # minimum duration is the least amount of time the certificate is still valid before it is considered non-compliant
   minimumDuration: 100h
 ```
+
+Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
+
+## Usage
+
+### Steps for development
+
+  - Build code
+    ```bash
+    make build
+    ```
+  - Run controller locally against the Kubernetes cluster currently configured with `kubectl`
+    ```bash
+    export WATCH_NAMESPACE=<namespace>
+    make run
+    ```
+    (`WATCH_NAMESPACE` can be any namespace on the cluster that you want to monitor for policies)
+
+### Steps for deployment
+
+  - Build container image
+    ```bash
+    make build-images
+    ```
+    - The image registry, name, and tag used in the image build, are configurable with:
+      ```bash
+      export REGISTRY=''  # (defaults to 'quay.io/open-cluster-management')
+      export IMG=''       # (defaults to repo name)
+      export TAG=''       # (defaults to 'latest')
+      ```
+  - Deploy controller to a cluster
+    ```bash
+    make deploy
+    ```
+    - The deployment namespace is configurable with:
+      ```bash
+      export CONTROLLER_NAMESPACE=''  # (defaults to 'multicluster-endpoint')
+      ```
+    - **NOTE:** Please be aware of the community's [deployment images](https://github.com/open-cluster-management/community#deployment-images) special note.
+
+### Steps for test
+
+  - Code linting
+    ```bash
+    make lint
+    ```
+  - Unit tests
+    - Install prerequisites
+      ```bash
+      make test-dependencies
+      ```
+    - Run unit tests
+      ```bash
+      make test
+      ```
+  - E2E tests (**NOTE:** Currently there are no E2E tests to run)
+    1. Prerequisites:
+      - [docker](https://docs.docker.com/get-docker/)
+      - [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
+    2. Start KinD cluster (make sure Docker is running first)
+      ```bash
+      make kind-bootstrap-cluster-dev
+      ```
+    3. Start the controller locally (see [Steps for development](#steps-for-development))
+    4. Run E2E tests:
+      ```bash
+      export WATCH_NAMESPACE=managed
+      make e2e-test
+      ```
+
+## References
+
+- The `cert-policy-controller` is part of the `open-cluster-management` community. For more information, visit: [open-cluster-management.io](https://open-cluster-management.io).
+- Check the [Security guide](SECURITY.md) if you need to report a security issue.
