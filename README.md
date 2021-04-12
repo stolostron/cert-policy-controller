@@ -81,7 +81,7 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
        ```
        The deployment namespaces are configurable with:
        ```bash
-       export CONTROLLER_NAMESPACE=''  # (defaults to 'multicluster-endpoint')
+       export CONTROLLER_NAMESPACE=''  # (defaults to 'open-cluster-management-agent-addon')
        export WATCH_NAMESPACE=''       # (defaults to 'managed')
        ```
     2. Deploy the controller and related resources
