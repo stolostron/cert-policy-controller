@@ -11,7 +11,7 @@ USE_VENDORIZED_BUILD_HARNESS ?=
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
 # Deployment configuration
-CONTROLLER_NAMESPACE ?= multicluster-endpoint
+CONTROLLER_NAMESPACE ?= open-cluster-management-agent-addon
 WATCH_NAMESPACE ?= managed
 # Handle KinD configuration
 KIND_NAME ?= test-managed
@@ -114,15 +114,16 @@ test-dependencies:
 ############################################################
 
 .PHONY: kind-bootstrap-cluster
-kind-bootstrap-cluster: kind-create-cluster install-crds kind-deploy-controller install-resources
+kind-bootstrap-cluster: kind-create-cluster kind-deploy-controller install-resources
 
 .PHONY: kind-bootstrap-cluster-dev
 kind-bootstrap-cluster-dev: kind-create-cluster install-crds install-resources
 
-kind-deploy-controller:
+kind-deploy-controller: install-crds
 	@echo installing $(IMG)
-	kubectl create ns $(CONTROLLER_NAMESPACE)
+	kubectl create ns $(CONTROLLER_NAMESPACE) || true
 	kubectl apply -f deploy/ -n $(CONTROLLER_NAMESPACE)
+	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"env\":[{\"name\":\"WATCH_NAMESPACE\",\"value\":\"$(WATCH_NAMESPACE)\"}]}]}}}}"
 
 kind-deploy-controller-dev:
 	@echo Pushing image to KinD cluster
@@ -133,6 +134,7 @@ kind-deploy-controller-dev:
 	@echo "Patch deployment image"
 	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"imagePullPolicy\":\"Never\"}]}}}}"
 	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
+	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"env\":[{\"name\":\"WATCH_NAMESPACE\",\"value\":\"$(WATCH_NAMESPACE)\"}]}]}}}}"
 	kubectl rollout status -n $(CONTROLLER_NAMESPACE) deployment $(IMG) --timeout=180s
 
 kind-create-cluster:
@@ -145,7 +147,7 @@ kind-delete-cluster:
 
 install-crds:
 	@echo installing crds
-	kubectl apply -f deploy/crds/policy.open-cluster-management.io_certificatepolicies_crd.yaml
+	kubectl apply -f deploy/crds/v1/policy.open-cluster-management.io_certificatepolicies.yaml
 
 install-resources:
 	@echo creating namespaces
