@@ -350,7 +350,7 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	}
 	//GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
-	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(
+	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(context.TODO(),
 		metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
 	for _, secretItem := range secretList.Items {
 		secret := secretItem

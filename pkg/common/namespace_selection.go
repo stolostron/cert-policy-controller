@@ -8,6 +8,8 @@
 package common
 
 import (
+	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,7 +47,7 @@ func GetSelectedNamespaces(included, excluded, allNamespaces []string) []string 
 func GetAllNamespaces() (list []string, err error) {
 	//listOpt := &client.ListOptions{}
 	namespaces := (*KubeClient).CoreV1().Namespaces()
-	namespaceList, err := namespaces.List(metav1.ListOptions{})
+	namespaceList, err := namespaces.List(context.TODO(), metav1.ListOptions{})
 
 	namespacesNames := []string{}
 	for _, n := range namespaceList.Items {
