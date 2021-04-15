@@ -138,7 +138,7 @@ func main() {
 			log.Info("Starting lease controller to report status")
 			leaseUpdater := lease.NewLeaseUpdater(
 				generatedClient,
-				"iam-policy-controller",
+				"cert-policy-controller",
 				operatorNs,
 			)
 			go leaseUpdater.Start(ctx)
