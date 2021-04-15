@@ -16,6 +16,7 @@
 package certificatepolicy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -135,7 +136,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
 	r := &ReconcileCertificatePolicy{client: cl, scheme: s, recorder: nil}
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
-	simpleClient.CoreV1().Namespaces().Create(&ns)
+	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
 	common.Initialize(&simpleClient, nil)
 	res, err := r.Reconcile(req)
 	if err != nil {
@@ -224,7 +225,7 @@ func TestHandleAddingPolicy(t *testing.T) {
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta,
 	}
-	simpleClient.CoreV1().Namespaces().Create(&ns)
+	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
 	common.Initialize(&simpleClient, nil)
 	handleAddingPolicy(&certPolicy)
 	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
@@ -484,8 +485,8 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
-	simpleClient.CoreV1().Namespaces().Create(&ns)
-	s, err := simpleClient.CoreV1().Secrets("default").Create(&secret)
+	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	s, err := simpleClient.CoreV1().Secrets("default").Create(context.TODO(), &secret, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
 	if err != nil {
@@ -503,7 +504,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
-	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
+	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
 	assert.True(t, len(secretList.Items) == 1)
 
 	cert, err := parseCertificate(&secretList.Items[0])
@@ -563,7 +564,7 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 		},
 	}
 
-	s, err = simpleClient.CoreV1().Secrets("default").Create(&secret)
+	s, err = simpleClient.CoreV1().Secrets("default").Create(context.TODO(), &secret, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
 
@@ -574,7 +575,7 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
-	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
+	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
 	assert.True(t, len(secretList.Items) == 2)
 
 	update, nonCompliant, list = checkSecrets(instance, "default")
@@ -668,15 +669,15 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
-	simpleClient.CoreV1().Namespaces().Create(&ns1)
-	simpleClient.CoreV1().Namespaces().Create(&ns2)
-	s, err := simpleClient.CoreV1().Secrets("default1").Create(&secret1)
+	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns1, metav1.CreateOptions{})
+	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns2, metav1.CreateOptions{})
+	s, err := simpleClient.CoreV1().Secrets("default1").Create(context.TODO(), &secret1, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
 	if err != nil {
 		t.Logf("Error creating secret 1: %s", err)
 	}
-	s, err = simpleClient.CoreV1().Secrets("default2").Create(&secret2)
+	s, err = simpleClient.CoreV1().Secrets("default2").Create(context.TODO(), &secret2, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
 	if err != nil {
