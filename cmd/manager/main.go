@@ -13,6 +13,7 @@ import (
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	"github.com/open-cluster-management/addon-framework/pkg/lease"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -57,6 +58,7 @@ func printVersion() {
 func main() {
 	var eventOnParent, defaultDuration string
 	var frequency uint
+	var updateLease bool
 
 	// Add the zap logger flag set to the CLI. The flag set must
 	// be added before calling pflag.Parse().
@@ -69,6 +71,7 @@ func main() {
 	pflag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
 	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
 	pflag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
+	pflag.BoolVar(&updateLease, "update-lease", false, "If enabled, the controller will start the lease controller to report its status")
 
 	pflag.Parse()
 
@@ -178,6 +181,24 @@ func main() {
 	policyStatusHandler.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and does the needed work to make sure the desired state is achieved
 	go policyStatusHandler.PeriodicallyExecCertificatePolicies(frequency, true)
+
+	if updateLease {
+		log.Info("Starting lease controller to report status")
+		// Get the namespace the operator is currently deployed in.
+		operatorNs, err := k8sutil.GetOperatorNamespace()
+		if err != nil {
+			log.Error(err, "Failed to get operator namespace")
+			os.Exit(1)
+		}
+		leaseUpdater := lease.NewLeaseUpdater(
+			generatedClient,
+			"iam-policy-controller",
+			operatorNs,
+		)
+		go leaseUpdater.Start(ctx)
+	} else {
+		log.Info("Status reporting is not enabled")
+	}
 
 	log.Info("Starting the Cmd.")
 
