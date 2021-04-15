@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/onsi/gomega v1.10.2
-	github.com/open-cluster-management/addon-framework v0.0.0-20210414095446-30a5d245b8c7
+	github.com/open-cluster-management/addon-framework v0.0.0-20210415135036-d591b71789d6
 	github.com/operator-framework/operator-sdk v0.19.4
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
