@@ -9,3 +9,4 @@ build/_output
 !vbh/build-harness-extensions
 .vscode/launch.json
 cmd/manager/__debug_bin
+kubeconfig_managed

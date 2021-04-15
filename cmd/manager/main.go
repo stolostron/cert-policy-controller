@@ -52,13 +52,13 @@ func printVersion() {
 func main() {
 	var eventOnParent, defaultDuration string
 	var frequency uint
-	var updateLease bool
+	var enableLease bool
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	pflag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
 	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
 	pflag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
-	pflag.BoolVar(&updateLease, "update-lease", false, "If enabled, the controller will start the lease controller to report its status")
+	pflag.BoolVar(&enableLease, "enable-lease", false, "If enabled, the controller will start the lease controller to report its status")
 
 	pflag.Parse()
 
@@ -125,20 +125,24 @@ func main() {
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and does the needed work to make sure the desired state is achieved
 	go policyStatusHandler.PeriodicallyExecCertificatePolicies(frequency, true)
 
-	if updateLease {
-		log.Info("Starting lease controller to report status")
-		// Get the namespace the operator is currently deployed in.
+	if enableLease {
 		operatorNs, err := k8sutil.GetOperatorNamespace()
 		if err != nil {
-			log.Error(err, "Failed to get operator namespace")
-			os.Exit(1)
+			if err == k8sutil.ErrNoNamespace || err == k8sutil.ErrRunLocal {
+				log.Info("Skipping lease; not running in a cluster.")
+			} else {
+				log.Error(err, "Failed to get operator namespace")
+				os.Exit(1)
+			}
+		} else {
+			log.Info("Starting lease controller to report status")
+			leaseUpdater := lease.NewLeaseUpdater(
+				generatedClient,
+				"iam-policy-controller",
+				operatorNs,
+			)
+			go leaseUpdater.Start(ctx)
 		}
-		leaseUpdater := lease.NewLeaseUpdater(
-			generatedClient,
-			"iam-policy-controller",
-			operatorNs,
-		)
-		go leaseUpdater.Start(ctx)
 	} else {
 		log.Info("Status reporting is not enabled")
 	}
