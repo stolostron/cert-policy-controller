@@ -2,7 +2,9 @@
 
 # Certificate Policy Controller
 
-[![KinD tests](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml/badge.svg?branch=main&event=push)](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml) [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
+Red Hat Advanced Cluster Management - Governance - Certificate Policy Controller
+
+[![Build](https://img.shields.io/badge/build-Prow-informational)](https://prow.ci.openshift.org/?repo=open-cluster-management%2Fcert-policy-controller) [![KinD tests](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml/badge.svg?branch=main&event=push)](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml) [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 ## Description
 
@@ -66,7 +68,7 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
     - The image registry, name, and tag used in the image build, are configurable with:
       ```bash
       export REGISTRY=''  # (defaults to 'quay.io/open-cluster-management')
-      export IMG=''       # (defaults to repo name)
+      export IMG=''       # (defaults to the repository name)
       export TAG=''       # (defaults to 'latest')
       ```
   - Deploy controller to a cluster
