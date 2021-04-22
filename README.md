@@ -2,13 +2,13 @@
 
 # Certificate Policy Controller
 
-Red Hat Advanced Cluster Management - Governance - Certificate Policy Controller
+Open Cluster Management - Certificate Policy Controller
 
 [![Build](https://img.shields.io/badge/build-Prow-informational)](https://prow.ci.openshift.org/?repo=open-cluster-management%2Fcert-policy-controller) [![KinD tests](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml/badge.svg?branch=main&event=push)](https://github.com/open-cluster-management/cert-policy-controller/actions/workflows/kind.yml) [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 ## Description
 
-The Certificate Policy Controller is a controller that watches `CertificatePolicies` created to monitor a Kubernetes cluster to ensure all certificates in given namespaces will not expire within a given amount of time. The `CertificatePolicy` is the Custom Resource Definition (CRD), created for this controller to monitor. The controller can be run as a stand-alone program or as an integrated part of governing risk with Red Hat Advanced Cluster Management for Kubernetes.
+The Certificate Policy Controller is a controller that watches `CertificatePolicies` created to monitor a Kubernetes cluster to ensure all certificates in given namespaces will not expire within a given amount of time. The `CertificatePolicy` is the Custom Resource Definition (CRD), created for this controller to monitor. The controller can be run as a stand-alone program or as an integrated part of governing risk with the Open Cluster Management project.
 
 In addition to checking the expiration of certificates, several optional checks are also available:
 

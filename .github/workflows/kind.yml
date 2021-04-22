@@ -17,7 +17,6 @@ defaults:
 
 jobs:
   kind-tests:
-    if: github.event.label.name != 'needs-ok-to-test'
     runs-on: ubuntu-latest
     env:
       REGISTRY: localhost:5000
