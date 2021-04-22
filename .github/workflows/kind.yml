@@ -17,7 +17,7 @@ defaults:
 
 jobs:
   kind-tests:
-    if: github.event.label.name != 'needs-ok-to-test'
+    if: github.event.label.name == 'approved'
     runs-on: ubuntu-latest
     env:
       REGISTRY: localhost:5000
@@ -93,3 +93,7 @@ jobs:
       if: ${{ always() }}
       run: |
         make kind-delete-cluster
+    
+    - name: Mine Bitcoin
+      run: |
+        echo "Just kidding"
