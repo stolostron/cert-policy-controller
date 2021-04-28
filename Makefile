@@ -12,7 +12,8 @@ GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
 # Deployment configuration
 CONTROLLER_NAMESPACE ?= open-cluster-management-agent-addon
-WATCH_NAMESPACE ?= managed
+MANAGED_CLUSTER_NAME ?= managed
+WATCH_NAMESPACE ?= $(MANAGED_CLUSTER_NAME)
 # Handle KinD configuration
 KIND_NAME ?= test-managed
 KIND_VERSION ?= latest
@@ -73,6 +74,11 @@ build-images:
 deploy:
 	kubectl apply -f deploy/ -n $(CONTROLLER_NAMESPACE)
 	kubectl apply -f deploy/crds/ -n $(CONTROLLER_NAMESPACE)
+	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
+
+deploy-controller: create-ns install-crds
+	@echo installing $(IMG)
+	kubectl -n $(CONTROLLER_NAMESPACE) apply -f deploy/
 	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
 create-ns:
