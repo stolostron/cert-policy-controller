@@ -50,7 +50,7 @@ func printVersion() {
 }
 
 func main() {
-	var eventOnParent, defaultDuration string
+	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName string
 	var frequency uint
 	var enableLease bool
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -59,6 +59,9 @@ func main() {
 	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
 	pflag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
 	pflag.BoolVar(&enableLease, "enable-lease", false, "If enabled, the controller will start the lease controller to report its status")
+	pflag.StringVar(&hubConfigSecretNs, "hubconfig-secret-ns", "open-cluster-management-agent-addon", "Namespace for hub config kube-secret")
+	pflag.StringVar(&hubConfigSecretName, "hubconfig-secret-name", "cert-policy-controller-hub-kubeconfig", "Name of the hub config kube-secret")
+	pflag.StringVar(&clusterName, "cluster-name", "default-cluster", "Name of the cluster")
 
 	pflag.Parse()
 
@@ -135,12 +138,15 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
+			hubCfg, _ := common.LoadHubConfig(hubConfigSecretNs, hubConfigSecretName)
+
 			log.Info("Starting lease controller to report status")
 			leaseUpdater := lease.NewLeaseUpdater(
 				generatedClient,
 				"cert-policy-controller",
 				operatorNs,
-			)
+			).WithHubLeaseConfig(hubCfg, clusterName)
+
 			go leaseUpdater.Start(ctx)
 		}
 	} else {
