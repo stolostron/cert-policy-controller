@@ -55,15 +55,11 @@ func LoadHubConfig(namespace string, secretname string) (*rest.Config, error) {
 		re = regexp.MustCompile(`(client-key:\s+tls.key)`)
 		secretkconfig = re.ReplaceAllString(secretkconfig, "client-key-data: "+key)
 
-		klog.Errorf("After Secret Value: %v", string(secretkconfig))
-
 		HubConfig, err = clientcmd.RESTConfigFromKubeConfig([]byte(secretkconfig))
 		if err != nil {
 			klog.Errorf("Error getting Rest config for Hub:  %v", err)
 			return nil, err
 		}
-
-		klog.Errorf("HubConfig: %v", HubConfig)
 	}
 	return HubConfig, nil
 }
