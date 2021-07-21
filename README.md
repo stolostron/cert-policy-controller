@@ -126,5 +126,5 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
 - Check the [Security guide](SECURITY.md) if you need to report a security issue.
 
 <!---
-Date: 07/21/2021
+Date: 7/21/2021
 -->
