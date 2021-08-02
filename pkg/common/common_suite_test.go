@@ -16,6 +16,7 @@
 package common
 
 import (
+	"context"
 	stdlog "log"
 	"os"
 	"path/filepath"
@@ -28,16 +29,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/open-cluster-management/cert-policy-controller/pkg/apis"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
 )
 
 var cfg *rest.Config
 
 func TestMain(m *testing.M) {
 	t := &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deploy", "crds")},
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds")},
 	}
-	apis.AddToScheme(scheme.Scheme)
+	policyv1.AddToScheme(scheme.Scheme)
 
 	var err error
 	if cfg, err = t.Start(); err != nil {
@@ -50,12 +51,13 @@ func TestMain(m *testing.M) {
 }
 
 // StartTestManager adds recFn.
-func StartTestManager(mgr manager.Manager, g *gomega.GomegaWithT) (chan struct{}, *sync.WaitGroup) {
-	stop := make(chan struct{})
+func StartTestManager(mgr manager.Manager, g *gomega.GomegaWithT) (context.CancelFunc, *sync.WaitGroup) {
+	// stop := make(chan struct{})
+	ctx, stop := context.WithCancel(context.TODO())
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		g.Expect(mgr.Start(stop)).NotTo(gomega.HaveOccurred())
+		g.Expect(mgr.Start(ctx)).NotTo(gomega.HaveOccurred())
 		wg.Done()
 	}()
 	return stop, wg

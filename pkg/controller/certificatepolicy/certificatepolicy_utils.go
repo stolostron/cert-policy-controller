@@ -13,7 +13,7 @@ import (
 	"sort"
 	"time"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
 )
 
 var format string = "%s; %s"

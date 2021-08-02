@@ -38,6 +38,20 @@ else
 -include vbh/.build-harness-bootstrap
 endif
 
+# go-get-tool will 'go get' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
+
 .PHONY: default
 default::
 	@echo "Build Harness Bootstrapped"
@@ -56,11 +70,11 @@ dependencies-go:
 	go mod download
 
 build:
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./build/_output/bin/cert-policy-controller ./cmd/manager
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./build/_output/bin/cert-policy-controller ./main.go
 
 # Run against the current locally configured Kubernetes cluster
 run:
-	go run ./cmd/manager/main.go
+	go run ./main.go --leader-elect=false
 
 ############################################################
 # deploy
@@ -91,15 +105,19 @@ create-ns:
 
 # Lint code
 lint:
-	go fmt ./pkg/... ./cmd/...
+	go fmt ./ ./pkg/... ./apis/...
 
 # Run go vet against code
 vet:
-	go vet ./pkg/... ./cmd/...
+	go vet ./ ./pkg/... ./apis/...
+
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+controller-gen: ## Download controller-gen locally if necessary.
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
 
 # Generate code
-generate:
-	go generate ./pkg/... ./cmd/...
+generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 copyright-check:
 	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
