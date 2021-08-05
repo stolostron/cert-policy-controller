@@ -92,11 +92,11 @@ type Cert struct {
 	Sans       []string      `json:"sans,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+//+kubebuilder:resource:path=certificatepolicies,scope=Namespaced
 
 // CertificatePolicy is the Schema for the certificatepolicies API
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:path=certificatepolicies,scope=Namespaced
 type CertificatePolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -105,15 +105,15 @@ type CertificatePolicy struct {
 	Status CertificatePolicyStatus `json:"status,omitempty"`
 }
 
+//+kubebuilder:object:root=true
+
 // Policy is a specification for a Policy resource
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +genclient
 type Policy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+//+kubebuilder:object:root=true
 
 // CertificatePolicyList contains a list of CertificatePolicy
 type CertificatePolicyList struct {
@@ -122,9 +122,9 @@ type CertificatePolicyList struct {
 	Items           []CertificatePolicy `json:"items"`
 }
 
+//+kubebuilder:object:root=true
+
 // PolicyList is a list of Policy resources
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +k8s:lister-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type PolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`

@@ -2,6 +2,7 @@ build-harness-extensions/
 build-harness/
 .build-harness-bootstrap
 build/_output
+bin
 
 # override build harness vendoring
 !vbh/.build-harness-bootstrap

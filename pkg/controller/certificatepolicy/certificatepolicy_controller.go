@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
 	corev1 "k8s.io/api/core/v1"
@@ -28,14 +28,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const certNameLabel = "certificate-name"
@@ -54,7 +52,7 @@ var PlcChan chan *policyv1.CertificatePolicy
 // KubeClient a k8s client used for k8s native resources
 var KubeClient *kubernetes.Interface
 
-var reconcilingAgent *ReconcileCertificatePolicy
+var reconcilingAgent *CertificatePolicyReconciler
 
 // NamespaceWatched defines which namespace we can watch for the Certificate policies and ignore others
 var NamespaceWatched string
@@ -82,53 +80,31 @@ func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, namespace, e
 	return nil
 }
 
-// Add creates a new CertificatePolicy Controller and adds it to the Manager. The Manager will set fields on the
-// Controller and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+// CertificatePolicyReconciler reconciles a CertificatePolicy object
+type CertificatePolicyReconciler struct {
+	client.Client
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCertificatePolicy{client: mgr.GetClient(), scheme: mgr.GetScheme(),
-		recorder: mgr.GetEventRecorderFor("certificatepolicy-controller")}
-}
+//+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=list
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list
 
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New("certificatepolicy-controller", mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to primary resource CertificatePolicy
-	pred := predicate.GenerationChangedPredicate{}
-	err = c.Watch(&source.Kind{Type: &policyv1.CertificatePolicy{}}, &handler.EnqueueRequestForObject{}, pred)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// blank assignment to verify that ReconcileCertificatePolicy implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileCertificatePolicy{}
-
-// ReconcileCertificatePolicy reconciles a CertificatePolicy object
-type ReconcileCertificatePolicy struct {
-	// This client, initialized using mgr.Client() above, is a split client
-	// that reads objects from the cache and writes to the apiserver
-	client   client.Client
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
-}
-
-// Reconcile reads that state of the cluster for a CertificatePolicy object and makes changes based on the state read
-// and what is in the CertificatePolicy.Spec
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+// TODO(user): Modify the Reconcile function to compare the state specified by
+// the CertificatePolicy object against the actual cluster state, and then
+// perform operations to make the cluster state reflect the state specified by
+// the user.
+//
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
+func (r *CertificatePolicyReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling CertificatePolicy")
 
@@ -137,7 +113,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 	}
 	// Fetch the CertificatePolicy instance
 	instance := &policyv1.CertificatePolicy{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -155,7 +131,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 			updateNeeded = true
 		}
 		if updateNeeded {
-			if err := r.client.Update(context.Background(), instance); err != nil {
+			if err := r.Update(context.Background(), instance); err != nil {
 				klog.Info("Requeing due to error updating the label")
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -166,6 +142,7 @@ func (r *ReconcileCertificatePolicy) Reconcile(request reconcile.Request) (recon
 
 	klog.Infof("reason: successful processing, subject: policy/%v, namespace: %v, policy: %v\n",
 		instance.Name, instance.Namespace, instance.Name)
+
 	return reconcile.Result{}, nil
 }
 
@@ -685,7 +662,7 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 	for _, instance := range policies { // policies is a map where: key = plc.Name, value = pointer to plc
 		klog.V(3).Infof("Updating the Policy Status %s namespace %s, %s.%s", instance.Name, instance.Namespace,
 			instance.Kind, instance.APIVersion)
-		err := reconcilingAgent.client.Status().Update(context.TODO(), instance)
+		err := reconcilingAgent.Status().Update(context.TODO(), instance)
 		if err != nil {
 			return instance, err
 		}
@@ -705,11 +682,11 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 				klog.V(3).Infof("Noncompliant certs %d %s", details.NonCompliantCertificates, message)
 			}
 		}
-		if reconcilingAgent.recorder != nil {
+		if reconcilingAgent.Recorder != nil {
 			if instance.Status.ComplianceState == policyv1.NonCompliant {
-				reconcilingAgent.recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
+				reconcilingAgent.Recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
 			} else {
-				reconcilingAgent.recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+				reconcilingAgent.Recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
 			}
 		}
 	}
@@ -786,15 +763,15 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 	}
 
 	parentPlc := createParentPolicy(instance)
-	if reconcilingAgent.recorder != nil {
+	if reconcilingAgent.Recorder != nil {
 		if instance.Status.ComplianceState == policyv1.NonCompliant {
 			klog.V(3).Info("Update parent policy, non-compliant policy")
-			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s",
+			reconcilingAgent.Recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s",
 				instance.Namespace, instance.Name),
 				convertPolicyStatusToString(instance, DefaultDuration))
 		} else {
 			klog.V(3).Info("Update parent policy, compliant policy")
-			reconcilingAgent.recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s",
+			reconcilingAgent.Recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s",
 				instance.Namespace, instance.Name),
 				convertPolicyStatusToString(instance, DefaultDuration))
 		}
@@ -819,4 +796,12 @@ func createParentPolicy(instance *policyv1.CertificatePolicy) policyv1.Policy {
 		},
 	}
 	return plc
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *CertificatePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&policyv1.CertificatePolicy{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		Complete(r)
 }

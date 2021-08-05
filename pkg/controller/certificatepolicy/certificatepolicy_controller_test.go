@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
+	policiesv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 )
 
@@ -67,12 +67,12 @@ func TestReconcile(t *testing.T) {
 	objs := []runtime.Object{instance}
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(policiesv1.SchemeGroupVersion, instance)
+	s.AddKnownTypes(policiesv1.GroupVersion, instance)
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client
-	r := &ReconcileCertificatePolicy{client: cl, scheme: s, recorder: nil}
+	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -84,7 +84,7 @@ func TestReconcile(t *testing.T) {
 	}
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 	common.Initialize(&simpleClient, nil)
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(context.TODO(), req)
 	if err != nil {
 		t.Fatalf("reconcile: (%v)", err)
 	}
@@ -128,17 +128,17 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	objs := []runtime.Object{instance}
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(policiesv1.SchemeGroupVersion, instance)
+	s.AddKnownTypes(policiesv1.GroupVersion, instance)
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(objs...)
 
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
-	r := &ReconcileCertificatePolicy{client: cl, scheme: s, recorder: nil}
+	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil}
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
 	common.Initialize(&simpleClient, nil)
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(context.TODO(), req)
 	if err != nil {
 		t.Fatalf("reconcile: (%v)", err)
 	}

@@ -1,6 +1,6 @@
 // Copyright Contributors to the Open Cluster Management project
 
-package apis
+package v1
 
 import (
 	"testing"
