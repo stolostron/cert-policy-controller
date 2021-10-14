@@ -28,5 +28,3 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "cert-policy-controller"
-          args:
-            - "--enable-lease=true"

@@ -4,10 +4,8 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -29,7 +27,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/open-cluster-management/addon-framework/pkg/lease"
 	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	controller "github.com/open-cluster-management/cert-policy-controller/pkg/controller/certificatepolicy"
@@ -45,10 +42,6 @@ var (
 )
 
 var log = logf.Log.WithName("cmd")
-
-// errNoNamespace indicates that a namespace could not be found for the current
-// environment. This was taken from operator-sdk v0.19.4.
-var errNoNamespace = fmt.Errorf("namespace not found for current environment")
 
 func printVersion() {
 	log.Info(fmt.Sprintf("Operator Version: %s", version.Version))
@@ -78,32 +71,16 @@ func getWatchNamespace() (string, error) {
 	return ns, nil
 }
 
-// getOperatorNamespace returns the namespace the operator should be running in.
-// This was partially taken from operator-sdk v0.19.4.
-func getOperatorNamespace() (string, error) {
-	nsBytes, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", errNoNamespace
-		}
-		return "", err
-	}
-	ns := strings.TrimSpace(string(nsBytes))
-	log.V(1).Info("Found namespace", "Namespace", ns)
-	return ns, nil
-}
-
 func main() {
 
 	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName string
 	var frequency uint
-	var enableLease, enableLeaderElection bool
+	var enableLeaderElection bool
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	pflag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
 	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
 	pflag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
-	pflag.BoolVar(&enableLease, "enable-lease", false, "If enabled, the controller will start the lease controller to report its status")
 	pflag.BoolVar(&enableLeaderElection, "leader-elect", true,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -132,7 +109,7 @@ func main() {
 
 	options := ctrl.Options{
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "cert-policy-controller.open-cluster-management.io",
+		LeaderElectionID:   "cert-policy-controller",
 		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
 		Namespace:          namespace,
 		Scheme:             scheme,
@@ -175,31 +152,6 @@ func main() {
 	controller.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and does the needed work to make sure the desired state is achieved
 	go controller.PeriodicallyExecCertificatePolicies(frequency, true)
-
-	if enableLease {
-		operatorNs, err := getOperatorNamespace()
-		if err != nil {
-			if err == errNoNamespace {
-				log.Info("Skipping lease; not running in a cluster.")
-			} else {
-				log.Error(err, "Failed to get operator namespace")
-				os.Exit(1)
-			}
-		} else {
-			hubCfg, _ := common.LoadHubConfig(hubConfigSecretNs, hubConfigSecretName)
-
-			log.Info("Starting lease controller to report status")
-			leaseUpdater := lease.NewLeaseUpdater(
-				generatedClient,
-				"cert-policy-controller",
-				operatorNs,
-			).WithHubLeaseConfig(hubCfg, clusterName)
-
-			go leaseUpdater.Start(context.TODO())
-		}
-	} else {
-		log.Info("Status reporting is not enabled")
-	}
 
 	setupLog.Info("Starting the manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
