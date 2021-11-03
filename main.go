@@ -18,6 +18,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/open-cluster-management/addon-framework/pkg/lease"
+	extpolicyv1 "github.com/open-cluster-management/governance-policy-propagator/api/v1"
 	"github.com/spf13/pflag"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -29,8 +31,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/open-cluster-management/addon-framework/pkg/lease"
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	controller "github.com/open-cluster-management/cert-policy-controller/pkg/controller/certificatepolicy"
 	"github.com/open-cluster-management/cert-policy-controller/version"
@@ -58,6 +59,7 @@ func printVersion() {
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(extpolicyv1.AddToScheme(scheme))
 
 	utilruntime.Must(policyv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme

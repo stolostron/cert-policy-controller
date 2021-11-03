@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 	//+kubebuilder:scaffold:imports
 )
 

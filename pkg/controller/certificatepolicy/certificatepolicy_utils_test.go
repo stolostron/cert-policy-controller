@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
+	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 )
 
 func TestConvertPolicyStatusToString(t *testing.T) {
