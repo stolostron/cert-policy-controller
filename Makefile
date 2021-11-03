@@ -57,7 +57,7 @@ default::
 	@echo "Build Harness Bootstrapped"
 
 .PHONY: all test dependencies build image rhel-image manager run deploy install \
-fmt vet generate go-coverage
+fmt vet go-coverage
 
 all: test manager
 
@@ -86,13 +86,13 @@ build-images:
 
 # Install necessary resources into a cluster
 deploy:
-	kubectl apply -f deploy/ -n $(CONTROLLER_NAMESPACE)
+	kubectl apply -f deploy/operator.yaml -n $(CONTROLLER_NAMESPACE)
 	kubectl apply -f deploy/crds/ -n $(CONTROLLER_NAMESPACE)
 	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
 deploy-controller: create-ns install-crds
 	@echo installing $(IMG)
-	kubectl -n $(CONTROLLER_NAMESPACE) apply -f deploy/
+	kubectl -n $(CONTROLLER_NAMESPACE) apply -f deploy/operator.yaml
 	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
 create-ns:
@@ -112,12 +112,28 @@ vet:
 	go vet ./...
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+KUSTOMIZE = $(shell pwd)/bin/kustomize
+CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+
+.PHONY: manifests
+manifests: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=cert-policy-controller paths="./..." output:crd:artifacts:config=deploy/crds output:rbac:artifacts:config=deploy/rbac
+
+.PHONY: generate
+generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+.PHONY: generate-operator-yaml
+generate-operator-yaml: kustomize manifests
+	$(KUSTOMIZE) build deploy/manager > deploy/operator.yaml
+
+.PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
 
-# Generate code
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+.PHONY: kustomize
+kustomize: ## Download kustomize locally if necessary.
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
 
 copyright-check:
 	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
@@ -146,7 +162,7 @@ kind-bootstrap-cluster-dev: kind-create-cluster install-crds install-resources
 kind-deploy-controller: install-crds
 	@echo installing $(IMG)
 	kubectl create ns $(CONTROLLER_NAMESPACE) || true
-	kubectl apply -f deploy/ -n $(CONTROLLER_NAMESPACE)
+	kubectl apply -f deploy/operator.yaml -n $(CONTROLLER_NAMESPACE)
 	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"env\":[{\"name\":\"WATCH_NAMESPACE\",\"value\":\"$(WATCH_NAMESPACE)\"}]}]}}}}"
 
 kind-deploy-controller-dev:
@@ -154,9 +170,9 @@ kind-deploy-controller-dev:
 	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name $(KIND_NAME)
 	@echo Installing $(IMG)
 	kubectl create ns $(CONTROLLER_NAMESPACE)
-	kubectl apply -f deploy/ -n $(CONTROLLER_NAMESPACE)
+	kubectl apply -f deploy/operator.yaml -n $(CONTROLLER_NAMESPACE)
 	@echo "Patch deployment image"
-	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"imagePullPolicy\":\"Never\"}]}}}}"
+	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"imagePullPolicy\":\"Never\",\"args\":[]}]}}}}"
 	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
 	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"env\":[{\"name\":\"WATCH_NAMESPACE\",\"value\":\"$(WATCH_NAMESPACE)\"}]}]}}}}"
 	kubectl rollout status -n $(CONTROLLER_NAMESPACE) deployment $(IMG) --timeout=180s
@@ -171,7 +187,7 @@ kind-delete-cluster:
 
 install-crds:
 	@echo installing crds
-	kubectl apply -f deploy/crds/v1/policy.open-cluster-management.io_certificatepolicies.yaml
+	kubectl apply -f deploy/crds/policy.open-cluster-management.io_certificatepolicies.yaml
 
 install-resources:
 	@echo creating namespaces

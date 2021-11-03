@@ -1,7 +1,140 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-policy-controller
+  namespace: open-cluster-management-agent-addon
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-policy-controller-leader-election
+  namespace: open-cluster-management-agent-addon
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: cert-policy-controller
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - policy.open-cluster-management.io
+  resources:
+  - certificatepolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - policy.open-cluster-management.io
+  resources:
+  - certificatepolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - policy.open-cluster-management.io
+  resources:
+  - certificatepolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-policy-controller-leader-election
+  namespace: open-cluster-management-agent-addon
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-policy-controller-leader-election
+subjects:
+- kind: ServiceAccount
+  name: cert-policy-controller
+  namespace: open-cluster-management-agent-addon
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cert-policy-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cert-policy-controller
+subjects:
+- kind: ServiceAccount
+  name: cert-policy-controller
+  namespace: open-cluster-management-agent-addon
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cert-policy-controller
+  namespace: open-cluster-management-agent-addon
 spec:
   replicas: 1
   selector:
@@ -12,21 +145,37 @@ spec:
       labels:
         name: cert-policy-controller
     spec:
-      serviceAccountName: cert-policy-controller
       containers:
-        - name: cert-policy-controller
-          image: quay.io/open-cluster-management/cert-policy-controller:latest-dev
-          command:
-          - cert-policy-controller
-          imagePullPolicy: Always
-          env:
-            - name: WATCH_NAMESPACE
-              value: managed
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "cert-policy-controller"
-          args:
-            - "--enable-lease=true"
+      - args:
+        - --enable-lease=true
+        command:
+        - cert-policy-controller
+        env:
+        - name: WATCH_NAMESPACE
+          value: managed
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_NAME
+          value: cert-policy-controller
+        image: quay.io/open-cluster-management/cert-policy-controller:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: cert-policy-controller
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: cert-policy-controller

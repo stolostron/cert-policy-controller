@@ -1,6 +1,9 @@
+
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  creationTimestamp: null
   name: cert-policy-controller
 rules:
 - apiGroups:
@@ -17,25 +20,12 @@ rules:
   verbs:
   - list
 - apiGroups:
-  - policy.open-cluster-management.io
+  - ""
   resources:
-  - certificatepolicies
+  - pods
   verbs:
   - get
   - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - policy.open-cluster-management.io
-  resources:
-  - certificatepolicies/status
-  verbs:
-  - get
-  - update
-  - patch
 - apiGroups:
   - ""
   resources:
@@ -45,9 +35,28 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ""
+  - policy.open-cluster-management.io
   resources:
-  - pods
+  - certificatepolicies
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - policy.open-cluster-management.io
+  resources:
+  - certificatepolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - policy.open-cluster-management.io
+  resources:
+  - certificatepolicies/status
+  verbs:
+  - get
+  - patch
+  - update
