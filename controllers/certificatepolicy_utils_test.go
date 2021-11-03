@@ -13,7 +13,7 @@
 // limitations under the License.
 // Copyright Contributors to the Open Cluster Management project
 
-package certificatepolicy
+package controllers
 
 import (
 	"strings"

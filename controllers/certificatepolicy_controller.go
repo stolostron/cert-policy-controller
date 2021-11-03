@@ -6,7 +6,7 @@
 // Copyright (c) 2020 Red Hat, Inc.
 // Copyright Contributors to the Open Cluster Management project
 
-package certificatepolicy
+package controllers
 
 import (
 	"context"
@@ -18,8 +18,8 @@ import (
 	"time"
 
 	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
+	"github.com/open-cluster-management/cert-policy-controller/controllers/util"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
 	extpolicyv1 "github.com/open-cluster-management/governance-policy-propagator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"

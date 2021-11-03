@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
+	controllers "github.com/open-cluster-management/cert-policy-controller/controllers"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
-	controller "github.com/open-cluster-management/cert-policy-controller/pkg/controller/certificatepolicy"
 	"github.com/open-cluster-management/cert-policy-controller/version"
 	//+kubebuilder:scaffold:imports
 )
@@ -161,7 +161,7 @@ func main() {
 
 	setupLog.Info("Registering components")
 
-	if err = (&controller.CertificatePolicyReconciler{
+	if err = (&controllers.CertificatePolicyReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor("certificatepolicy-controller"),
@@ -182,9 +182,9 @@ func main() {
 
 	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
 	common.Initialize(&generatedClient, cfg)
-	controller.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
+	controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and does the needed work to make sure the desired state is achieved
-	go controller.PeriodicallyExecCertificatePolicies(frequency, true)
+	go controllers.PeriodicallyExecCertificatePolicies(frequency, true)
 
 	if enableLease {
 		operatorNs, err := getOperatorNamespace()

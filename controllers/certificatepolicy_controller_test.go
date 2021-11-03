@@ -13,7 +13,7 @@
 // limitations under the License.
 // Copyright Contributors to the Open Cluster Management project
 
-package certificatepolicy
+package controllers
 
 import (
 	"context"
@@ -37,11 +37,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 )
 
 var mgr manager.Manager
 var err error
+
+var certPolicy = policyv1.CertificatePolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "foo",
+		Namespace: "default",
+	}}
 
 func TestReconcile(t *testing.T) {
 	var (
