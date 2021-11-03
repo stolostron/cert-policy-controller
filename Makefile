@@ -105,11 +105,11 @@ create-ns:
 
 # Lint code
 lint:
-	go fmt ./ ./pkg/... ./apis/...
+	go fmt ./...
 
 # Run go vet against code
 vet:
-	go vet ./ ./pkg/... ./apis/...
+	go vet ./...
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

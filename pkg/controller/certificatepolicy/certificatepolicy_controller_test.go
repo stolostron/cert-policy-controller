@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
+	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 )
 

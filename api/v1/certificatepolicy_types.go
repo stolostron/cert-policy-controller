@@ -107,14 +107,6 @@ type CertificatePolicy struct {
 
 //+kubebuilder:object:root=true
 
-// Policy is a specification for a Policy resource
-type Policy struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-}
-
-//+kubebuilder:object:root=true
-
 // CertificatePolicyList contains a list of CertificatePolicy
 type CertificatePolicyList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -122,17 +114,6 @@ type CertificatePolicyList struct {
 	Items           []CertificatePolicy `json:"items"`
 }
 
-//+kubebuilder:object:root=true
-
-// PolicyList is a list of Policy resources
-type PolicyList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-
-	Items []Policy `json:"items"`
-}
-
 func init() {
 	SchemeBuilder.Register(&CertificatePolicy{}, &CertificatePolicyList{})
-	SchemeBuilder.Register(&Policy{}, &PolicyList{})
 }

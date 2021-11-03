@@ -17,9 +17,10 @@ import (
 	"strings"
 	"time"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
+	extpolicyv1 "github.com/open-cluster-management/governance-policy-propagator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -778,13 +779,13 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 	}
 }
 
-func createParentPolicy(instance *policyv1.CertificatePolicy) policyv1.Policy {
+func createParentPolicy(instance *policyv1.CertificatePolicy) extpolicyv1.Policy {
 	klog.V(3).Info("createParentPolicy")
 	ns := common.ExtractNamespaceLabel(instance)
 	if ns == "" {
 		ns = NamespaceWatched
 	}
-	plc := policyv1.Policy{
+	plc := extpolicyv1.Policy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.OwnerReferences[0].Name,
 			Namespace: ns, // we are making an assumption here that the parent policy is in the watched-namespace passed as flag
