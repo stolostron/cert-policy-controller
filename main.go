@@ -97,7 +97,7 @@ func getOperatorNamespace() (string, error) {
 
 func main() {
 
-	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName string
+	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName, probeAddr string
 	var frequency uint
 	var enableLease, enableLeaderElection, legacyLeaderElection bool
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -114,6 +114,7 @@ func main() {
 	pflag.StringVar(&hubConfigSecretNs, "hubconfig-secret-ns", "open-cluster-management-agent-addon", "Namespace for hub config kube-secret")
 	pflag.StringVar(&hubConfigSecretName, "hubconfig-secret-name", "cert-policy-controller-hub-kubeconfig", "Name of the hub config kube-secret")
 	pflag.StringVar(&clusterName, "cluster-name", "default-cluster", "Name of the cluster")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
 	pflag.Parse()
 
@@ -135,11 +136,12 @@ func main() {
 	}
 
 	options := ctrl.Options{
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "cert-policy-controller.open-cluster-management.io",
-		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
-		Namespace:          namespace,
-		Scheme:             scheme,
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "cert-policy-controller.open-cluster-management.io",
+		MetricsBindAddress:     fmt.Sprintf("%s:%d", metricsHost, metricsPort),
+		Namespace:              namespace,
+		Scheme:                 scheme,
 	}
 
 	if strings.Contains(namespace, ",") {
