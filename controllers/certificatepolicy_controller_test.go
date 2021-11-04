@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	coretypes "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -150,7 +149,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 		t.Fatalf("reconcile: (%v)", err)
 	}
 	t.Log(res)
-	var target = []string{"default"}
+	var target = []policyv1.NonEmptyString{"default"}
 	certPolicy.Spec.NamespaceSelector.Include = target
 	handleAddingPolicy(&certPolicy)
 	PeriodicallyExecCertificatePolicies(1, false)
@@ -503,7 +502,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	output, _ := json.Marshal(s)
 	t.Log(string(output))
 
-	var target = []string{"default"}
+	var target = []policyv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 	common.Initialize(&simpleClient, nil)
 	handleAddingPolicy(instance)
@@ -511,7 +510,8 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
-	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
+	labelSelector := toLabelSet(instance.Spec.LabelSelector)
+	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector.String()})
 	assert.True(t, len(secretList.Items) == 1)
 
 	cert, err := parseCertificate(&secretList.Items[0])
@@ -575,14 +575,15 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
 
-	target = []string{"default"}
+	target = []policyv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 	handleAddingPolicy(instance)
 	policy, found = availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
-	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(instance.Spec.LabelSelector).String()})
+	labelSelector = toLabelSet(instance.Spec.LabelSelector)
+	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector.String()})
 	assert.True(t, len(secretList.Items) == 2)
 
 	update, nonCompliant, list = checkSecrets(instance, "default")
@@ -668,7 +669,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 		},
 		Spec: policiesv1.CertificatePolicySpec{
 			NamespaceSelector: policiesv1.Target{
-				Include: []string{"def*"},
+				Include: []policyv1.NonEmptyString{"def*"},
 			},
 			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
 		},
@@ -691,7 +692,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 		t.Logf("Error creating secret 2: %s", err)
 	}
 
-	target := []string{"def*"}
+	target := []policyv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
 	common.Initialize(&simpleClient, nil)
 	handleAddingPolicy(instance)

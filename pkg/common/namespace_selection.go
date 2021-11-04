@@ -11,17 +11,19 @@ import (
 	"context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 )
 
 //=================================================================
 // GetSelectedNamespaces returns the list of filtered namespaces according to the policy namespace selector
-func GetSelectedNamespaces(included, excluded, allNamespaces []string) []string {
+func GetSelectedNamespaces(included, excluded []policyv1.NonEmptyString, allNamespaces []string) []string {
 	//get all namespaces
 	//allNamespaces := getAllNamespaces() //TODO change this to call the func
 	//then get the list of included
 	includedNamespaces := []string{}
 	for _, value := range included {
-		found := FindPattern(value, allNamespaces)
+		found := FindPattern(string(value), allNamespaces)
 		if found != nil {
 			includedNamespaces = append(includedNamespaces, found...)
 		}
@@ -30,7 +32,7 @@ func GetSelectedNamespaces(included, excluded, allNamespaces []string) []string 
 	//then get the list of excluded
 	excludedNamespaces := []string{}
 	for _, value := range excluded {
-		found := FindPattern(value, allNamespaces)
+		found := FindPattern(string(value), allNamespaces)
 		if found != nil {
 			excludedNamespaces = append(excludedNamespaces, found...)
 		}

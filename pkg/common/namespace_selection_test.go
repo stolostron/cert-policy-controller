@@ -32,6 +32,8 @@ import (
 	testclient "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 )
 
 var c client.Client
@@ -70,8 +72,8 @@ func TestCreateNamespace(t *testing.T) {
 func TestGetSelectedNamespaces(t *testing.T) {
 	// testing the actual logic
 	allNamespaces := []string{"default", "dev-accounting", "dev-HR", "dev-research", "kube-public", "kube-sys"}
-	included := []string{"dev-*", "kube-*", "default"}
-	excluded := []string{"dev-research", "kube-sys"}
+	included := []policiesv1.NonEmptyString{"dev-*", "kube-*", "default"}
+	excluded := []policiesv1.NonEmptyString{"dev-research", "kube-sys"}
 	expectedResult := []string{"default", "dev-accounting", "dev-HR", "kube-public"}
 	actualResutl := GetSelectedNamespaces(included, excluded, allNamespaces)
 	if len(expectedResult) != len(actualResutl) {

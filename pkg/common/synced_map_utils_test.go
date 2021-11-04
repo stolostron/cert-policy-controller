@@ -46,8 +46,8 @@ var plc = &policiesv1.CertificatePolicy{
 	Spec: policiesv1.CertificatePolicySpec{
 		RemediationAction: policiesv1.Enforce,
 		NamespaceSelector: policiesv1.Target{
-			Include: []string{"default"},
-			Exclude: []string{"kube*"},
+			Include: []policiesv1.NonEmptyString{"default"},
+			Exclude: []policiesv1.NonEmptyString{"kube*"},
 		},
 	},
 }

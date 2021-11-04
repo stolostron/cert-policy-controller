@@ -33,20 +33,28 @@ const (
 	UnknownCompliancy ComplianceState = "UnknownCompliancy"
 )
 
+// A custom type is required since there is no way to have a kubebuilder marker
+// apply to the items of a slice.
+
+// +kubebuilder:validation:MinLength=1
+type NonEmptyString string
+
 // Target defines the list of namespaces to include/exclude
 type Target struct {
-	Include []string `json:"include,omitempty"`
-	Exclude []string `json:"exclude,omitempty"`
+	Include []NonEmptyString `json:"include,omitempty"`
+	Exclude []NonEmptyString `json:"exclude,omitempty"`
 }
 
 // CertificatePolicySpec defines the desired state of CertificatePolicy
 type CertificatePolicySpec struct {
 	//enforce, inform
+	// +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
 	RemediationAction RemediationAction `json:"remediationAction,omitempty"`
 	// selecting a list of namespaces where the policy applies
-	NamespaceSelector Target            `json:"namespaceSelector,omitempty"`
-	LabelSelector     map[string]string `json:"labelSelector,omitempty"`
-	// low, medium, or high
+	NamespaceSelector Target                    `json:"namespaceSelector,omitempty"`
+	LabelSelector     map[string]NonEmptyString `json:"labelSelector,omitempty"`
+	// low, medium, high, or critical
+	// +kubebuilder:validation:Enum=low;medium;high;critical
 	Severity string `json:"severity,omitempty"`
 	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only
 	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
@@ -60,10 +68,12 @@ type CertificatePolicySpec struct {
 	// Golang's time units only
 	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"`
 	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
-	//  Golang's regexp symtax only
+	//  Golang's regexp syntax only
+	// +kubebuilder:validation:MinLength=1
 	AllowedSANPattern string `json:"allowedSANPattern,omitempty"`
 	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
-	// Golang's regexp symtax only
+	// Golang's regexp syntax only
+	// +kubebuilder:validation:MinLength=1
 	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"`
 }
 
