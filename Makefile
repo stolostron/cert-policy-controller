@@ -116,8 +116,9 @@ KUSTOMIZE = $(shell pwd)/bin/kustomize
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
 .PHONY: manifests
-manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=cert-policy-controller paths="./..." output:crd:artifacts:config=deploy/crds output:rbac:artifacts:config=deploy/rbac
+manifests: controller-gen kustomize
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=cert-policy-controller paths="./..." output:crd:artifacts:config=deploy/crds/kustomize output:rbac:artifacts:config=deploy/rbac
+	$(KUSTOMIZE) build deploy/crds/kustomize > deploy/crds/policy.open-cluster-management.io_certificatepolicies.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
