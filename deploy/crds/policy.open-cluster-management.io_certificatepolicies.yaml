@@ -39,15 +39,18 @@ spec:
               allowedSANPattern:
                 description: A pattern that must match any defined SAN entries in
                   the certificate for the certificate to be compliant.  Golang's regexp
-                  symtax only
+                  syntax only
+                minLength: 1
                 type: string
               disallowedSANPattern:
                 description: A pattern that must not match any defined SAN entries
                   in the certificate for the certificate to be compliant. Golang's
-                  regexp symtax only
+                  regexp syntax only
+                minLength: 1
                 type: string
               labelSelector:
                 additionalProperties:
+                  minLength: 1
                   type: string
                 type: object
               maximumCADuration:
@@ -71,18 +74,30 @@ spec:
                 properties:
                   exclude:
                     items:
+                      minLength: 1
                       type: string
                     type: array
                   include:
                     items:
+                      minLength: 1
                       type: string
                     type: array
                 type: object
               remediationAction:
                 description: enforce, inform
+                enum:
+                - Inform
+                - inform
+                - Enforce
+                - enforce
                 type: string
               severity:
-                description: low, medium, or high
+                description: low, medium, high, or critical
+                enum:
+                - low
+                - medium
+                - high
+                - critical
                 type: string
             type: object
           status:

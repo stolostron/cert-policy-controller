@@ -316,6 +316,16 @@ func handleNamespaceRemovals(policy *policyv1.CertificatePolicy,
 	}
 }
 
+// toLabelSet converts a map of NonEmptyStrings to a Kubernetes label set.
+func toLabelSet(v map[string]policyv1.NonEmptyString) labels.Set {
+	labelSelector := labels.Set{}
+	for key, val := range v {
+		labelSelector[key] = string(val)
+	}
+
+	return labelSelector
+}
+
 // Checks each namespace for certificates that are going to expire within 3 months
 // Returns whether a state change is happening, the number of uncompliant certificates
 // and a list of the uncompliant certificates
@@ -328,8 +338,9 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	}
 	//GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
+	labelSelector := toLabelSet(policy.Spec.LabelSelector)
 	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(context.TODO(),
-		metav1.ListOptions{LabelSelector: labels.Set(policy.Spec.LabelSelector).String()})
+		metav1.ListOptions{LabelSelector: labelSelector.String()})
 	for _, secretItem := range secretList.Items {
 		secret := secretItem
 		klog.V(3).Infof("Checking secret %s", secret.Name)

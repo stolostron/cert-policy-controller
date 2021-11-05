@@ -96,7 +96,7 @@ func (in *CertificatePolicySpec) DeepCopyInto(out *CertificatePolicySpec) {
 	in.NamespaceSelector.DeepCopyInto(&out.NamespaceSelector)
 	if in.LabelSelector != nil {
 		in, out := &in.LabelSelector, &out.LabelSelector
-		*out = make(map[string]string, len(*in))
+		*out = make(map[string]NonEmptyString, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -182,12 +182,12 @@ func (in *Target) DeepCopyInto(out *Target) {
 	*out = *in
 	if in.Include != nil {
 		in, out := &in.Include, &out.Include
-		*out = make([]string, len(*in))
+		*out = make([]NonEmptyString, len(*in))
 		copy(*out, *in)
 	}
 	if in.Exclude != nil {
 		in, out := &in.Exclude, &out.Exclude
-		*out = make([]string, len(*in))
+		*out = make([]NonEmptyString, len(*in))
 		copy(*out, *in)
 	}
 }
