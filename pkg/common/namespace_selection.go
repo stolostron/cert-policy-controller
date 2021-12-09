@@ -16,38 +16,39 @@ import (
 )
 
 //=================================================================
-// GetSelectedNamespaces returns the list of filtered namespaces according to the policy namespace selector
-func GetSelectedNamespaces(included, excluded []policyv1.NonEmptyString, allNamespaces []string) []string {
-	//get all namespaces
-	//allNamespaces := getAllNamespaces() //TODO change this to call the func
-	//then get the list of included
+// GetSelectedNamespaces returns the list of filtered namespaces according to the policy namespace selector.
+func GetSelectedNamespaces(included []policyv1.NonEmptyString, excluded []policyv1.NonEmptyString,
+	allNamespaces []string) []string {
+	// get all namespaces
+	// allNamespaces := getAllNamespaces() //TODO change this to call the func
+	// then get the list of included
 	includedNamespaces := []string{}
+
 	for _, value := range included {
 		found := FindPattern(string(value), allNamespaces)
 		if found != nil {
 			includedNamespaces = append(includedNamespaces, found...)
 		}
-
 	}
-	//then get the list of excluded
+	// then get the list of excluded
 	excludedNamespaces := []string{}
+
 	for _, value := range excluded {
 		found := FindPattern(string(value), allNamespaces)
 		if found != nil {
 			excludedNamespaces = append(excludedNamespaces, found...)
 		}
-
 	}
 
-	//then get the list of deduplicated
+	// then get the list of deduplicated
 	finalList := DeduplicateItems(includedNamespaces, excludedNamespaces)
+
 	return finalList
 }
 
 //=================================================================
-//GetAllNamespaces gets the list of all namespaces from k8s
+//GetAllNamespaces gets the list of all namespaces from k8s.
 func GetAllNamespaces() (list []string, err error) {
-	//listOpt := &client.ListOptions{}
 	namespaces := (*KubeClient).CoreV1().Namespaces()
 	namespaceList, err := namespaces.List(context.TODO(), metav1.ListOptions{})
 
@@ -55,5 +56,6 @@ func GetAllNamespaces() (list []string, err error) {
 	for _, n := range namespaceList.Items {
 		namespacesNames = append(namespacesNames, n.Name)
 	}
+
 	return namespacesNames, err
 }

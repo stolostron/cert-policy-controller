@@ -50,8 +50,10 @@ jobs:
 
     - name: Verify format
       run: |
-        make lint
+        make fmt-dependencies
+        make fmt
         git diff --exit-code
+        make lint
 
     - name: Verify deploy/operator.yaml
       run: |

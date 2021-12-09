@@ -22,6 +22,8 @@ import (
 )
 
 func TestIfMatch(t *testing.T) {
+	t.Parallel()
+
 	tt := []struct {
 		name    string
 		include []string
@@ -52,9 +54,11 @@ func TestIfMatch(t *testing.T) {
 }
 
 func TestFindPattern(t *testing.T) {
+	t.Parallel()
+
 	list := []string{"Hello-World", "World-Hello", "Hello-World-Hello", "nothing", "exact"}
 
-	//testing PREFIX
+	// testing PREFIX
 	actualResult := FindPattern("Hello*", list)
 	expectedResult := []string{"Hello-World", "Hello-World-Hello"}
 
@@ -62,7 +66,7 @@ func TestFindPattern(t *testing.T) {
 		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
 	}
 
-	//testing SUFFIX
+	// testing SUFFIX
 	actualResult = FindPattern("*Hello", list)
 	expectedResult = []string{"World-Hello", "Hello-World-Hello"}
 
@@ -70,7 +74,7 @@ func TestFindPattern(t *testing.T) {
 		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
 	}
 
-	//testing if it CONTAINS the pattern
+	// testing if it CONTAINS the pattern
 	actualResult = FindPattern("*Hello*", list)
 	expectedResult = []string{"Hello-World", "World-Hello", "Hello-World-Hello"}
 
@@ -78,7 +82,7 @@ func TestFindPattern(t *testing.T) {
 		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
 	}
 
-	//testing if it does NOT contain the pattern
+	// testing if it does NOT contain the pattern
 	actualResult = FindPattern("*xxx*", list)
 	expectedResult = []string{}
 
@@ -86,7 +90,7 @@ func TestFindPattern(t *testing.T) {
 		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
 	}
 
-	//testing if it  contains the EXACT pattern
+	// testing if it  contains the EXACT pattern
 	actualResult = FindPattern("Hello-World", list)
 	expectedResult = []string{"Hello-World"}
 
@@ -94,7 +98,7 @@ func TestFindPattern(t *testing.T) {
 		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
 	}
 
-	//testing corner case
+	// testing corner case
 	actualResult = FindPattern("*ku*be", list)
 	expectedResult = []string{}
 
@@ -104,11 +108,14 @@ func TestFindPattern(t *testing.T) {
 }
 
 func TestDeduplicateItems(t *testing.T) {
+	t.Parallel()
+
 	included := []string{"Hello-World", "World-Hello", "Hello-World-Hello", "nothing", "exact"}
 	excluded := []string{"Hello-World", "Hello-World-Hello", "exact"}
 
 	actualResult := DeduplicateItems(included, excluded)
 	expectedResult := []string{"World-Hello", "nothing"}
+
 	if len(actualResult) != len(expectedResult) {
 		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
 	} else {

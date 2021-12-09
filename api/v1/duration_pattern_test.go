@@ -14,6 +14,7 @@ const durationPattern = "^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns))
 
 func TestPattern(t *testing.T) {
 	t.Parallel()
+
 	regex := regexp.MustCompile(durationPattern)
 
 	tests := []struct {
@@ -36,6 +37,7 @@ func TestPattern(t *testing.T) {
 		t.Run(
 			fmt.Sprintf("duration=%s,expected=%v", test.duration, test.expected),
 			func(t *testing.T) {
+				t.Parallel()
 				result := regex.Match([]byte(test.duration))
 				if test.expected != result {
 					t.Fatalf("expected %v, got %v", test.expected, result)

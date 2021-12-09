@@ -32,40 +32,27 @@ import (
 	testclient "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
 )
 
-var mgr manager.Manager
-var err error
-
-var certPolicy = policyv1.CertificatePolicy{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "foo",
-		Namespace: "default",
-	}}
-
 func TestReconcile(t *testing.T) {
-	var (
-		name      = "foo"
-		namespace = "default"
-	)
+	name := "foo"
+	namespace := "default"
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration:          &metav1.Duration{Duration: time.Hour * 24 * 35},
 			AllowedSANPattern:    "[[:alpha:]]",
 			DisallowedSANPattern: "[^\\*]",
-			MinCADuration:        &metav1.Duration{time.Hour * 24 * 35},
-			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 35},
-			MaxDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			MinCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 35},
+			MaxCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 35},
+			MaxDuration:          &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 	}
 
@@ -76,9 +63,10 @@ func TestReconcile(t *testing.T) {
 	s.AddKnownTypes(policiesv1.GroupVersion, instance)
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClient(objs...)
+	cl := fake.NewClientBuilder()
+	cl.WithRuntimeObjects(objs...)
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client
-	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil}
+	r := &Reconciler{Client: cl.Build(), Scheme: s, Recorder: nil}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -89,26 +77,27 @@ func TestReconcile(t *testing.T) {
 		},
 	}
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+
 	common.Initialize(&simpleClient, nil)
+
 	res, err := r.Reconcile(context.TODO(), req)
 	if err != nil {
 		t.Fatalf("reconcile: (%v)", err)
 	}
+
 	t.Log(res)
 }
 
 func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
-	var (
-		name      = "foo"
-		namespace = "default"
-	)
-	var typeMeta = metav1.TypeMeta{
+	name := "foo"
+	namespace := "default"
+	typeMeta := metav1.TypeMeta{
 		Kind: "namespace",
 	}
-	var objMeta = metav1.ObjectMeta{
+	objMeta := metav1.ObjectMeta{
 		Name: "default",
 	}
-	var ns = coretypes.Namespace{
+	ns := coretypes.Namespace{
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta,
 	}
@@ -126,7 +115,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 	}
 
@@ -137,103 +126,144 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	s.AddKnownTypes(policiesv1.GroupVersion, instance)
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClient(objs...)
+	cl := fake.NewClientBuilder()
+	cl.WithRuntimeObjects(objs...)
 
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
-	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil}
+	r := &Reconciler{Client: cl.Build(), Scheme: s, Recorder: nil}
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
-	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+
 	common.Initialize(&simpleClient, nil)
+
+	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	if err != nil {
+		t.Logf("Error creating namespace: %s", err)
+	}
+
 	res, err := r.Reconcile(context.TODO(), req)
 	if err != nil {
 		t.Fatalf("reconcile: (%v)", err)
 	}
+
 	t.Log(res)
-	var target = []policyv1.NonEmptyString{"default"}
-	certPolicy.Spec.NamespaceSelector.Include = target
-	handleAddingPolicy(&certPolicy)
+
+	target := []policiesv1.NonEmptyString{"default"}
+	instance.Spec.NamespaceSelector.Include = target
+
+	handleAddingPolicy(instance)
 	PeriodicallyExecCertificatePolicies(1, false)
-	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
+
+	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 }
 
 func TestCheckComplianceBasedOnDetails(t *testing.T) {
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+
 	common.Initialize(&simpleClient, nil)
-	var certPolicy = policiesv1.CertificatePolicy{
+
+	certPolicy := policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
-		}}
-
-	var policies = map[string]*policiesv1.CertificatePolicy{}
+		},
+	}
+	policies := map[string]*policiesv1.CertificatePolicy{}
 	policies["policy1"] = &certPolicy
 
 	checkComplianceBasedOnDetails(&certPolicy)
 }
 
 func TestEnsureDefaultLabel(t *testing.T) {
-	updateNeeded := ensureDefaultLabel(&certPolicy)
+	certPolicy := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+	}
+	updateNeeded := ensureDefaultLabel(certPolicy)
 	assert.True(t, updateNeeded)
 
-	var labels1 = map[string]string{}
+	labels1 := map[string]string{}
 	labels1["category"] = grcCategory
 	certPolicy.Labels = labels1
-	updateNeeded = ensureDefaultLabel(&certPolicy)
+	updateNeeded = ensureDefaultLabel(certPolicy)
 	assert.False(t, updateNeeded)
 
-	var labels2 = map[string]string{}
+	labels2 := map[string]string{}
 	labels2["category"] = "foo"
 	certPolicy.Labels = labels2
-	updateNeeded = ensureDefaultLabel(&certPolicy)
+	updateNeeded = ensureDefaultLabel(certPolicy)
 	assert.True(t, updateNeeded)
 
-	var labels3 = map[string]string{}
+	labels3 := map[string]string{}
 	labels3["foo"] = grcCategory
 	certPolicy.Labels = labels3
-	updateNeeded = ensureDefaultLabel(&certPolicy)
+	updateNeeded = ensureDefaultLabel(certPolicy)
 	assert.True(t, updateNeeded)
 }
 
 func TestCheckComplianceChangeBasedOnDetails(t *testing.T) {
-	var certPolicy = policiesv1.CertificatePolicy{
+	certPolicy := policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
-		}}
-	var flag = checkComplianceChangeBasedOnDetails(&certPolicy)
+		},
+	}
+	flag := checkComplianceChangeBasedOnDetails(&certPolicy)
 	assert.False(t, flag)
 }
 
 func TestCreateParentPolicy(t *testing.T) {
-	var ownerReference = metav1.OwnerReference{
+	certPolicy := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+	}
+	ownerReference := metav1.OwnerReference{
 		Name: "foo",
 	}
-	var ownerReferences = []metav1.OwnerReference{}
+	ownerReferences := []metav1.OwnerReference{}
 	ownerReferences = append(ownerReferences, ownerReference)
 	certPolicy.OwnerReferences = ownerReferences
 
-	policy := createParentPolicy(&certPolicy)
+	policy := createParentPolicy(certPolicy)
 	assert.NotNil(t, policy)
-	createParentPolicyEvent(&certPolicy)
+	createParentPolicyEvent(certPolicy)
 }
 
 func TestHandleAddingPolicy(t *testing.T) {
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
-	var typeMeta = metav1.TypeMeta{
+
+	common.Initialize(&simpleClient, nil)
+
+	typeMeta := metav1.TypeMeta{
 		Kind: "namespace",
 	}
-	var objMeta = metav1.ObjectMeta{
+	objMeta := metav1.ObjectMeta{
 		Name: "default",
 	}
-	var ns = coretypes.Namespace{
+	ns := &coretypes.Namespace{
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta,
 	}
-	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
-	common.Initialize(&simpleClient, nil)
-	handleAddingPolicy(&certPolicy)
+
+	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+	if err != nil {
+		t.Logf("Error creating namespace: %s", err)
+	}
+
+	certPolicy := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo-handle-adding-policy",
+			Namespace: "default",
+		},
+	}
+	certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{"default"}
+
+	handleAddingPolicy(certPolicy)
 	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
@@ -241,7 +271,13 @@ func TestHandleAddingPolicy(t *testing.T) {
 }
 
 func TestPrintMap(t *testing.T) {
-	var policies = map[string]*policiesv1.CertificatePolicy{}
+	certPolicy := policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+	}
+	policies := map[string]*policiesv1.CertificatePolicy{}
 	policies["policy1"] = &certPolicy
 	printMap(policies)
 }
@@ -253,14 +289,14 @@ func TestGetPatternsUsed(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration:          &metav1.Duration{Duration: time.Hour * 24 * 35},
 			AllowedSANPattern:    "allowed",
 			DisallowedSANPattern: "disallowed",
 		},
 	}
 
 	pattern := getPatternsUsed(instance)
-	assert.True(t, pattern == fmt.Sprintf("Allowed: %s Disallowed: %s", "allowed", "disallowed"))
+	assert.Equal(t, fmt.Sprintf("Allowed: %s Disallowed: %s", "allowed", "disallowed"), pattern)
 }
 
 func TestIsCertificateCompliant(t *testing.T) {
@@ -270,12 +306,12 @@ func TestIsCertificateCompliant(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration:          &metav1.Duration{time.Hour * 24 * 10},
+			MinDuration:          &metav1.Duration{Duration: time.Hour * 24 * 10},
 			AllowedSANPattern:    "[ab]",
 			DisallowedSANPattern: "[\\*]",
-			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 100},
-			MaxDuration:          &metav1.Duration{time.Hour * 24 * 50},
-			MinCADuration:        &metav1.Duration{time.Hour * 24 * 20},
+			MaxCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 100},
+			MaxDuration:          &metav1.Duration{Duration: time.Hour * 24 * 50},
+			MinCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 20},
 		},
 	}
 
@@ -385,12 +421,12 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration:          &metav1.Duration{time.Hour * 24 * 10},
+			MinDuration:          &metav1.Duration{Duration: time.Hour * 24 * 10},
 			AllowedSANPattern:    "[ab]",
 			DisallowedSANPattern: "[\\*]",
-			MaxCADuration:        &metav1.Duration{time.Hour * 24 * 100},
-			MaxDuration:          &metav1.Duration{time.Hour * 24 * 50},
-			MinCADuration:        &metav1.Duration{time.Hour * 24 * 20},
+			MaxCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 100},
+			MaxDuration:          &metav1.Duration{Duration: time.Hour * 24 * 50},
+			MinCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 20},
 		},
 	}
 
@@ -403,7 +439,7 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 		CA:         true,
 		Sans:       []string{"a", "b"},
 	}
-	var certmap = map[string]policiesv1.Cert{}
+	certmap := map[string]policiesv1.Cert{}
 	assert.False(t, haveNewNonCompliantCertificate(instance, "default", certmap))
 	certmap["test"] = *cert
 	assert.True(t, haveNewNonCompliantCertificate(instance, "default", certmap))
@@ -412,39 +448,39 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 func TestProcessPolicies(t *testing.T) {
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo-process-policies",
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 	}
 	handleAddingPolicy(instance)
+
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
 	value := ProcessPolicies(plcToUpdateMap)
 	assert.True(t, value)
 
-	_, found := availablePolicies.GetObject("/foo")
+	_, found := availablePolicies.GetObject("/" + instance.Name)
 	assert.True(t, found)
 }
 
 func TestParseCertificate(t *testing.T) {
-
-	var nstypeMeta = metav1.TypeMeta{
+	nstypeMeta := metav1.TypeMeta{
 		Kind: "namespace",
 	}
-	var nsobjMeta = metav1.ObjectMeta{
+	nsobjMeta := metav1.ObjectMeta{
 		Name: "default",
 	}
-	var ns = coretypes.Namespace{
+	ns := coretypes.Namespace{
 		TypeMeta:   nstypeMeta,
 		ObjectMeta: nsobjMeta,
 	}
 
-	var typeMeta = metav1.TypeMeta{
+	typeMeta := metav1.TypeMeta{
 		Kind: "Secret",
 	}
-	var objMeta = metav1.ObjectMeta{
+	objMeta := metav1.ObjectMeta{
 		Name:      "foo",
 		Namespace: "default",
 	}
@@ -470,10 +506,9 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 1uwcab91yRPT7mmQ9oeY6k8SMhb1doHA8vc=
 -----END CERTIFICATE-----`
 
-	//crt := "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURSakNDQWk0Q0NRQ0NPUnN6Rmxzd3hqQU5CZ2txaGtpRzl3MEJBUXNGQURCbE1Rc3dDUVlEVlFRR0V3SlYKVXpFTE1Ba0dBMVVFQ0F3Q1RrTXhFREFPQmdOVkJBY01CMUpoYkdWcFoyZ3hFREFPQmdOVkJBb01CMUpsWkNCSQpZWFF4RWpBUUJnTlZCQXNNQ1U5d1pXNVRhR2xtZERFUk1BOEdBMVVFQXd3SWNHOXNhV05wWlhNd0hoY05NakF3Ck16QTFNVFF3TmpReldoY05NakF3TXpFd01UUXdOalF6V2pCbE1Rc3dDUVlEVlFRR0V3SlZVekVMTUFrR0ExVUUKQ0F3Q1RrTXhFREFPQmdOVkJBY01CMUpoYkdWcFoyZ3hFREFPQmdOVkJBb01CMUpsWkNCSVlYUXhFakFRQmdOVgpCQXNNQ1U5d1pXNVRhR2xtZERFUk1BOEdBMVVFQXd3SWNHOXNhV05wWlhNd2dnRWlNQTBHQ1NxR1NJYjNEUUVCCkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDNVd3bUQyZWJDYTVoTTR5aTRUQ1lGUlkvREE0ZUJMcFQ1K0JxS0VMMTIKaW5QR1NRUDM3WEhGNmY2VkZxbksvTnIvdXpzLy8yNFNIREhNVXlyRmRmWUVHRlE5aVJjbkM0S0NZTEFlRlE0RwpCMERSWlNlU3p4VlZwMHNiTk1yem9PRjVZVHVDYit5VXIrOFp4NVE3VjVKTnIvTVZSWXMzM1JqOE0rV1E0NWJiCm95MGVoQ3V2bmZ2RWd6elFZMzJna3hjQjA5ZDZWM3NaYnRoMXM4OFAvcEFxY3JVUXVhN1hENmVZVkdTRDh6ZVkKN01haHF0NGx2UGlJajZUM3FoYXVIMS9zVWZsL1g5OG1kYWJzQ2toSWd4NmZQOVh2eC9VL1Bzam1PQkMxRUQyRQpKd2s1WDdVOU54OXRqMEtNUkhldEU1SG42SC9oQnFDdW5XSEYxOFBzRFhiZkFnTUJBQUV3RFFZSktvWklodmNOCkFRRUxCUUFEZ2dFQkFBREJZajZlcFRyUlE5QitTdFdFcDl4MU8rV1AwYzlCWGxqVzFPdFEvUVNWV2NJZmNkSTUKOG9HQUNUUEJTeUdkSE1LSjJ6dzViR1A4bkR3azMzZDZBY0ZWc0VSTEh6MlZVVGFqZUFGRktTRXBWSWdxRnlEdwpWaUIzNnlhN2xuSitSTFJlSm1ZSS9FNTVrdi9wMngwQzB0L0J5bkEwZ0lGU21JajdJcGNjaW1EUEppQXlDRXRCCnVGUE81K2pCYVBUMy9HMHoxZERyWlpET3hoVFNrRnV5TFRYbmFFaEliWlFXME1uaXExbTVuc3dPQWdmb21wbUEKOU1HazBPemtrNW1xZUhqZnBzcm1ieWZBRGFzVVkyck1jNmZ3VDZVaVA4MEM1bS9LRXRMOHhVOTJQUURLQWhkTwoxdXdjYWI5MXlSUFQ3bW1ROW9lWTZrOFNNaGIxZG9IQTh2Yz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo="
 	data := make(map[string][]byte)
 	data["tls.crt"] = []byte(crt)
-	var secret = coretypes.Secret{
+	secret := coretypes.Secret{
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta,
 		Data:       data,
@@ -481,20 +516,27 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo-parse-certificate",
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 	}
 
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
-	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	common.Initialize(&simpleClient, nil)
+
+	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	if err != nil {
+		t.Logf("Error creating namespace: %s", err)
+	}
+
 	s, err := simpleClient.CoreV1().Secrets("default").Create(context.TODO(), &secret, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
+
 	if err != nil {
 		t.Logf("Error creating a secret: %s", err)
 	}
@@ -502,26 +544,31 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	output, _ := json.Marshal(s)
 	t.Log(string(output))
 
-	var target = []policyv1.NonEmptyString{"default"}
+	target := []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
-	common.Initialize(&simpleClient, nil)
+
 	handleAddingPolicy(instance)
-	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
+
+	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
 	labelSelector := toLabelSet(instance.Spec.LabelSelector)
-	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector.String()})
-	assert.True(t, len(secretList.Items) == 1)
+	secretList, _ := (*common.KubeClient).CoreV1().Secrets("default").List(
+		context.TODO(), metav1.ListOptions{
+			LabelSelector: labelSelector.String(),
+		},
+	)
+	assert.Len(t, secretList.Items, 1)
 
 	cert, err := parseCertificate(&secretList.Items[0])
 	assert.Nil(t, err)
 	assert.NotNil(t, cert)
 
 	update, nonCompliant, list := checkSecrets(instance, "default")
+
 	assert.Nil(t, err)
-	t.Logf("Count of secrets found: %d", nonCompliant)
-	assert.True(t, nonCompliant == 1)
+	assert.Equal(t, uint(1), nonCompliant)
 	assert.True(t, update)
 
 	message := buildPolicyStatusMessage(list, nonCompliant, "default", instance)
@@ -565,9 +612,9 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration:          &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration:          &metav1.Duration{Duration: time.Hour * 24 * 35},
 			DisallowedSANPattern: "[\\*]",
-			MaxDuration:          &metav1.Duration{time.Hour * 24 * 375},
+			MaxDuration:          &metav1.Duration{Duration: time.Hour * 24 * 375},
 		},
 	}
 
@@ -575,21 +622,26 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
 
-	target = []policyv1.NonEmptyString{"default"}
+	target = []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 	handleAddingPolicy(instance)
-	policy, found = availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
+
+	policy, found = availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
 	labelSelector = toLabelSet(instance.Spec.LabelSelector)
-	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector.String()})
-	assert.True(t, len(secretList.Items) == 2)
+	secretList, _ = (*common.KubeClient).CoreV1().Secrets("default").List(
+		context.TODO(), metav1.ListOptions{
+			LabelSelector: labelSelector.String(),
+		},
+	)
+	assert.Equal(t, 2, len(secretList.Items))
 
 	update, nonCompliant, list = checkSecrets(instance, "default")
+
 	assert.Nil(t, err)
-	t.Logf("Count of secrets found: %d", nonCompliant)
-	assert.True(t, nonCompliant == 2)
+	assert.Equal(t, uint(2), nonCompliant)
 	assert.True(t, update)
 
 	message = buildPolicyStatusMessage(list, nonCompliant, "default", instance)
@@ -597,33 +649,32 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 }
 
 func TestMultipleNamespaces(t *testing.T) {
-
-	var nstypeMeta = metav1.TypeMeta{
+	nstypeMeta := metav1.TypeMeta{
 		Kind: "namespace",
 	}
-	var nsobjMeta1 = metav1.ObjectMeta{
+	nsobjMeta1 := metav1.ObjectMeta{
 		Name: "default1",
 	}
-	var nsobjMeta2 = metav1.ObjectMeta{
+	nsobjMeta2 := metav1.ObjectMeta{
 		Name: "default2",
 	}
-	var ns1 = coretypes.Namespace{
+	ns1 := coretypes.Namespace{
 		TypeMeta:   nstypeMeta,
 		ObjectMeta: nsobjMeta1,
 	}
-	var ns2 = coretypes.Namespace{
+	ns2 := coretypes.Namespace{
 		TypeMeta:   nstypeMeta,
 		ObjectMeta: nsobjMeta2,
 	}
 
-	var typeMeta = metav1.TypeMeta{
+	typeMeta := metav1.TypeMeta{
 		Kind: "Secret",
 	}
-	var objMeta1 = metav1.ObjectMeta{
+	objMeta1 := metav1.ObjectMeta{
 		Name:      "foo1",
 		Namespace: "default1",
 	}
-	var objMeta2 = metav1.ObjectMeta{
+	objMeta2 := metav1.ObjectMeta{
 		Name:      "foo2",
 		Namespace: "default2",
 	}
@@ -651,12 +702,12 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	data := make(map[string][]byte)
 	data["tls.crt"] = []byte(crt)
-	var secret1 = coretypes.Secret{
+	secret1 := coretypes.Secret{
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta1,
 		Data:       data,
 	}
-	var secret2 = coretypes.Secret{
+	secret2 := coretypes.Secret{
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta2,
 		Data:       data,
@@ -664,39 +715,53 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo-multiple-namespaces",
 			Namespace: "default2",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
 			NamespaceSelector: policiesv1.Target{
-				Include: []policyv1.NonEmptyString{"def*"},
+				Include: []policiesv1.NonEmptyString{"def*"},
 			},
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 	}
 
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
-	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns1, metav1.CreateOptions{})
-	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns2, metav1.CreateOptions{})
+	common.Initialize(&simpleClient, nil)
+
+	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns1, metav1.CreateOptions{})
+	if err != nil {
+		t.Logf("Error creating namespace 1: %s", err)
+	}
+
+	_, err = simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns2, metav1.CreateOptions{})
+	if err != nil {
+		t.Logf("Error creating namespace 2: %s", err)
+	}
+
 	s, err := simpleClient.CoreV1().Secrets("default1").Create(context.TODO(), &secret1, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
+
 	if err != nil {
 		t.Logf("Error creating secret 1: %s", err)
 	}
+
 	s, err = simpleClient.CoreV1().Secrets("default2").Create(context.TODO(), &secret2, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.Nil(t, err)
+
 	if err != nil {
 		t.Logf("Error creating secret 2: %s", err)
 	}
 
-	target := []policyv1.NonEmptyString{"def*"}
+	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
-	common.Initialize(&simpleClient, nil)
+
 	handleAddingPolicy(instance)
-	policy, found := availablePolicies.GetObject("default1/foo")
+
+	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
@@ -710,8 +775,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	t.Logf("Message created for policy: %s", message)
 	first := strings.Index(message, "default1")
 	second := strings.Index(message, "default2")
-	assert.True(t, first < second)
+	assert.Less(t, first, second)
 
 	handleRemovingPolicy("foo")
-
 }

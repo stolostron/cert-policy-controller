@@ -14,8 +14,8 @@ import (
 	"k8s.io/klog"
 )
 
-// DecodeCertificateBytes Decodes certificate bytes, accepts certificate chains too
-// Returns the list of x509 Certificate objects that were encoded in the certificate bytes
+// DecodeCertificateBytes Decodes certificate bytes, accepts certificate chains too.
+// Returns the list of x509 Certificate objects that were encoded in the certificate bytes.
 func DecodeCertificateBytes(certBytes []byte) []*x509.Certificate {
 	certs := []*x509.Certificate{}
 	// Decode into x509 cert
@@ -35,5 +35,6 @@ func DecodeCertificateBytes(certBytes []byte) []*x509.Certificate {
 			certs = append(certs, cert)
 		}
 	}
+
 	return certs
 }

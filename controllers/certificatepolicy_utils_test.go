@@ -16,7 +16,6 @@
 package controllers
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -27,13 +26,15 @@ import (
 )
 
 func TestConvertPolicyStatusToString(t *testing.T) {
+	t.Parallel()
+
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 		Status: policiesv1.CertificatePolicyStatus{
 			ComplianceState: policiesv1.NonCompliant,
@@ -55,7 +56,7 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 	}
 
 	policyString := convertPolicyStatusToString(instance, time.Hour*24*10)
-	assert.True(t, strings.HasPrefix(policyString, "NonCompliant; "))
+	assert.Contains(t, policyString, "NonCompliant; ")
 
 	instance = &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -63,14 +64,14 @@ func TestConvertPolicyStatusToString(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{time.Hour * 24 * 35},
+			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 		Status: policiesv1.CertificatePolicyStatus{
 			ComplianceState: "",
 		},
 	}
 	policyString = convertPolicyStatusToString(instance, time.Hour*300)
-	assert.True(t, policyString == "ComplianceState is still undetermined")
+	assert.Equal(t, "ComplianceState is undetermined", policyString)
 
 	instance.Status.ComplianceState = policiesv1.Compliant
 	policyString = convertPolicyStatusToString(instance, time.Hour*24*3)

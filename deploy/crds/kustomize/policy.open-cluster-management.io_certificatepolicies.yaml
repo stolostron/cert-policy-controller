@@ -39,13 +39,13 @@ spec:
               allowedSANPattern:
                 description: A pattern that must match any defined SAN entries in
                   the certificate for the certificate to be compliant.  Golang's regexp
-                  syntax only
+                  syntax only.
                 minLength: 1
                 type: string
               disallowedSANPattern:
                 description: A pattern that must not match any defined SAN entries
                   in the certificate for the certificate to be compliant. Golang's
-                  regexp syntax only
+                  regexp syntax only.
                 minLength: 1
                 type: string
               labelSelector:
@@ -55,19 +55,19 @@ spec:
                 type: object
               maximumCADuration:
                 description: Maximum CA duration for a signing certificate, longer
-                  duration is considered non-compliant. Golang's time units only
+                  duration is considered non-compliant. Golang's time units only.
                 type: string
               maximumDuration:
                 description: Maximum duration for a certificate, longer duration is
-                  considered non-compliant. Golang's time units only
+                  considered non-compliant. Golang's time units only.
                 type: string
               minimumCADuration:
                 description: Minimum CA duration before a signing certificate expires
-                  that it is considered non-compliant. Golang's time units only
+                  that it is considered non-compliant. Golang's time units only.
                 type: string
               minimumDuration:
                 description: Minimum duration before a certificate expires that it
-                  is considered non-compliant. Golang's time units only
+                  is considered non-compliant. Golang's time units only.
                 type: string
               namespaceSelector:
                 description: selecting a list of namespaces where the policy applies
@@ -108,9 +108,11 @@ spec:
                   description: CompliancyDetails defines the all the details related
                     to whether or not the policy is compliant
                   properties:
-                    NonCompliantCertificates:
+                    message:
+                      type: string
+                    nonCompliantCertificates:
                       type: integer
-                    NonCompliantCertificatesList:
+                    nonCompliantCertificatesList:
                       additionalProperties:
                         description: Cert contains its related secret and when it
                           expires
@@ -141,13 +143,11 @@ spec:
                             type: string
                         type: object
                       type: object
-                    message:
-                      type: string
                   type: object
                 description: map of namespaces to its compliancy details
                 type: object
               compliant:
-                description: Compliant, NonCompliant, UnkownCompliancy
+                description: Compliant, NonCompliant, UnknownCompliancy
                 type: string
             type: object
         type: object

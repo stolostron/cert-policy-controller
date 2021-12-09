@@ -17,6 +17,7 @@ package common
 
 import (
 	"context"
+	"log"
 	"reflect"
 	"sort"
 	"testing"
@@ -43,6 +44,8 @@ var depKey = types.NamespacedName{Name: "default"}
 const timeout = time.Second * 5
 
 func TestCreateNamespace(t *testing.T) {
+	t.Parallel()
+
 	g := gomega.NewGomegaWithT(t)
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
@@ -57,58 +60,76 @@ func TestCreateNamespace(t *testing.T) {
 		mgrStopped.Wait()
 	}()
 
-	//making sure the namespace created is accessible
+	// making sure the namespace created is accessible
 	name := "my-name"
 	instance := createNamespace(name)
 	depKey = types.NamespacedName{Name: name}
+
 	err := c.Create(context.TODO(), instance)
 	if apierrors.IsInvalid(err) {
 		t.Logf("failed to create object, got an invalid object error: %v", err)
+
 		return
 	}
+
 	g.Eventually(func() error { return c.Get(context.TODO(), depKey, instance) }, timeout).
 		Should(gomega.Succeed())
 }
+
 func TestGetSelectedNamespaces(t *testing.T) {
+	t.Parallel()
 	// testing the actual logic
 	allNamespaces := []string{"default", "dev-accounting", "dev-HR", "dev-research", "kube-public", "kube-sys"}
 	included := []policiesv1.NonEmptyString{"dev-*", "kube-*", "default"}
 	excluded := []policiesv1.NonEmptyString{"dev-research", "kube-sys"}
 	expectedResult := []string{"default", "dev-accounting", "dev-HR", "kube-public"}
-	actualResutl := GetSelectedNamespaces(included, excluded, allNamespaces)
-	if len(expectedResult) != len(actualResutl) {
-		t.Errorf("expectedResult = %v, however actualResutl = %v", expectedResult, actualResutl)
+	actualResult := GetSelectedNamespaces(included, excluded, allNamespaces)
+
+	if len(expectedResult) != len(actualResult) {
+		t.Errorf("expectedResult = %v, however actualResult = %v", expectedResult, actualResult)
+
 		return
 	}
+
 	sort.Strings((expectedResult))
-	sort.Strings((actualResutl))
-	if !reflect.DeepEqual(actualResutl, expectedResult) {
-		t.Errorf("expectedResult = %v, however actualResutl = %v", expectedResult, actualResutl)
+	sort.Strings((actualResult))
+
+	if !reflect.DeepEqual(actualResult, expectedResult) {
+		t.Errorf("expectedResult = %v, however actualResult = %v", expectedResult, actualResult)
+
 		return
 	}
 }
 
 func createNamespace(nsName string) *corev1.Namespace {
-	return &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
-		Name: nsName,
-	},
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nsName,
+		},
 	}
 }
 
 func TestGetAllNamespaces(t *testing.T) {
-	var typeMeta = metav1.TypeMeta{
+	t.Parallel()
+
+	typeMeta := metav1.TypeMeta{
 		Kind: "namespace",
 	}
-	var objMeta = metav1.ObjectMeta{
+	objMeta := metav1.ObjectMeta{
 		Name: "default",
 	}
-	var ns = corev1.Namespace{
+	ns := corev1.Namespace{
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta,
 	}
+
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
-	simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	if _, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{}); err != nil {
+		log.Fatal(err)
+	}
+
 	Initialize(&simpleClient, nil)
+
 	_, err := GetAllNamespaces()
 	assert.Nil(t, err)
 }

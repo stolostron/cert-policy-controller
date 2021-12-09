@@ -38,7 +38,10 @@ func TestMain(m *testing.M) {
 	t := &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds")},
 	}
-	policyv1.AddToScheme(scheme.Scheme)
+
+	if err := policyv1.AddToScheme(scheme.Scheme); err != nil {
+		stdlog.Fatal(err)
+	}
 
 	var err error
 	if cfg, err = t.Start(); err != nil {
@@ -46,19 +49,24 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
-	t.Stop()
+
+	if err := t.Stop(); err != nil {
+		stdlog.Fatal(err)
+	}
+
 	os.Exit(code)
 }
 
 // StartTestManager adds recFn.
 func StartTestManager(mgr manager.Manager, g *gomega.GomegaWithT) (context.CancelFunc, *sync.WaitGroup) {
-	// stop := make(chan struct{})
 	ctx, stop := context.WithCancel(context.TODO())
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
+
 	go func() {
 		g.Expect(mgr.Start(ctx)).NotTo(gomega.HaveOccurred())
 		wg.Done()
 	}()
+
 	return stop, wg
 }
