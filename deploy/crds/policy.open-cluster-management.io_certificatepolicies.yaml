@@ -31,11 +31,11 @@ spec:
             description: CertificatePolicySpec defines the desired state of CertificatePolicy
             properties:
               allowedSANPattern:
-                description: A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.  Golang's regexp syntax only
+                description: A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.  Golang's regexp syntax only.
                 minLength: 1
                 type: string
               disallowedSANPattern:
-                description: A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant. Golang's regexp syntax only
+                description: A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant. Golang's regexp syntax only.
                 minLength: 1
                 type: string
               labelSelector:
@@ -44,19 +44,19 @@ spec:
                   type: string
                 type: object
               maximumCADuration:
-                description: Maximum CA duration for a signing certificate, longer duration is considered non-compliant. Golang's time units only
+                description: Maximum CA duration for a signing certificate, longer duration is considered non-compliant. Golang's time units only.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               maximumDuration:
-                description: Maximum duration for a certificate, longer duration is considered non-compliant. Golang's time units only
+                description: Maximum duration for a certificate, longer duration is considered non-compliant. Golang's time units only.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               minimumCADuration:
-                description: Minimum CA duration before a signing certificate expires that it is considered non-compliant. Golang's time units only
+                description: Minimum CA duration before a signing certificate expires that it is considered non-compliant. Golang's time units only.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               minimumDuration:
-                description: Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only
+                description: Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               namespaceSelector:
@@ -97,9 +97,11 @@ spec:
                 additionalProperties:
                   description: CompliancyDetails defines the all the details related to whether or not the policy is compliant
                   properties:
-                    NonCompliantCertificates:
+                    message:
+                      type: string
+                    nonCompliantCertificates:
                       type: integer
-                    NonCompliantCertificatesList:
+                    nonCompliantCertificatesList:
                       additionalProperties:
                         description: Cert contains its related secret and when it expires
                         properties:
@@ -123,13 +125,11 @@ spec:
                             type: string
                         type: object
                       type: object
-                    message:
-                      type: string
                   type: object
                 description: map of namespaces to its compliancy details
                 type: object
               compliant:
-                description: Compliant, NonCompliant, UnkownCompliancy
+                description: Compliant, NonCompliant, UnknownCompliancy
                 type: string
             type: object
         type: object

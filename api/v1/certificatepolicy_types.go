@@ -47,7 +47,7 @@ type Target struct {
 
 // CertificatePolicySpec defines the desired state of CertificatePolicy
 type CertificatePolicySpec struct {
-	//enforce, inform
+	// enforce, inform
 	// +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
 	RemediationAction RemediationAction `json:"remediationAction,omitempty"`
 	// selecting a list of namespaces where the policy applies
@@ -56,30 +56,30 @@ type CertificatePolicySpec struct {
 	// low, medium, high, or critical
 	// +kubebuilder:validation:Enum=low;medium;high;critical
 	Severity string `json:"severity,omitempty"`
-	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only
+	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only.
 	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
 	// Minimum CA duration before a signing certificate expires that it is considered non-compliant.
-	// Golang's time units only
-	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"`
+	// Golang's time units only.
+	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"` // nolint:tagliatelle
 	// Maximum duration for a certificate, longer duration is considered non-compliant.
-	// Golang's time units only
+	// Golang's time units only.
 	MaxDuration *metav1.Duration `json:"maximumDuration,omitempty"`
 	// Maximum CA duration for a signing certificate, longer duration is considered non-compliant.
-	// Golang's time units only
-	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"`
+	// Golang's time units only.
+	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"` // nolint:tagliatelle
 	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
-	//  Golang's regexp syntax only
+	//  Golang's regexp syntax only.
 	// +kubebuilder:validation:MinLength=1
-	AllowedSANPattern string `json:"allowedSANPattern,omitempty"`
+	AllowedSANPattern string `json:"allowedSANPattern,omitempty"` // nolint:tagliatelle
 	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
-	// Golang's regexp syntax only
+	// Golang's regexp syntax only.
 	// +kubebuilder:validation:MinLength=1
-	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"`
+	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"` // nolint:tagliatelle
 }
 
 // CertificatePolicyStatus defines the observed state of CertificatePolicy
 type CertificatePolicyStatus struct {
-	// Compliant, NonCompliant, UnkownCompliancy
+	// Compliant, NonCompliant, UnknownCompliancy
 	ComplianceState ComplianceState `json:"compliant,omitempty"`
 	// map of namespaces to its compliancy details
 	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"`
@@ -87,8 +87,8 @@ type CertificatePolicyStatus struct {
 
 // CompliancyDetails defines the all the details related to whether or not the policy is compliant
 type CompliancyDetails struct {
-	NonCompliantCertificates     uint            `json:"NonCompliantCertificates,omitempty"`
-	NonCompliantCertificatesList map[string]Cert `json:"NonCompliantCertificatesList,omitempty"`
+	NonCompliantCertificates     uint            `json:"nonCompliantCertificates,omitempty"`
+	NonCompliantCertificatesList map[string]Cert `json:"nonCompliantCertificatesList,omitempty"`
 	Message                      string          `json:"message,omitempty"` // Overall message of this compliance
 }
 

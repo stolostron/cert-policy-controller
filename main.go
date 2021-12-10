@@ -3,8 +3,10 @@
 
 package main
 
+// nolint:gci
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -13,17 +15,16 @@ import (
 	"strings"
 	"time"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	"k8s.io/client-go/kubernetes"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"github.com/open-cluster-management/addon-framework/pkg/lease"
 	extpolicyv1 "github.com/open-cluster-management/governance-policy-propagator/api/v1"
 	"github.com/spf13/pflag"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
+	// Import all Kubernetes client auth plugins to ensure that exec-entrypoint and run can make use of them.
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -57,6 +58,7 @@ func printVersion() {
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 }
 
+// nolint:wsl
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(extpolicyv1.AddToScheme(scheme))
@@ -71,12 +73,13 @@ func getWatchNamespace() (string, error) {
 	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
 	// which specifies the Namespace to watch.
 	// An empty value means the operator is running with cluster scope.
-	var watchNamespaceEnvVar = "WATCH_NAMESPACE"
+	watchNamespaceEnvVar := "WATCH_NAMESPACE"
 
 	ns, found := os.LookupEnv(watchNamespaceEnvVar)
 	if !found {
 		return "", fmt.Errorf("%s must be set", watchNamespaceEnvVar)
 	}
+
 	return ns, nil
 }
 
@@ -88,37 +91,82 @@ func getOperatorNamespace() (string, error) {
 		if os.IsNotExist(err) {
 			return "", errNoNamespace
 		}
-		return "", err
+
+		return "", fmt.Errorf("failed to retrieve operator namespace: %w", err)
 	}
+
 	ns := strings.TrimSpace(string(nsBytes))
 	log.V(1).Info("Found namespace", "Namespace", ns)
+
 	return ns, nil
 }
 
-func main() {
+func startLeaseController(generatedClient kubernetes.Interface, hubConfigSecretName string,
+	hubConfigSecretNs string, clusterName string) {
+	operatorNs, err := getOperatorNamespace()
+	if err != nil {
+		if errors.Is(err, errNoNamespace) {
+			log.Info("Skipping lease; not running in a cluster.")
+		} else {
+			log.Error(err, "Failed to get operator namespace")
+			os.Exit(1)
+		}
+	} else {
+		hubCfg, _ := common.LoadHubConfig(hubConfigSecretNs, hubConfigSecretName)
 
+		log.Info("Starting lease controller to report status")
+		leaseUpdater := lease.NewLeaseUpdater(
+			generatedClient,
+			"cert-policy-controller",
+			operatorNs,
+		).WithHubLeaseConfig(hubCfg, clusterName)
+
+		go leaseUpdater.Start(context.TODO())
+	}
+}
+
+func main() {
 	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName, probeAddr string
 	var frequency uint
 	var enableLease, enableLeaderElection, legacyLeaderElection bool
+
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
-	pflag.UintVar(&frequency, "update-frequency", 10, "The status update frequency (in seconds) of a mutation policy")
-	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent", "to also send status events on parent policy. options are: yes/no/ifpresent")
-	pflag.StringVar(&defaultDuration, "default-duration", "672h", "The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format")
-	pflag.BoolVar(&enableLease, "enable-lease", false, "If enabled, the controller will start the lease controller to report its status")
+	//nolint:gomnd
+	pflag.UintVar(&frequency, "update-frequency", 10,
+		"The status update frequency (in seconds) of a mutation policy",
+	)
+	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent",
+		"to also send status events on parent policy. options are: yes/no/ifpresent",
+	)
+	pflag.StringVar(&defaultDuration, "default-duration", "672h",
+		"The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format",
+	)
+	pflag.BoolVar(&enableLease, "enable-lease", false,
+		"If enabled, the controller will start the lease controller to report its status",
+	)
 	pflag.BoolVar(&enableLeaderElection, "leader-elect", true,
 		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
+			"Enabling this will ensure there is only one active controller manager.",
+	)
 	pflag.BoolVar(&legacyLeaderElection, "legacy-leader-elect", false,
-		"Use a legacy leader election method for controller manager instead of the lease API.")
-	pflag.StringVar(&hubConfigSecretNs, "hubconfig-secret-ns", "open-cluster-management-agent-addon", "Namespace for hub config kube-secret")
-	pflag.StringVar(&hubConfigSecretName, "hubconfig-secret-name", "cert-policy-controller-hub-kubeconfig", "Name of the hub config kube-secret")
+		"Use a legacy leader election method for controller manager instead of the lease API.",
+	)
+	pflag.StringVar(&hubConfigSecretNs, "hubconfig-secret-ns",
+		"open-cluster-management-agent-addon", "Namespace for hub config kube-secret",
+	)
+	pflag.StringVar(&hubConfigSecretName, "hubconfig-secret-name",
+		"cert-policy-controller-hub-kubeconfig", "Name of the hub config kube-secret",
+	)
 	pflag.StringVar(&clusterName, "cluster-name", "default-cluster", "Name of the cluster")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address",
+		":8081", "The address the probe endpoint binds to.",
+	)
 
 	pflag.Parse()
 
 	var duration time.Duration
+
 	logf.SetLogger(zap.New())
 	printVersion()
 
@@ -163,7 +211,7 @@ func main() {
 
 	setupLog.Info("Registering components")
 
-	if err = (&controllers.CertificatePolicyReconciler{
+	if err = (&controllers.Reconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor("certificatepolicy-controller"),
@@ -177,43 +225,28 @@ func main() {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
+
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
 
 	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+
 	common.Initialize(&generatedClient, cfg)
-	controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
-	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and does the needed work to make sure the desired state is achieved
+	_ = controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
+	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
+	// does the needed work to make sure the desired state is achieved
 	go controllers.PeriodicallyExecCertificatePolicies(frequency, true)
 
 	if enableLease {
-		operatorNs, err := getOperatorNamespace()
-		if err != nil {
-			if err == errNoNamespace {
-				log.Info("Skipping lease; not running in a cluster.")
-			} else {
-				log.Error(err, "Failed to get operator namespace")
-				os.Exit(1)
-			}
-		} else {
-			hubCfg, _ := common.LoadHubConfig(hubConfigSecretNs, hubConfigSecretName)
-
-			log.Info("Starting lease controller to report status")
-			leaseUpdater := lease.NewLeaseUpdater(
-				generatedClient,
-				"cert-policy-controller",
-				operatorNs,
-			).WithHubLeaseConfig(hubCfg, clusterName)
-
-			go leaseUpdater.Start(context.TODO())
-		}
+		startLeaseController(generatedClient, hubConfigSecretName, hubConfigSecretNs, clusterName)
 	} else {
 		log.Info("Status reporting is not enabled")
 	}
 
 	setupLog.Info("Starting the manager")
+
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)

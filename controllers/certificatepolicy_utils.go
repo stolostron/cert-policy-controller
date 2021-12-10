@@ -16,15 +16,17 @@ import (
 	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
 )
 
-var format string = "%s; %s"
+var format = "%s; %s"
 
 //=================================================================
-// convertPolicyStatusToString to be able to pass the status as event
-func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuration time.Duration) (results string) {
-	result := "ComplianceState is still undetermined"
+// convertPolicyStatusToString to be able to pass the status as event.
+func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuration time.Duration) string {
+	result := "ComplianceState is undetermined"
+
 	if plc.Status.ComplianceState == "" {
 		return result
 	}
+
 	result = string(plc.Status.ComplianceState)
 
 	if plc.Status.CompliancyDetails == nil {
@@ -38,11 +40,14 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 	durationCount := 0
 	durationCACount := 0
 	patternMismatchCount := 0
+
 	if plc.Status.ComplianceState == policyv1.NonCompliant {
 		minDuration := defaultDuration
+
 		if plc.Spec.MinDuration != nil {
 			minDuration = plc.Spec.MinDuration.Duration
 		}
+
 		message := ""
 		expiredCerts := ""
 		expiredCACerts := ""
@@ -55,6 +60,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 		for k := range plc.Status.CompliancyDetails {
 			keys = append(keys, k)
 		}
+
 		sort.Strings(keys)
 
 		for _, namespace := range keys {
@@ -70,28 +76,36 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 				}
 			}
 		}
+
 		if expireCount > 0 {
 			message = fmt.Sprintf("%d certificates expire in less than %s: %s\n",
 				expireCount, minDuration.String(), expiredCerts)
 		}
+
 		if expireCACount > 0 {
 			message = fmt.Sprintf("%s %d CA certificates expire in less than %s: %s\n",
 				message, expireCACount, plc.Spec.MinCADuration.Duration.String(), expiredCACerts)
 		}
+
 		if durationCount > 0 {
 			message = fmt.Sprintf("%s %d certificates exceed the maximum duration of %s: %s\n",
 				message, durationCount, plc.Spec.MaxDuration.Duration.String(), durationCerts)
 		}
+
 		if durationCACount > 0 {
 			message = fmt.Sprintf("%s %d CA certificates exceed the maximum duration of %s: %s\n",
 				message, durationCACount, plc.Spec.MaxCADuration.Duration.String(), durationCACerts)
 		}
+
 		if patternMismatchCount > 0 {
 			message = fmt.Sprintf("%s %d certificates defined SAN entries do not match pattern %s: %s\n",
 				message, patternMismatchCount, getPatternsUsed(plc), patternCerts)
 		}
-		result = fmt.Sprintf(format, result, message)
-	} else if plc.Status.ComplianceState == policyv1.Compliant {
+
+		return fmt.Sprintf(format, result, message)
+	}
+
+	if plc.Status.ComplianceState == policyv1.Compliant {
 		if len(plc.Status.CompliancyDetails) == 1 {
 			for namespace := range plc.Status.CompliancyDetails {
 				if namespace == "" {
@@ -100,6 +114,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 			}
 		}
 	}
+
 	return result
 }
 
@@ -115,6 +130,7 @@ func updateExpired(details policyv1.Cert, namespace string, plc *policyv1.Certif
 			expireCount++
 		}
 	}
+
 	return expiredCACerts, expireCACount, expiredCerts, expireCount
 }
 
@@ -130,6 +146,7 @@ func updateLifetime(details policyv1.Cert, namespace string, plc *policyv1.Certi
 			durationCount++
 		}
 	}
+
 	return durationCACerts, durationCACount, durationCerts, durationCount
 }
 
@@ -140,15 +157,17 @@ func updateAllowed(details policyv1.Cert, namespace string, plc *policyv1.Certif
 		patternCerts = buildComplianceSubmessage(patternCerts, namespace, certDetails.Secret)
 		patternMismatchCount++
 	}
+
 	return patternCerts, patternMismatchCount
 }
 
 func buildComplianceSubmessage(inputmsg string, namespace string, secret string) string {
-	message := ""
+	var message string
 	if len(inputmsg) > 0 {
 		message = fmt.Sprintf("%s, %s:%s", inputmsg, namespace, secret)
 	} else {
 		message = fmt.Sprintf("%s:%s", namespace, secret)
 	}
+
 	return message
 }

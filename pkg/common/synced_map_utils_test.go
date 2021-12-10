@@ -56,8 +56,10 @@ var sm = SyncedPolicyMap{
 	PolicyMap: make(map[string]*policiesv1.CertificatePolicy),
 }
 
-//TestGetObject testing get object in map.
+// TestGetObject testing get object in map.
 func TestGetObject(t *testing.T) {
+	t.Parallel()
+
 	_, found := sm.GetObject("void")
 	if found {
 		t.Fatalf("expecting found = false, however found = %v", found)
@@ -69,35 +71,43 @@ func TestGetObject(t *testing.T) {
 	if !found {
 		t.Fatalf("expecting found = true, however found = %v", found)
 	}
+
 	if !reflect.DeepEqual(plc.Name, "testPolicy") {
 		t.Fatalf("expecting plcName = testPolicy, however plcName = %v", plc.Name)
 	}
 }
 
 func TestAddObject(t *testing.T) {
+	t.Parallel()
 	sm.AddObject("default", plc)
+
 	plcName, found1 := sm.GetObject("ServiceInstance")
 	if found1 {
 		t.Fatalf("expecting found = false, however found = %v", found1)
 	}
+
 	_, found2 := sm.GetObject("void")
-	if found1 {
+	if found2 {
 		t.Fatalf("expecting found = false, however found = %v", found2)
 	}
+
 	if !reflect.DeepEqual(plc.Name, "testPolicy") {
 		t.Fatalf("expecting plcName = testPolicy, however plcName = %v", plcName)
 	}
 }
 
 func TestRemoveDataObject(t *testing.T) {
+	t.Parallel()
 	sm.RemoveObject("void")
+
 	_, found := sm.GetObject("void")
 	if found {
 		t.Fatalf("expecting found = false, however found = %v", found)
 	}
-	//remove after adding
+	// remove after adding
 	sm.AddObject("default", plc)
 	sm.RemoveObject("default")
+
 	_, found = sm.GetObject("default")
 	if found {
 		t.Fatalf("expecting found = false, however found = %v", found)

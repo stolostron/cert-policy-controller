@@ -8,6 +8,13 @@
 
 
 USE_VENDORIZED_BUILD_HARNESS ?=
+export PATH=$(shell echo $$PATH):$(PWD)/bin
+# Keep an existing GOPATH, make a private one if it is undefined
+GOPATH_DEFAULT := $(PWD)/.go
+export GOPATH ?= $(GOPATH_DEFAULT)
+GOBIN_DEFAULT := $(GOPATH)/bin
+export GOBIN ?= $(GOBIN_DEFAULT)
+export PATH := $(PATH):$(GOBIN)
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
 # Deployment configuration
@@ -52,12 +59,14 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+include build/common/Makefile.common.mk
+
 .PHONY: default
 default::
 	@echo "Build Harness Bootstrapped"
 
 .PHONY: all test dependencies build image rhel-image manager run deploy install \
-fmt vet go-coverage
+fmt vet generate go-coverage fmt-dependencies lint-dependencies
 
 all: test manager
 
@@ -104,8 +113,19 @@ create-ns:
 ############################################################
 
 # Lint code
-lint:
-	go fmt ./...
+lint-dependencies:
+	$(call go-get-tool,$(PWD)/bin/golangci-lint,github.com/golangci/golangci-lint/cmd/golangci-lint@v1.41.1)
+
+lint: lint-dependencies lint-all
+
+fmt-dependencies:
+	$(call go-get-tool,$(PWD)/bin/gci,github.com/daixiang0/gci@v0.2.9)
+	$(call go-get-tool,$(PWD)/bin/gofumpt,mvdan.cc/gofumpt@v0.2.0)
+
+fmt: fmt-dependencies
+	find . -not \( -path "./.go" -prune \) -name "*.go" | xargs gofmt -s -w
+	find . -not \( -path "./.go" -prune \) -not \( -name "main.go" -prune \) -not \( -name "suite_test.go" -prune \) -name "*.go" | xargs gci -w -local "$(shell cat go.mod | head -1 | cut -d " " -f 2)"
+	find . -not \( -path "./.go" -prune \) -name "*.go" | xargs gofumpt -l -w
 
 # Run go vet against code
 vet:
@@ -144,7 +164,7 @@ copyright-check:
 ############################################################
 
 test:
-	go test ./...
+	go test -v ./...
 
 test-dependencies:
 	curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH).tar.gz | tar -xz -C /tmp/
