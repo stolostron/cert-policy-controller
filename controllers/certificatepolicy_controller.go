@@ -138,7 +138,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 			}
 		}
 
-		instance.Status.CompliancyDetails = nil // reset CompliancyDetails
+		instance.Status.CompliancyDetails = make(map[string]policyv1.CompliancyDetails)
 
 		handleAddingPolicy(instance)
 	}
@@ -745,15 +745,6 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 		klog.V(3).Infof("Updating the Policy Status %s namespace %s, %s.%s", instance.Name, instance.Namespace,
 			instance.Kind, instance.APIVersion)
 
-		err := reconcilingAgent.Status().Update(context.TODO(), instance)
-		if err != nil {
-			return instance, err
-		}
-
-		if EventOnParent != "no" {
-			createParentPolicyEvent(instance)
-		}
-
 		message := fmt.Sprintf("%v", instance.Status.ComplianceState)
 		klog.V(3).Infof("Policy %s Compliance State %s", instance.Name, message)
 
@@ -767,6 +758,15 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 
 				klog.V(3).Infof("Noncompliant certs %d %s", details.NonCompliantCertificates, message)
 			}
+		}
+
+		err := reconcilingAgent.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return instance, err
+		}
+
+		if EventOnParent != "no" {
+			createParentPolicyEvent(instance)
 		}
 
 		if reconcilingAgent.Recorder != nil {
