@@ -67,7 +67,7 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
     ```
     - The image registry, name, and tag used in the image build, are configurable with:
       ```bash
-      export REGISTRY=''  # (defaults to 'quay.io/open-cluster-management')
+      export REGISTRY=''  # (defaults to 'quay.io/stolostron')
       export IMG=''       # (defaults to the repository name)
       export TAG=''       # (defaults to 'latest')
       ```
