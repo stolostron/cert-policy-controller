@@ -17,7 +17,7 @@ spec:
       serviceAccountName: cert-policy-controller
       containers:
         - name: cert-policy-controller
-          image: quay.io/open-cluster-management/cert-policy-controller:latest
+          image: quay.io/stolostron/cert-policy-controller:latest
           command:
           - cert-policy-controller
           imagePullPolicy: Always

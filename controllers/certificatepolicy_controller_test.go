@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
+	policiesv1 "github.com/stolostron/cert-policy-controller/api/v1"
+	"github.com/stolostron/cert-policy-controller/pkg/common"
 )
 
 func TestReconcile(t *testing.T) {

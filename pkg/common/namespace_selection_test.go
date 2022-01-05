@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
+	policiesv1 "github.com/stolostron/cert-policy-controller/api/v1"
 )
 
 var c client.Client
