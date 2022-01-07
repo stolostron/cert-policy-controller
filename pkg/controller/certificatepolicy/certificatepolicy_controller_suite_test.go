@@ -26,8 +26,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	"github.com/open-cluster-management/cert-policy-controller/pkg/apis"
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
+	"github.com/stolostron/cert-policy-controller/pkg/apis"
+	policiesv1 "github.com/stolostron/cert-policy-controller/pkg/apis/policies/v1"
 )
 
 var cfg *rest.Config

@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/util"
+	policyv1 "github.com/stolostron/cert-policy-controller/pkg/apis/policies/v1"
+	"github.com/stolostron/cert-policy-controller/pkg/common"
+	"github.com/stolostron/cert-policy-controller/pkg/controller/util"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

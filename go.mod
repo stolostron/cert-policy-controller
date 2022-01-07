@@ -1,4 +1,4 @@
-module github.com/open-cluster-management/cert-policy-controller
+module github.com/stolostron/cert-policy-controller
 
 go 1.16
 
