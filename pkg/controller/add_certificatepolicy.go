@@ -3,7 +3,7 @@
 package controller
 
 import (
-	"github.com/open-cluster-management/cert-policy-controller/pkg/controller/certificatepolicy"
+	"github.com/stolostron/cert-policy-controller/pkg/controller/certificatepolicy"
 )
 
 func init() {

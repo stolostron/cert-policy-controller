@@ -10,7 +10,7 @@ package common
 import (
 	"sync"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
+	policyv1 "github.com/stolostron/cert-policy-controller/pkg/apis/policies/v1"
 )
 
 //SyncedPolicyMap a thread safe map

@@ -17,11 +17,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/open-cluster-management/cert-policy-controller/pkg/apis"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/controller"
-	policyStatusHandler "github.com/open-cluster-management/cert-policy-controller/pkg/controller/certificatepolicy"
-	"github.com/open-cluster-management/cert-policy-controller/version"
+	"github.com/stolostron/cert-policy-controller/pkg/apis"
+	"github.com/stolostron/cert-policy-controller/pkg/common"
+	"github.com/stolostron/cert-policy-controller/pkg/controller"
+	policyStatusHandler "github.com/stolostron/cert-policy-controller/pkg/controller/certificatepolicy"
+	"github.com/stolostron/cert-policy-controller/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
