@@ -30,10 +30,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/open-cluster-management/addon-framework/pkg/lease"
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
-	controller "github.com/open-cluster-management/cert-policy-controller/pkg/controller/certificatepolicy"
-	"github.com/open-cluster-management/cert-policy-controller/version"
+	policyv1 "github.com/stolostron/cert-policy-controller/apis/policy/v1"
+	"github.com/stolostron/cert-policy-controller/pkg/common"
+	controller "github.com/stolostron/cert-policy-controller/pkg/controller/certificatepolicy"
+	"github.com/stolostron/cert-policy-controller/version"
 	//+kubebuilder:scaffold:imports
 )
 
