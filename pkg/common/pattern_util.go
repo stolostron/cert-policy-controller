@@ -11,7 +11,7 @@ import (
 	"math"
 	"strings"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/apis/policy/v1"
+	policyv1 "github.com/stolostron/cert-policy-controller/apis/policy/v1"
 	"k8s.io/klog"
 )
 
