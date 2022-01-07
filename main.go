@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/open-cluster-management/addon-framework/pkg/lease"
-	extpolicyv1 "github.com/open-cluster-management/governance-policy-propagator/api/v1"
 	"github.com/spf13/pflag"
+	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -32,10 +32,10 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
-	controllers "github.com/open-cluster-management/cert-policy-controller/controllers"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
-	"github.com/open-cluster-management/cert-policy-controller/version"
+	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
+	controllers "github.com/stolostron/cert-policy-controller/controllers"
+	"github.com/stolostron/cert-policy-controller/pkg/common"
+	"github.com/stolostron/cert-policy-controller/version"
 	//+kubebuilder:scaffold:imports
 )
 

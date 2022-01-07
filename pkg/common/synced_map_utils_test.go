@@ -22,7 +22,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
+	policiesv1 "github.com/stolostron/cert-policy-controller/api/v1"
 )
 
 /*

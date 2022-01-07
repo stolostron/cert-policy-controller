@@ -159,7 +159,7 @@ spec:
               fieldPath: metadata.name
         - name: OPERATOR_NAME
           value: cert-policy-controller
-        image: quay.io/open-cluster-management/cert-policy-controller:latest
+        image: quay.io/stolostron/cert-policy-controller:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

@@ -13,7 +13,7 @@ import (
 
 	"k8s.io/klog"
 
-	policyv1 "github.com/open-cluster-management/cert-policy-controller/api/v1"
+	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
 )
 
 // IfMatch check matches.
