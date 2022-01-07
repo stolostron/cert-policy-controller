@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stolostron/addon-framework/pkg/lease"
-	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
+	"github.com/open-cluster-management/addon-framework/pkg/lease"
 	"github.com/spf13/pflag"
+	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
