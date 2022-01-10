@@ -64,18 +64,10 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
   - secrets
   verbs:
   - get
   - list
-  - watch
 - apiGroups:
   - policy.open-cluster-management.io
   resources:

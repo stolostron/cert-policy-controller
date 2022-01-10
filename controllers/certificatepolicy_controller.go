@@ -90,8 +90,7 @@ type Reconciler struct {
 //+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=list
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
