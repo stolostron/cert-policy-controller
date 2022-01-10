@@ -8,7 +8,7 @@ require (
 	github.com/operator-framework/operator-sdk v0.19.4
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	k8s.io/api v0.20.5
 	k8s.io/apimachinery v0.20.5
 	k8s.io/client-go v12.0.0+incompatible
@@ -18,5 +18,6 @@ require (
 
 replace (
 	github.com/go-logr/zapr => github.com/go-logr/zapr v0.4.0
+	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // CVE-2021-43565
 	k8s.io/client-go => k8s.io/client-go v0.20.5
 )
