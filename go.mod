@@ -16,4 +16,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.9.2
 )
 
-replace k8s.io/client-go => k8s.io/client-go v0.21.3
+replace (
+	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // CVE-2021-43565
+	k8s.io/client-go => k8s.io/client-go v0.21.3
+)
