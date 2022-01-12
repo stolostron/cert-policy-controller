@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/open-cluster-management/cert-policy-controller/pkg/apis"
+	"github.com/stolostron/cert-policy-controller/pkg/apis"
 )
 
 var cfg *rest.Config
