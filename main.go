@@ -29,11 +29,11 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/open-cluster-management/addon-framework/pkg/lease"
 	policyv1 "github.com/stolostron/cert-policy-controller/apis/policy/v1"
 	"github.com/stolostron/cert-policy-controller/pkg/common"
 	controller "github.com/stolostron/cert-policy-controller/pkg/controller/certificatepolicy"
 	"github.com/stolostron/cert-policy-controller/version"
+	"open-cluster-management.io/addon-framework/pkg/lease"
 	//+kubebuilder:scaffold:imports
 )
 
