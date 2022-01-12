@@ -33,8 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	policiesv1 "github.com/open-cluster-management/cert-policy-controller/pkg/apis/policies/v1"
-	"github.com/open-cluster-management/cert-policy-controller/pkg/common"
+	policiesv1 "github.com/stolostron/cert-policy-controller/pkg/apis/policies/v1"
+	"github.com/stolostron/cert-policy-controller/pkg/common"
 )
 
 var mgr manager.Manager
