@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/open-cluster-management/addon-framework/pkg/lease"
 	"github.com/spf13/pflag"
 	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"open-cluster-management.io/addon-framework/pkg/lease"
 
 	// Import all Kubernetes client auth plugins to ensure that exec-entrypoint and run can make use of them.
 	"k8s.io/client-go/kubernetes"
