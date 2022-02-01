@@ -54,7 +54,7 @@ type CertificatePolicySpec struct {
 	NamespaceSelector Target                    `json:"namespaceSelector,omitempty"`
 	LabelSelector     map[string]NonEmptyString `json:"labelSelector,omitempty"`
 	// low, medium, high, or critical
-	// +kubebuilder:validation:Enum=low;medium;high;critical
+	// +kubebuilder:validation:Enum=low;Low;medium;Medium;high;High;critical;Critical
 	Severity string `json:"severity,omitempty"`
 	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only.
 	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
