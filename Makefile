@@ -7,7 +7,6 @@
 # Copyright Contributors to the Open Cluster Management project
 
 
-USE_VENDORIZED_BUILD_HARNESS ?=
 export PATH=$(shell echo $$PATH):$(PWD)/bin
 # Keep an existing GOPATH, make a private one if it is undefined
 GOPATH_DEFAULT := $(PWD)/.go
@@ -39,12 +38,6 @@ REGISTRY ?= quay.io/stolostron
 TAG ?= latest
 IMAGE_NAME_AND_VERSION ?= $(REGISTRY)/$(IMG)
 
-ifndef USE_VENDORIZED_BUILD_HARNESS
--include $(shell curl -s -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/stolostron/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
-else
--include vbh/.build-harness-bootstrap
-endif
-
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
@@ -61,14 +54,10 @@ endef
 
 include build/common/Makefile.common.mk
 
-.PHONY: default
-default::
-	@echo "Build Harness Bootstrapped"
-
-.PHONY: all test dependencies build image rhel-image manager run deploy install \
+.PHONY: all test dependencies build image rhel-image run deploy install \
 fmt vet generate go-coverage fmt-dependencies lint-dependencies
 
-all: test manager
+all: test
 
 ############################################################
 # build, run
@@ -155,9 +144,6 @@ controller-gen: ## Download controller-gen locally if necessary.
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
-
-copyright-check:
-	./build/copyright-check.sh $(TRAVIS_BRANCH) $(TRAVIS_PULL_REQUEST_BRANCH)
 
 ############################################################
 # unit test
