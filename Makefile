@@ -16,6 +16,8 @@ export GOBIN ?= $(GOBIN_DEFAULT)
 export PATH := $(PATH):$(GOBIN)
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
+TESTARGS_DEFAULT := -v
+TESTARGS ?= $(TESTARGS_DEFAULT)
 # Deployment configuration
 CONTROLLER_NAMESPACE ?= open-cluster-management-agent-addon
 MANAGED_CLUSTER_NAME ?= managed
@@ -33,6 +35,8 @@ KBVERSION := 2.3.1
 # Fetch Ginkgo/Gomega versions from go.mod
 GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo\/v2/ {print $$2}' go.mod)
 GOMEGA_VERSION := $(shell awk '/github.com\/onsi\/gomega/ {print $$2}' go.mod)
+# Test coverage threshold
+export COVERAGE_MIN ?= 65
 
 # Image URL to use all building/pushing image targets;
 # Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
@@ -40,6 +44,10 @@ IMG ?= $(shell cat COMPONENT_NAME 2> /dev/null)
 REGISTRY ?= quay.io/stolostron
 TAG ?= latest
 IMAGE_NAME_AND_VERSION ?= $(REGISTRY)/$(IMG)
+
+# Github host to use for checking the source tree;
+# Override this variable ue with your own value if you're working on forked repo.
+GIT_HOST ?= github.com/stolostron
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -75,7 +83,7 @@ build:
 
 # Run against the current locally configured Kubernetes cluster
 run:
-	go run ./main.go --leader-elect=false
+	WATCH_NAMESPACE=$(WATCH_NAMESPACE) go run ./main.go --leader-elect=false
 
 ############################################################
 # deploy
@@ -155,7 +163,10 @@ GOSEC = $(shell pwd)/bin/gosec
 GOSEC_VERSION = 2.9.6
 
 test:
-	go test -v ./...
+	go test $(TESTARGS) ./...
+
+test-coverage: TESTARGS = -json -cover -covermode=atomic -coverprofile=coverage_unit.out
+test-coverage: test
 
 test-dependencies:
 	curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH).tar.gz | tar -xz -C /tmp/
@@ -215,9 +226,17 @@ e2e-dependencies:
 e2e-test:
 	$(GOPATH)/bin/ginkgo -v --fail-fast --slow-spec-threshold=10s $(E2E_TEST_ARGS) test/e2e
 
-e2e-dependencies:
-	go get github.com/onsi/ginkgo/ginkgo
-	go get github.com/onsi/gomega/...
+e2e-test-coverage: E2E_TEST_ARGS = --json-report=report_e2e.json --output-dir=.
+e2e-test-coverage: e2e-test
+
+e2e-build-instrumented:
+	go test -covermode=atomic -coverpkg=$(GIT_HOST)/$(IMG)/... -c -tags e2e ./ -o build/_output/bin/$(IMG)-instrumented
+
+e2e-run-instrumented:
+	WATCH_NAMESPACE="$(WATCH_NAMESPACE)" ./build/_output/bin/$(IMG)-instrumented -test.run "^TestRunMain$$" -test.coverprofile=coverage_e2e.out &>/dev/null &
+
+e2e-stop-instrumented:
+	ps -ef | grep '$(IMG)' | grep -v grep | awk '{print $$2}' | xargs kill
 
 e2e-debug:
 	kubectl get all -n $(CONTROLLER_NAMESPACE)
