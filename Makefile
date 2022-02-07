@@ -30,8 +30,6 @@ ifneq ($(KIND_VERSION), latest)
 else
 	KIND_ARGS =
 endif
-# KubeBuilder configuration
-KBVERSION := 2.3.1
 # Fetch Ginkgo/Gomega versions from go.mod
 GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo\/v2/ {print $$2}' go.mod)
 GOMEGA_VERSION := $(shell awk '/github.com\/onsi\/gomega/ {print $$2}' go.mod)
@@ -161,6 +159,9 @@ kustomize: ## Download kustomize locally if necessary.
 ############################################################
 GOSEC = $(shell pwd)/bin/gosec
 GOSEC_VERSION = 2.9.6
+KUBEBUILDER_DIR = /usr/local/kubebuilder/bin
+KBVERSION = 3.2.0
+K8S_VERSION = 1.21.2
 
 test:
 	go test $(TESTARGS) ./...
@@ -169,8 +170,15 @@ test-coverage: TESTARGS = -json -cover -covermode=atomic -coverprofile=coverage_
 test-coverage: test
 
 test-dependencies:
-	curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH).tar.gz | tar -xz -C /tmp/
-	sudo mv /tmp/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH) /usr/local/kubebuilder
+	@if (ls $(KUBEBUILDER_DIR)/*); then \
+		echo "^^^ Files found in $(KUBEBUILDER_DIR). Skipping installation."; exit 1; \
+	else \
+		echo "^^^ Kubebuilder binaries not found. Installing Kubebuilder binaries."; \
+	fi
+	sudo mkdir -p $(KUBEBUILDER_DIR)
+	sudo curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(GOOS)_$(GOARCH) -o $(KUBEBUILDER_DIR)/kubebuilder
+	sudo chmod +x $(KUBEBUILDER_DIR)/kubebuilder
+	curl -L "https://go.kubebuilder.io/test-tools/$(K8S_VERSION)/$(GOOS)/$(GOARCH)" | sudo tar xz --strip-components=2 -C $(KUBEBUILDER_DIR)/
 
 $(GOSEC):
 	curl -L https://github.com/securego/gosec/releases/download/v$(GOSEC_VERSION)/gosec_$(GOSEC_VERSION)_$(GOOS)_$(GOARCH).tar.gz | tar -xz -C /tmp/
