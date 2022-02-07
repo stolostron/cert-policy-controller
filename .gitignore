@@ -11,3 +11,8 @@ bin
 .vscode/launch.json
 cmd/manager/__debug_bin
 kubeconfig_managed
+
+report.json
+report_*.json
+gosec.json
+*.out
