@@ -30,6 +30,9 @@ else
 endif
 # KubeBuilder configuration
 KBVERSION := 2.3.1
+# Fetch Ginkgo/Gomega versions from go.mod
+GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo\/v2/ {print $$2}' go.mod)
+GOMEGA_VERSION := $(shell awk '/github.com\/onsi\/gomega/ {print $$2}' go.mod)
 
 # Image URL to use all building/pushing image targets;
 # Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
@@ -200,8 +203,12 @@ install-resources:
 	@echo creating namespaces
 	kubectl create ns $(WATCH_NAMESPACE)
 
+e2e-dependencies:
+	go get github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
+	go get github.com/onsi/gomega/...@$(GOMEGA_VERSION)
+
 e2e-test:
-	${GOPATH}/bin/ginkgo -v --failFast --slowSpecThreshold=10 test/e2e
+	$(GOPATH)/bin/ginkgo -v --fail-fast --slow-spec-threshold=10s $(E2E_TEST_ARGS) test/e2e
 
 e2e-dependencies:
 	go get github.com/onsi/ginkgo/ginkgo
