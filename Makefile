@@ -161,11 +161,11 @@ test-dependencies:
 	curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH).tar.gz | tar -xz -C /tmp/
 	sudo mv /tmp/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH) /usr/local/kubebuilder
 
-gosec-install:
+$(GOSEC):
 	curl -L https://github.com/securego/gosec/releases/download/v$(GOSEC_VERSION)/gosec_$(GOSEC_VERSION)_$(GOOS)_$(GOARCH).tar.gz | tar -xz -C /tmp/
 	sudo mv /tmp/gosec $(GOSEC)
 
-gosec-scan:
+gosec-scan: $(GOSEC)
 	$(GOSEC) -fmt sonarqube -out gosec.json -no-fail -exclude-dir=.go ./...
 
 ############################################################
@@ -226,3 +226,18 @@ e2e-debug:
 	kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
 	kubectl describe pods -n $(CONTROLLER_NAMESPACE)
 	kubectl logs $$(kubectl get pods -n $(CONTROLLER_NAMESPACE) -o name | grep $(IMG)) -n $(CONTROLLER_NAMESPACE)
+
+############################################################
+# test coverage
+############################################################
+GOCOVMERGE = $(shell pwd)/bin/gocovmerge
+coverage-dependencies:
+	$(call go-get-tool,$(GOCOVMERGE),github.com/wadey/gocovmerge)
+
+COVERAGE_FILE = coverage.out
+coverage-merge: coverage-dependencies
+	@echo Merging the coverage reports into $(COVERAGE_FILE)
+	$(GOCOVMERGE) $(PWD)/coverage_* > $(COVERAGE_FILE)
+
+coverage-verify:
+	./build/common/scripts/coverage_calc.sh
