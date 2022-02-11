@@ -80,7 +80,7 @@ jobs:
       run: |
         export GOPATH=$(go env GOPATH)
         make e2e-dependencies
-        make e2e-test \
+        make e2e-test-coverage \
           || true # Remove this line once E2E tests are implemented!!!
         make e2e-stop-instrumented
 
