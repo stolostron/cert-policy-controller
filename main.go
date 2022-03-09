@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
@@ -46,16 +45,13 @@ var (
 	setupLog          = ctrl.Log.WithName("setup")
 )
 
-var log = logf.Log.WithName("cmd")
-
 // errNoNamespace indicates that a namespace could not be found for the current
 // environment. This was taken from operator-sdk v0.19.4.
 var errNoNamespace = fmt.Errorf("namespace not found for current environment")
 
 func printVersion() {
-	log.Info(fmt.Sprintf("Operator Version: %s", version.Version))
-	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
-	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
+	setupLog.Info("Using", "OperatorVersion", version.Version, "GoVersion", runtime.Version(),
+		"GOOS", runtime.GOOS, "GOARCH", runtime.GOARCH)
 }
 
 // nolint:wsl
@@ -96,25 +92,29 @@ func getOperatorNamespace() (string, error) {
 	}
 
 	ns := strings.TrimSpace(string(nsBytes))
-	log.V(1).Info("Found namespace", "Namespace", ns)
+	setupLog.Info("Found operator namespace", "Namespace", ns)
 
 	return ns, nil
 }
 
 func startLeaseController(generatedClient kubernetes.Interface, hubConfigSecretName string,
-	hubConfigSecretNs string, clusterName string) {
+	hubConfigSecretNs string, clusterName string,
+) {
 	operatorNs, err := getOperatorNamespace()
 	if err != nil {
 		if errors.Is(err, errNoNamespace) {
-			log.Info("Skipping lease; not running in a cluster.")
+			setupLog.Info("Skipping lease; not running in a cluster.")
 		} else {
-			log.Error(err, "Failed to get operator namespace")
+			setupLog.Error(err, "Failed to get operator namespace")
 			os.Exit(1)
 		}
 	} else {
-		hubCfg, _ := common.LoadHubConfig(hubConfigSecretNs, hubConfigSecretName)
+		hubCfg, err := common.LoadHubConfig(hubConfigSecretNs, hubConfigSecretName)
+		if err != nil {
+			setupLog.Error(err, "Unable to load hub kubeconfig, setting up leaseUpdater anyway")
+		}
 
-		log.Info("Starting lease controller to report status")
+		setupLog.Info("Starting lease controller to report status")
 		leaseUpdater := lease.NewLeaseUpdater(
 			generatedClient,
 			"cert-policy-controller",
@@ -126,11 +126,13 @@ func startLeaseController(generatedClient kubernetes.Interface, hubConfigSecretN
 }
 
 func main() {
+	opts := zap.Options{}
+	opts.BindFlags(flag.CommandLine)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
 	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName, probeAddr string
 	var frequency uint
 	var enableLease, enableLeaderElection, legacyLeaderElection bool
-
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	//nolint:gomnd
 	pflag.UintVar(&frequency, "update-frequency", 10,
@@ -165,21 +167,20 @@ func main() {
 
 	pflag.Parse()
 
-	var duration time.Duration
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	logf.SetLogger(zap.New())
 	printVersion()
 
 	namespace, err := getWatchNamespace()
 	if err != nil {
-		log.Error(err, "Failed to get watch namespace")
+		setupLog.Error(err, "Failed to get watch namespace")
 		os.Exit(1)
 	}
 
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	if err != nil {
-		log.Error(err, "")
+		setupLog.Error(err, "Failed to get config for apiserver")
 		os.Exit(1)
 	}
 
@@ -234,7 +235,7 @@ func main() {
 	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
 	common.Initialize(&generatedClient, cfg)
-	_ = controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, duration) /* #nosec G104 */
+	_ = controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, time.Duration(0)) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
 	// does the needed work to make sure the desired state is achieved
 	go controllers.PeriodicallyExecCertificatePolicies(frequency, true)
@@ -242,7 +243,7 @@ func main() {
 	if enableLease {
 		startLeaseController(generatedClient, hubConfigSecretName, hubConfigSecretNs, clusterName)
 	} else {
-		log.Info("Status reporting is not enabled")
+		setupLog.Info("Status reporting is not enabled")
 	}
 
 	setupLog.Info("Starting the manager")

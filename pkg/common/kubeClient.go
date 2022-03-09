@@ -16,7 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
 )
 
 // KubeClient a k8s client used for k8s native resources.
@@ -39,8 +38,6 @@ func LoadHubConfig(namespace string, secretname string) (*rest.Config, error) {
 
 		hubSecret, err := secretsClient.Get(context.TODO(), secretname, metav1.GetOptions{})
 		if err != nil {
-			klog.Errorf("Error Getting HubConfig Secret:  %v", err)
-
 			return nil, err
 		}
 
@@ -56,8 +53,6 @@ func LoadHubConfig(namespace string, secretname string) (*rest.Config, error) {
 
 		HubConfig, err = clientcmd.RESTConfigFromKubeConfig([]byte(secretkconfig))
 		if err != nil {
-			klog.Errorf("Error getting Rest config for Hub:  %v", err)
-
 			return nil, err
 		}
 	}

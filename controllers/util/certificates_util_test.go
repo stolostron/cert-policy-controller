@@ -42,7 +42,8 @@ func TestDecodeCertificateBytes(t *testing.T) {
 			"QjVaci9jNGFnOElJenJGMXBkaWxuWlN2aEZ0CjZBUllBZHMxcSttTHB6U3B1MVcyTUN2UHZ2U1JySlZQCi0tLS0tRU" +
 			"5EIENFUlRJRklDQVRFLS0tLS0K",
 	)
-	certs := DecodeCertificateBytes(certBytes)
+	certs, err := DecodeCertificateBytes(certBytes)
+	assert.Nil(t, err)
 	assert.Len(t, certs, 0)
 
 	singlecert := `
@@ -66,7 +67,8 @@ eYT4R967QQjq7D3aVq6YnpJLY//L4c1AmdUY+nMl5BH4U0rqv9punL1FGda/nbrW
 24/SYHsZQtLryXxqs5PGoo13OUKLIAOlwM1EPcLwErFjKtkhmbC3MsiLkG7qfw==
 -----END CERTIFICATE-----`
 	certBytes = []byte(singlecert)
-	certs = DecodeCertificateBytes(certBytes)
+	certs, err = DecodeCertificateBytes(certBytes)
+	assert.Nil(t, err)
 	assert.Len(t, certs, 1)
 
 	multicert := `-----BEGIN CERTIFICATE-----
@@ -136,6 +138,7 @@ t/CIranv84u4TYG6vvr5S+w5v/5bk86XHme2oU7+tBVQ8qTxCo6XJRDfvQn1ZEik
 5M4dhSKmWDLa07P6Vune8wodpNDJjrT1o4ahIdTYA3ibbE1gnAV+
 -----END RSA PRIVATE KEY-----`
 	certBytes = []byte(multicert)
-	certs = DecodeCertificateBytes(certBytes)
+	certs, err = DecodeCertificateBytes(certBytes)
+	assert.NotNil(t, err)
 	assert.Len(t, certs, 3)
 }

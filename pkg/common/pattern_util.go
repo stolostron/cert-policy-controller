@@ -8,49 +8,10 @@
 package common
 
 import (
-	"math"
 	"strings"
-
-	"k8s.io/klog"
 
 	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
 )
-
-// IfMatch check matches.
-func IfMatch(name string, included, excluded []string) bool {
-	all := []string{name}
-
-	return len(MatchNames(all, included, excluded)) > 0
-}
-
-// MatchNames matches names.
-func MatchNames(all, included, excluded []string) []string {
-	klog.V(6).Infof("MatchNames all = %v, included = %v, excluded = %v", all, included, excluded)
-	// list of included
-	includedNames := []string{}
-
-	for _, value := range included {
-		found := FindPattern(value, all)
-		includedNames = append(includedNames, found...)
-	}
-
-	klog.V(6).Infof("MatchNames all = %v includedNames = %v", all, includedNames)
-	// then get the list of excluded
-	excludedNames := []string{}
-
-	for _, value := range excluded {
-		found := FindPattern(value, all)
-		excludedNames = append(excludedNames, found...)
-	}
-
-	klog.V(6).Infof("MatchNames all = %v excludedNames = %v", all, excludedNames)
-
-	// then get the list of deduplicated
-	finalList := DeduplicateItems(includedNames, excludedNames)
-	klog.V(6).Infof("MatchNames all = %v return  = %v", all, finalList)
-
-	return finalList
-}
 
 // FindPattern finds patterns.
 func FindPattern(pattern string, list []string) (result []string) {
@@ -133,18 +94,6 @@ func DeduplicateItems(included []string, excluded []string) (res []string) {
 	}
 
 	return result
-}
-
-// ToFixed returns a float with a certain precision.
-func ToFixed(num float64, precision int) float64 {
-	output := math.Pow(10, float64(precision))
-
-	return float64(Round(num*output)) / output
-}
-
-// Round rounds the value.
-func Round(num float64) int {
-	return int(num + math.Copysign(0.5, num))
 }
 
 // ExtractNamespaceLabel to find out the cluster-namespace from the label.

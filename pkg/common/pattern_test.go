@@ -21,38 +21,6 @@ import (
 	"testing"
 )
 
-func TestIfMatch(t *testing.T) {
-	t.Parallel()
-
-	tt := []struct {
-		name    string
-		include []string
-		exclude []string
-		result  bool
-	}{
-		{"test", []string{"*"}, []string{""}, true},
-		{"test", []string{"t*"}, []string{"sss"}, true},
-		{"test", []string{"*st"}, []string{"test2"}, true},
-		{"test", []string{"test"}, []string{"atest"}, true},
-		//{"test", []string{"t*t"}, []string{"eee"}, true},
-		{"test", []string{"test1"}, []string{""}, false},
-		{" test", []string{"test"}, []string{"test"}, false},
-		{" test", []string{"test"}, []string{"test"}, false},
-		{"test", []string{"test"}, []string{"te*"}, false},
-		{"test", []string{"test"}, []string{"*st"}, false},
-		{"test", []string{"test"}, []string{"*"}, false},
-		{"test", []string{"test1", "te*"}, []string{""}, true},
-		{"test", []string{"test1", "te*"}, []string{"tr*", "teft"}, true},
-	}
-	for _, row := range tt {
-		result := IfMatch(row.name, row.include, row.exclude)
-		if row.result != result {
-			t.Errorf("IfMach returned %t instead of %t for name = %s, indelude = %v, exclude = %v\n",
-				result, row.result, row.name, row.include, row.exclude)
-		}
-	}
-}
-
 func TestFindPattern(t *testing.T) {
 	t.Parallel()
 
