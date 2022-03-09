@@ -412,7 +412,11 @@ func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
 
 	var cert policyv1.Cert
 	// Get the x509 Certificates
-	certs := util.DecodeCertificateBytes(certBytes)
+	certs, err := util.DecodeCertificateBytes(certBytes)
+	if err != nil {
+		log.Error(err, "Error decoding a certificate in the secret; ignoring this error")
+	}
+
 	if len(certs) < 1 {
 		msg := fmt.Sprintf("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
 

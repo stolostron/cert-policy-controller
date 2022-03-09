@@ -10,13 +10,11 @@ package util
 import (
 	"crypto/x509"
 	"encoding/pem"
-
-	"k8s.io/klog"
 )
 
 // DecodeCertificateBytes Decodes certificate bytes, accepts certificate chains too.
 // Returns the list of x509 Certificate objects that were encoded in the certificate bytes.
-func DecodeCertificateBytes(certBytes []byte) []*x509.Certificate {
+func DecodeCertificateBytes(certBytes []byte) ([]*x509.Certificate, error) {
 	certs := []*x509.Certificate{}
 	// Decode into x509 cert
 	for {
@@ -30,11 +28,11 @@ func DecodeCertificateBytes(certBytes []byte) []*x509.Certificate {
 		// parse the tls certificate
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			klog.Infof("Error decoding certificate bytes, error: %s", err.Error())
-		} else {
-			certs = append(certs, cert)
+			return certs, err
 		}
+
+		certs = append(certs, cert)
 	}
 
-	return certs
+	return certs, nil
 }
