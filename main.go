@@ -19,6 +19,7 @@ import (
 	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/klog/v2"
 	"open-cluster-management.io/addon-framework/pkg/lease"
 
 	// Import all Kubernetes client auth plugins to ensure that exec-entrypoint and run can make use of them.
@@ -126,6 +127,8 @@ func startLeaseController(generatedClient kubernetes.Interface, hubConfigSecretN
 }
 
 func main() {
+	klog.InitFlags(nil)
+
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -167,7 +170,20 @@ func main() {
 
 	pflag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// If the v flag is set, then configure the zap level to match
+	vFlag := flag.Lookup("v")
+	if vFlag != nil {
+		err := flag.Set("zap-log-level", vFlag.Value.String())
+		if err != nil {
+			setupLog.Error(err, "Unable to set zap-log-level", "desiredValue", vFlag.Value.String())
+		}
+	}
+
+	logr := zap.New(zap.UseFlagOptions(&opts))
+	ctrl.SetLogger(logr)
+
+	// send klog messages through our zap logger so they look the same (console vs JSON)
+	klog.SetLogger(logr)
 
 	printVersion()
 
