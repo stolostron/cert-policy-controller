@@ -3,9 +3,11 @@ module github.com/stolostron/cert-policy-controller
 go 1.17
 
 require (
+	github.com/go-logr/zapr v1.2.3
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
 	github.com/spf13/pflag v1.0.5
+	github.com/stolostron/go-log-utils v0.1.0
 	github.com/stolostron/governance-policy-propagator v0.0.0-20220217025800-1a04477f8f38
 	github.com/stretchr/testify v1.7.0
 	k8s.io/api v0.23.3
@@ -30,7 +32,6 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/logr v1.2.2 // indirect
-	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

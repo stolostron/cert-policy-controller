@@ -15,7 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/zapr"
 	"github.com/spf13/pflag"
+	"github.com/stolostron/go-log-utils/zaputil"
 	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -30,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
 	controllers "github.com/stolostron/cert-policy-controller/controllers"
@@ -127,10 +128,14 @@ func startLeaseController(generatedClient kubernetes.Interface, hubConfigSecretN
 }
 
 func main() {
-	klog.InitFlags(nil)
+	zflags := zaputil.FlagConfig{
+		LevelName:   "log-level",
+		EncoderName: "log-encoder",
+	}
+	zflags.Bind(flag.CommandLine)
 
-	opts := zap.Options{}
-	opts.BindFlags(flag.CommandLine)
+	klog.InitFlags(flag.CommandLine)
+
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName, probeAddr string
@@ -170,20 +175,20 @@ func main() {
 
 	pflag.Parse()
 
-	// If the v flag is set, then configure the zap level to match
-	vFlag := flag.Lookup("v")
-	if vFlag != nil {
-		err := flag.Set("zap-log-level", vFlag.Value.String())
-		if err != nil {
-			setupLog.Error(err, "Unable to set zap-log-level", "desiredValue", vFlag.Value.String())
-		}
+	ctrlZap, err := zflags.BuildForCtrl()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to build zap logger for controller: %v", err))
 	}
 
-	logr := zap.New(zap.UseFlagOptions(&opts))
-	ctrl.SetLogger(logr)
+	ctrl.SetLogger(zapr.NewLogger(ctrlZap))
 
 	// send klog messages through our zap logger so they look the same (console vs JSON)
-	klog.SetLogger(logr)
+	klogZap, err := zaputil.BuildForKlog(zflags.GetConfig(), flag.CommandLine)
+	if err != nil {
+		setupLog.Error(err, "Failed to build zap logger for klog, those logs will not go through zap")
+	} else {
+		klog.SetLogger(zapr.NewLogger(klogZap).WithName("klog"))
+	}
 
 	printVersion()
 
