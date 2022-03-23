@@ -140,22 +140,61 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 		t.Logf("Error creating namespace: %s", err)
 	}
 
-	res, err := r.Reconcile(context.TODO(), req)
+	_, err = r.Reconcile(context.TODO(), req)
 	if err != nil {
 		t.Fatalf("reconcile: (%v)", err)
 	}
 
-	t.Log(res)
+	tests := []struct {
+		description       string
+		namespaceSelector policiesv1.NonEmptyString
+		complianceState   policiesv1.ComplianceState
+		expectedMsg       string
+		cacheNamespace    string
+	}{
+		{
+			"Adds policy when namespace exists",
+			"default",
+			"Compliant",
+			"Found 0 non compliant certificates in the namespace default.\n",
+			"default",
+		},
+		{
+			"Adds policy when namespace doesn't exist",
+			"not-a-namespace",
+			"Compliant",
+			"Found 0 non compliant certificates, no namespaces were selected.\n",
+			"",
+		},
+	}
 
-	target := []policiesv1.NonEmptyString{"default"}
-	instance.Spec.NamespaceSelector.Include = target
+	for i, test := range tests {
+		i := i
+		test := test
 
-	handleAddingPolicy(instance)
-	PeriodicallyExecCertificatePolicies(1, false)
+		t.Run(
+			test.description,
+			func(t *testing.T) {
+				certPolicy := instance.DeepCopy()
+				certPolicy.Name = fmt.Sprintf("%s-%d", certPolicy.Name, i)
+				certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{test.namespaceSelector}
 
-	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
-	assert.True(t, found)
-	assert.NotNil(t, policy)
+				handleAddingPolicy(certPolicy)
+				PeriodicallyExecCertificatePolicies(1, false)
+
+				policy, found := availablePolicies.GetObject(test.cacheNamespace + "/" + certPolicy.Name)
+				assert.True(t, found)
+				assert.NotNil(t, policy)
+				assert.Equal(t, test.complianceState, policy.Status.ComplianceState)
+				assert.Equal(t, test.expectedMsg, policy.Status.CompliancyDetails[test.cacheNamespace].Message)
+
+				handleRemovingPolicy(certPolicy.Name)
+				policy, found = availablePolicies.GetObject(test.cacheNamespace + "/" + certPolicy.Name)
+				assert.False(t, found)
+				assert.Nil(t, policy)
+			},
+		)
+	}
 }
 
 func TestCheckComplianceBasedOnDetails(t *testing.T) {
