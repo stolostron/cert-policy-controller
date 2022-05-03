@@ -18,11 +18,11 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/spf13/pflag"
 	"github.com/stolostron/go-log-utils/zaputil"
-	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"open-cluster-management.io/addon-framework/pkg/lease"
+	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 
 	// Import all Kubernetes client auth plugins to ensure that exec-entrypoint and run can make use of them.
 	"k8s.io/client-go/kubernetes"
@@ -33,10 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
-	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
-	controllers "github.com/stolostron/cert-policy-controller/controllers"
-	"github.com/stolostron/cert-policy-controller/pkg/common"
-	"github.com/stolostron/cert-policy-controller/version"
+	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
+	controllers "open-cluster-management.io/cert-policy-controller/controllers"
+	"open-cluster-management.io/cert-policy-controller/pkg/common"
+	"open-cluster-management.io/cert-policy-controller/version"
 	//+kubebuilder:scaffold:imports
 )
 

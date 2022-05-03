@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
+	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 	//+kubebuilder:scaffold:imports
 )
 

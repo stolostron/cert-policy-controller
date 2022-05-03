@@ -13,6 +13,6 @@ resources:
   domain: open-cluster-management.io
   group: policy
   kind: CertificatePolicy
-  path: github.com/stolostron/cert-policy-controller/api/v1
+  path: open-cluster-management.io/cert-policy-controller/api/v1
   version: v1
 version: "3"
