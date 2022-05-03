@@ -10,7 +10,7 @@ package common
 import (
 	"strings"
 
-	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
+	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 )
 
 // FindPattern finds patterns.

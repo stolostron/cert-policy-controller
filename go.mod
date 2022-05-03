@@ -1,4 +1,4 @@
-module github.com/stolostron/cert-policy-controller
+module open-cluster-management.io/cert-policy-controller
 
 go 1.17
 
@@ -8,13 +8,13 @@ require (
 	github.com/onsi/gomega v1.18.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stolostron/go-log-utils v0.1.0
-	github.com/stolostron/governance-policy-propagator v0.0.0-20220217025800-1a04477f8f38
 	github.com/stretchr/testify v1.7.0
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog/v2 v2.40.1
 	open-cluster-management.io/addon-framework v0.2.0
+	open-cluster-management.io/governance-policy-propagator v0.0.0
 	sigs.k8s.io/controller-runtime v0.11.1
 )
 
@@ -81,4 +81,5 @@ require (
 replace (
 	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // CVE-2021-43565
 	k8s.io/client-go => k8s.io/client-go v0.23.3
+	open-cluster-management.io/governance-policy-propagator => github.com/stolostron/governance-policy-propagator v0.0.0-20220427184903-387712d230ee
 )

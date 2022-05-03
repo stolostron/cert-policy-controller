@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	extpolicyv1 "github.com/stolostron/governance-policy-propagator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,15 +24,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
-	"github.com/stolostron/cert-policy-controller/controllers/util"
-	"github.com/stolostron/cert-policy-controller/pkg/common"
+	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
+	"open-cluster-management.io/cert-policy-controller/controllers/util"
+	"open-cluster-management.io/cert-policy-controller/pkg/common"
 )
 
 const (
