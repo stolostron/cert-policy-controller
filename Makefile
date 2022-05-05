@@ -162,7 +162,6 @@ kustomize: ## Download kustomize locally if necessary.
 # unit test
 ############################################################
 GOSEC = $(shell pwd)/bin/gosec
-GOSEC_VERSION = 2.9.6
 KUBEBUILDER_DIR = /usr/local/kubebuilder/bin
 KBVERSION = 3.2.0
 K8S_VERSION = 1.21.2
@@ -192,7 +191,7 @@ gosec:
 	$(call go-get-tool,github.com/securego/gosec/v2/cmd/gosec@v2.9.6)
 
 .PHONY: gosec-scan
-gosec-scan: $(GOSEC)
+gosec-scan: gosec
 	$(GOSEC) -fmt sonarqube -out gosec.json -no-fail -exclude-dir=.go ./...
 
 ############################################################
