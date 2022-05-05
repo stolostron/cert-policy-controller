@@ -49,23 +49,24 @@ endef
 
 include build/common/Makefile.common.mk
 
-.PHONY: all test dependencies build image rhel-image run deploy install \
-fmt vet generate go-coverage fmt-dependencies lint-dependencies
-
+.PHONY: all
 all: test
 
 ############################################################
 # build, run
 ############################################################
 
+.PHONY: dependencies-go
 dependencies-go:
 	go mod tidy
 	go mod download
 
+.PHONY: build
 build:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./build/_output/bin/cert-policy-controller ./main.go
 
 # Run against the current locally configured Kubernetes cluster
+.PHONY: run
 run:
 	WATCH_NAMESPACE=$(WATCH_NAMESPACE) go run ./main.go --leader-elect=false
 
@@ -73,21 +74,25 @@ run:
 # deploy
 ############################################################
 
+.PHONY: build-images
 build-images:
 	@docker build -t ${IMAGE_NAME_AND_VERSION} -f ./Dockerfile .
 	@docker tag ${IMAGE_NAME_AND_VERSION} $(REGISTRY)/$(IMG):$(TAG)
 
 # Install necessary resources into a cluster
+.PHONY: deploy
 deploy:
 	kubectl apply -f deploy/operator.yaml -n $(CONTROLLER_NAMESPACE)
 	kubectl apply -f deploy/crds/ -n $(CONTROLLER_NAMESPACE)
 	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
+.PHONY: deploy-controller
 deploy-controller: create-ns install-crds
 	@echo installing $(IMG)
 	kubectl -n $(CONTROLLER_NAMESPACE) apply -f deploy/operator.yaml
 	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
+.PHONY: create-ns
 create-ns:
 	@kubectl create namespace $(CONTROLLER_NAMESPACE) || true
 	@kubectl create namespace $(WATCH_NAMESPACE) || true
@@ -97,21 +102,26 @@ create-ns:
 ############################################################
 
 # Lint code
+.PHONY: lint-dependencies
 lint-dependencies:
 	$(call go-get-tool,github.com/golangci/golangci-lint/cmd/golangci-lint@v1.41.1)
 
+.PHONY: lint
 lint: lint-dependencies lint-all
 
+.PHONY: fmt-dependencies
 fmt-dependencies:
 	$(call go-get-tool,github.com/daixiang0/gci@v0.2.9)
 	$(call go-get-tool,mvdan.cc/gofumpt@v0.2.0)
 
+.PHONY: fmt
 fmt: fmt-dependencies
 	find . -not \( -path "./.go" -prune \) -name "*.go" | xargs gofmt -s -w
 	find . -not \( -path "./.go" -prune \) -not \( -name "main.go" -prune \) -not \( -name "suite_test.go" -prune \) -name "*.go" | xargs gci -w -local "$(shell cat go.mod | head -1 | cut -d " " -f 2)"
 	find . -not \( -path "./.go" -prune \) -name "*.go" | xargs gofumpt -l -w
 
 # Run go vet against code
+.PHONY: vet
 vet:
 	go vet ./...
 
@@ -149,12 +159,15 @@ KUBEBUILDER_DIR = /usr/local/kubebuilder/bin
 KBVERSION = 3.2.0
 K8S_VERSION = 1.21.2
 
+.PHONY: test
 test:
 	go test $(TESTARGS) ./...
 
+.PHONY: test-coverage
 test-coverage: TESTARGS = -json -cover -covermode=atomic -coverprofile=coverage_unit.out
 test-coverage: test
 
+.PHONY: test-dependencies
 test-dependencies:
 	@if (ls $(KUBEBUILDER_DIR)/*); then \
 		echo "^^^ Files found in $(KUBEBUILDER_DIR). Skipping installation."; exit 1; \
@@ -170,6 +183,7 @@ test-dependencies:
 gosec:
 	$(call go-get-tool,github.com/securego/gosec/v2/cmd/gosec@v2.9.6)
 
+.PHONY: gosec-scan
 gosec-scan: $(GOSEC)
 	$(GOSEC) -fmt sonarqube -out gosec.json -no-fail -exclude-dir=.go ./...
 
@@ -184,12 +198,14 @@ kind-bootstrap-cluster: kind-create-cluster kind-deploy-controller install-resou
 .PHONY: kind-bootstrap-cluster-dev
 kind-bootstrap-cluster-dev: kind-create-cluster install-crds install-resources
 
+.PHONY: kind-deploy-controller
 kind-deploy-controller: install-crds
 	@echo installing $(IMG)
 	kubectl create ns $(CONTROLLER_NAMESPACE) || true
 	kubectl apply -f deploy/operator.yaml -n $(CONTROLLER_NAMESPACE)
 	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"env\":[{\"name\":\"WATCH_NAMESPACE\",\"value\":\"$(WATCH_NAMESPACE)\"}]}]}}}}"
 
+.PHONY: kind-deploy-controller-dev
 kind-deploy-controller-dev: kind-deploy-controller
 	@echo Pushing image to KinD cluster
 	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name $(KIND_NAME)
@@ -198,40 +214,51 @@ kind-deploy-controller-dev: kind-deploy-controller
 	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
 	kubectl rollout status -n $(CONTROLLER_NAMESPACE) deployment $(IMG) --timeout=180s
 
+.PHONY: kind-create-cluster
 kind-create-cluster:
 	@echo "creating cluster"
 	kind create cluster --name $(KIND_NAME) $(KIND_ARGS)
 	kind get kubeconfig --name $(KIND_NAME) > $(PWD)/kubeconfig_managed
 
+.PHONY: kind-delete-cluster
 kind-delete-cluster:
 	kind delete cluster --name $(KIND_NAME)
 
+.PHONY: install-crds
 install-crds:
 	@echo installing crds
 	kubectl apply -f deploy/crds/policy.open-cluster-management.io_certificatepolicies.yaml
 
+.PHONY: install-resources
 install-resources:
 	@echo creating namespaces
 	kubectl create ns $(WATCH_NAMESPACE)
 
+.PHONY: e2e-dependencies
 e2e-dependencies:
 	$(call go-get-tool,github.com/onsi/ginkgo/v2/ginkgo@$(shell awk '/github.com\/onsi\/ginkgo\/v2/ {print $$2}' go.mod))
 
+.PHONY: e2e-test
 e2e-test:
 	$(GINKGO) -v --fail-fast --slow-spec-threshold=10s $(E2E_TEST_ARGS) test/e2e
 
+.PHONY: e2e-test-coverage
 e2e-test-coverage: E2E_TEST_ARGS = --json-report=report_e2e.json --output-dir=.
 e2e-test-coverage: e2e-test
 
+.PHONY: e2e-build-instrumented
 e2e-build-instrumented:
 	go test -covermode=atomic -coverpkg=$(shell cat go.mod | head -1 | cut -d ' ' -f 2)/... -c -tags e2e ./ -o build/_output/bin/$(IMG)-instrumented
 
+.PHONY: e2e-run-instrumented
 e2e-run-instrumented:
 	WATCH_NAMESPACE="$(WATCH_NAMESPACE)" ./build/_output/bin/$(IMG)-instrumented -test.run "^TestRunMain$$" -test.coverprofile=coverage_e2e.out &>/dev/null &
 
+.PHONY: e2e-stop-instrumented
 e2e-stop-instrumented:
 	ps -ef | grep '$(IMG)' | grep -v grep | awk '{print $$2}' | xargs kill
 
+.PHONY: e2e-debug
 e2e-debug:
 	kubectl get all -n $(CONTROLLER_NAMESPACE)
 	kubectl get leases -n $(CONTROLLER_NAMESPACE)
@@ -244,13 +271,16 @@ e2e-debug:
 # test coverage
 ############################################################
 GOCOVMERGE = $(shell pwd)/bin/gocovmerge
+.PHONY: coverage-dependencies
 coverage-dependencies:
 	$(call go-get-tool,github.com/wadey/gocovmerge@v0.0.0-20160331181800-b5bfa59ec0ad)
 
 COVERAGE_FILE = coverage.out
+.PHONY: coverage-merge
 coverage-merge: coverage-dependencies
 	@echo Merging the coverage reports into $(COVERAGE_FILE)
 	$(GOCOVMERGE) $(PWD)/coverage_* > $(COVERAGE_FILE)
 
+.PHONY: coverage-verify
 coverage-verify:
 	./build/common/scripts/coverage_calc.sh
