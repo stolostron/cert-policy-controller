@@ -6,14 +6,15 @@
 # Copyright (c) 2020 Red Hat, Inc.
 # Copyright Contributors to the Open Cluster Management project
 
+PWD := $(shell pwd)
+LOCAL_BIN ?= $(PWD)/bin
 
-export PATH := $(PWD)/bin:$(PATH)
 # Keep an existing GOPATH, make a private one if it is undefined
 GOPATH_DEFAULT := $(PWD)/.go
 export GOPATH ?= $(GOPATH_DEFAULT)
 GOBIN_DEFAULT := $(GOPATH)/bin
 export GOBIN ?= $(GOBIN_DEFAULT)
-export PATH := $(PATH):$(GOBIN)
+export PATH := $(LOCAL_BIN):$(GOBIN):$(PATH)
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
 TESTARGS_DEFAULT := -v
@@ -59,6 +60,12 @@ clean:
 	-rm coverage*.out
 	-rm kubeconfig_managed
 	-rm -r vendor/
+
+$(GOBIN):
+	@mkdir -p $(GOBIN)
+
+$(LOCAL_BIN):
+	@mkdir -p $(LOCAL_BIN)
 
 ############################################################
 # build, run
@@ -133,8 +140,8 @@ fmt: fmt-dependencies
 vet:
 	go vet ./...
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+CONTROLLER_GEN = $(LOCAL_BIN)/controller-gen
+KUSTOMIZE = $(LOCAL_BIN)/kustomize
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
 .PHONY: manifests
@@ -161,30 +168,37 @@ kustomize: ## Download kustomize locally if necessary.
 ############################################################
 # unit test
 ############################################################
-GOSEC = $(shell pwd)/bin/gosec
-KUBEBUILDER_DIR = /usr/local/kubebuilder/bin
+GOSEC = $(LOCAL_BIN)/gosec
+KUBEBUILDER = $(LOCAL_BIN)/kubebuilder
 KBVERSION = 3.2.0
 K8S_VERSION = 1.21.2
 
 .PHONY: test
-test:
-	go test $(TESTARGS) ./...
+test: test-dependencies
+	KUBEBUILDER_ASSETS=$(LOCAL_BIN) go test $(TESTARGS) ./...
 
 .PHONY: test-coverage
 test-coverage: TESTARGS = -json -cover -covermode=atomic -coverprofile=coverage_unit.out
 test-coverage: test
 
 .PHONY: test-dependencies
-test-dependencies:
-	@if (ls $(KUBEBUILDER_DIR)/*); then \
-		echo "^^^ Files found in $(KUBEBUILDER_DIR). Skipping installation."; exit 1; \
-	else \
-		echo "^^^ Kubebuilder binaries not found. Installing Kubebuilder binaries."; \
+test-dependencies: kubebuilder-dependencies kubebuilder
+
+.PHONY: kubebuilder
+kubebuilder:
+	@if [ "$$($(KUBEBUILDER) version 2>/dev/null | grep -o KubeBuilderVersion:\"[0-9]*\.[0-9]\.[0-9]*\")" != "KubeBuilderVersion:\"$(KBVERSION)\"" ]; then \
+		echo "Installing Kubebuilder"; \
+		curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(GOOS)_$(GOARCH) -o $(KUBEBUILDER); \
+		chmod +x $(KUBEBUILDER); \
 	fi
-	sudo mkdir -p $(KUBEBUILDER_DIR)
-	sudo curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(GOOS)_$(GOARCH) -o $(KUBEBUILDER_DIR)/kubebuilder
-	sudo chmod +x $(KUBEBUILDER_DIR)/kubebuilder
-	curl -L "https://go.kubebuilder.io/test-tools/$(K8S_VERSION)/$(GOOS)/$(GOARCH)" | sudo tar xz --strip-components=2 -C $(KUBEBUILDER_DIR)/
+
+.PHONY: kubebuilder-dependencies
+kubebuilder-dependencies: $(LOCAL_BIN)
+	@if [ ! -f $(LOCAL_BIN)/etcd ] || [ ! -f $(LOCAL_BIN)/kube-apiserver ] || [ ! -f $(LOCAL_BIN)/kubectl ] || \
+	[ "$$($(KUBEBUILDER) version 2>/dev/null | grep -o KubeBuilderVersion:\"[0-9]*\.[0-9]\.[0-9]*\")" != "KubeBuilderVersion:\"$(KBVERSION)\"" ]; then \
+		echo "Installing envtest Kubebuilder assets"; \
+		curl -L "https://go.kubebuilder.io/test-tools/$(K8S_VERSION)/$(GOOS)/$(GOARCH)" | tar xz --strip-components=2 -C $(LOCAL_BIN); \
+	fi
 
 .PHONY: gosec
 gosec:
@@ -197,7 +211,7 @@ gosec-scan: gosec
 ############################################################
 # e2e test (using KinD clusters)
 ############################################################
-GINKGO = $(shell pwd)/bin/ginkgo
+GINKGO = $(LOCAL_BIN)/ginkgo
 
 .PHONY: kind-bootstrap-cluster
 kind-bootstrap-cluster: kind-create-cluster kind-deploy-controller install-resources
@@ -277,7 +291,7 @@ e2e-debug:
 ############################################################
 # test coverage
 ############################################################
-GOCOVMERGE = $(shell pwd)/bin/gocovmerge
+GOCOVMERGE = $(LOCAL_BIN)/gocovmerge
 .PHONY: coverage-dependencies
 coverage-dependencies:
 	$(call go-get-tool,github.com/wadey/gocovmerge@v0.0.0-20160331181800-b5bfa59ec0ad)
