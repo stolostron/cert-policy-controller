@@ -52,6 +52,14 @@ include build/common/Makefile.common.mk
 .PHONY: all
 all: test
 
+.PHONY: clean
+clean:
+	-rm bin/*
+	-rm build/_output/bin/*
+	-rm coverage*.out
+	-rm kubeconfig_managed
+	-rm -r vendor/
+
 ############################################################
 # build, run
 ############################################################
