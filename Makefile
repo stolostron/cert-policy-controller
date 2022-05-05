@@ -30,9 +30,6 @@ ifneq ($(KIND_VERSION), latest)
 else
 	KIND_ARGS =
 endif
-# Fetch Ginkgo/Gomega versions from go.mod
-GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo\/v2/ {print $$2}' go.mod)
-GOMEGA_VERSION := $(shell awk '/github.com\/onsi\/gomega/ {print $$2}' go.mod)
 # Test coverage threshold
 export COVERAGE_MIN ?= 65
 
@@ -179,6 +176,7 @@ gosec-scan: $(GOSEC)
 ############################################################
 # e2e test (using KinD clusters)
 ############################################################
+GINKGO = $(shell pwd)/bin/ginkgo
 
 .PHONY: kind-bootstrap-cluster
 kind-bootstrap-cluster: kind-create-cluster kind-deploy-controller install-resources
@@ -220,7 +218,7 @@ e2e-dependencies:
 	$(call go-get-tool,github.com/onsi/ginkgo/v2/ginkgo@$(shell awk '/github.com\/onsi\/ginkgo\/v2/ {print $$2}' go.mod))
 
 e2e-test:
-	$(GOPATH)/bin/ginkgo -v --fail-fast --slow-spec-threshold=10s $(E2E_TEST_ARGS) test/e2e
+	$(GINKGO) -v --fail-fast --slow-spec-threshold=10s $(E2E_TEST_ARGS) test/e2e
 
 e2e-test-coverage: E2E_TEST_ARGS = --json-report=report_e2e.json --output-dir=.
 e2e-test-coverage: e2e-test
