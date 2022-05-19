@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -99,9 +100,7 @@ func getOperatorNamespace() (string, error) {
 	return ns, nil
 }
 
-func startLeaseController(generatedClient kubernetes.Interface, hubConfigSecretName string,
-	hubConfigSecretNs string, clusterName string,
-) {
+func startLeaseController(generatedClient kubernetes.Interface, hubConfigPath, clusterName string) {
 	operatorNs, err := getOperatorNamespace()
 	if err != nil {
 		if errors.Is(err, errNoNamespace) {
@@ -111,17 +110,21 @@ func startLeaseController(generatedClient kubernetes.Interface, hubConfigSecretN
 			os.Exit(1)
 		}
 	} else {
-		hubCfg, err := common.LoadHubConfig(hubConfigSecretNs, hubConfigSecretName)
-		if err != nil {
-			setupLog.Error(err, "Unable to load hub kubeconfig, setting up leaseUpdater anyway")
-		}
-
+		setupLog.V(2).Info("Got operator namespace", "Namespace", operatorNs)
 		setupLog.Info("Starting lease controller to report status")
+
 		leaseUpdater := lease.NewLeaseUpdater(
 			generatedClient,
 			"cert-policy-controller",
 			operatorNs,
-		).WithHubLeaseConfig(hubCfg, clusterName)
+		)
+
+		hubCfg, err := clientcmd.BuildConfigFromFlags("", hubConfigPath)
+		if err != nil {
+			setupLog.Error(err, "Could not load hub config, lease updater not set with config")
+		} else {
+			leaseUpdater = leaseUpdater.WithHubLeaseConfig(hubCfg, clusterName)
+		}
 
 		go leaseUpdater.Start(context.TODO())
 	}
@@ -138,7 +141,7 @@ func main() {
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
-	var eventOnParent, defaultDuration, clusterName, hubConfigSecretNs, hubConfigSecretName, probeAddr string
+	var eventOnParent, defaultDuration, clusterName, hubConfigPath, probeAddr string
 	var frequency uint
 	var enableLease, enableLeaderElection, legacyLeaderElection bool
 
@@ -162,11 +165,8 @@ func main() {
 	pflag.BoolVar(&legacyLeaderElection, "legacy-leader-elect", false,
 		"Use a legacy leader election method for controller manager instead of the lease API.",
 	)
-	pflag.StringVar(&hubConfigSecretNs, "hubconfig-secret-ns",
-		"open-cluster-management-agent-addon", "Namespace for hub config kube-secret",
-	)
-	pflag.StringVar(&hubConfigSecretName, "hubconfig-secret-name",
-		"cert-policy-controller-hub-kubeconfig", "Name of the hub config kube-secret",
+	pflag.StringVar(&hubConfigPath, "hub-kubeconfig-path",
+		"/var/run/klusterlet/kubeconfig", "Path to the hub kubeconfig",
 	)
 	pflag.StringVar(&clusterName, "cluster-name", "default-cluster", "Name of the cluster")
 	flag.StringVar(&probeAddr, "health-probe-bind-address",
@@ -262,7 +262,7 @@ func main() {
 	go controllers.PeriodicallyExecCertificatePolicies(frequency, true)
 
 	if enableLease {
-		startLeaseController(generatedClient, hubConfigSecretName, hubConfigSecretNs, clusterName)
+		startLeaseController(generatedClient, hubConfigPath, clusterName)
 	} else {
 		setupLog.Info("Status reporting is not enabled")
 	}
