@@ -130,7 +130,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		}
 
 		if updateNeeded {
-			if err := r.Update(context.Background(), instance); err != nil {
+			if err := r.Update(ctx, instance); err != nil {
 				reqLogger.Info("Requeuing due to error updating the label", "Error", err)
 
 				return reconcile.Result{Requeue: true}, nil

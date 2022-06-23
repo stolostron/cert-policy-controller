@@ -18,7 +18,8 @@ import (
 //=================================================================
 // GetSelectedNamespaces returns the list of filtered namespaces according to the policy namespace selector.
 func GetSelectedNamespaces(included []policyv1.NonEmptyString, excluded []policyv1.NonEmptyString,
-	allNamespaces []string) []string {
+	allNamespaces []string,
+) []string {
 	// get all namespaces
 	// allNamespaces := getAllNamespaces() //TODO change this to call the func
 	// then get the list of included
