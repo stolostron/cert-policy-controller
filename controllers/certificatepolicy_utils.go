@@ -119,7 +119,8 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 }
 
 func updateExpired(details policyv1.Cert, namespace string, plc *policyv1.CertificatePolicy,
-	expiredCACerts string, expireCACount int, expiredCerts string, expireCount int) (string, int, string, int) {
+	expiredCACerts string, expireCACount int, expiredCerts string, expireCount int,
+) (string, int, string, int) {
 	certDetails := details
 	if isCertificateExpiring(&certDetails, plc) {
 		if certDetails.CA && plc.Spec.MinCADuration != nil {
@@ -135,7 +136,8 @@ func updateExpired(details policyv1.Cert, namespace string, plc *policyv1.Certif
 }
 
 func updateLifetime(details policyv1.Cert, namespace string, plc *policyv1.CertificatePolicy,
-	durationCACerts string, durationCACount int, durationCerts string, durationCount int) (string, int, string, int) {
+	durationCACerts string, durationCACount int, durationCerts string, durationCount int,
+) (string, int, string, int) {
 	certDetails := details
 	if isCertificateLongDuration(&certDetails, plc) {
 		if certDetails.CA && plc.Spec.MaxCADuration != nil {
@@ -151,7 +153,8 @@ func updateLifetime(details policyv1.Cert, namespace string, plc *policyv1.Certi
 }
 
 func updateAllowed(details policyv1.Cert, namespace string, plc *policyv1.CertificatePolicy,
-	patternCerts string, patternMismatchCount int) (string, int) {
+	patternCerts string, patternMismatchCount int,
+) (string, int) {
 	certDetails := details
 	if isCertificateSANPatternMismatch(&certDetails, plc) {
 		patternCerts = buildComplianceSubmessage(patternCerts, namespace, certDetails.Secret)

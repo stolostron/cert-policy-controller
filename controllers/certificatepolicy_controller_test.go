@@ -580,7 +580,8 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 		t.Logf("Error creating a secret: %s", err)
 	}
 
-	output, _ := json.Marshal(s)
+	output, err := json.Marshal(s)
+	assert.Nil(t, err)
 	t.Log(string(output))
 
 	target := []policiesv1.NonEmptyString{"default"}
