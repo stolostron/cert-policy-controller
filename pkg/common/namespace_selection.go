@@ -9,54 +9,91 @@ package common
 
 import (
 	"context"
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 )
 
-//=================================================================
+var log = ctrl.Log
+
 // GetSelectedNamespaces returns the list of filtered namespaces according to the policy namespace selector.
-func GetSelectedNamespaces(included []policyv1.NonEmptyString, excluded []policyv1.NonEmptyString,
-	allNamespaces []string,
-) []string {
-	// get all namespaces
-	// allNamespaces := getAllNamespaces() //TODO change this to call the func
-	// then get the list of included
-	includedNamespaces := []string{}
+func GetSelectedNamespaces(selector policyv1.Target) ([]string, error) {
+	// Build LabelSelector from provided MatchLabels and MatchExpressions
+	var labelSelector metav1.LabelSelector
+	// Handle when MatchLabels/MatchExpressions were not provided to prevent nil pointer dereference.
+	// This is needed so that `include` can function independently. Not fetching any namespaces is the
+	// responsibility of the calling function for when MatchLabels/MatchExpressions are both nil.
+	matchLabels := map[string]string{}
+	matchExpressions := []metav1.LabelSelectorRequirement{}
 
-	for _, value := range included {
-		found := FindPattern(string(value), allNamespaces)
-		if found != nil {
-			includedNamespaces = append(includedNamespaces, found...)
-		}
-	}
-	// then get the list of excluded
-	excludedNamespaces := []string{}
-
-	for _, value := range excluded {
-		found := FindPattern(string(value), allNamespaces)
-		if found != nil {
-			excludedNamespaces = append(excludedNamespaces, found...)
-		}
+	if selector.MatchLabels != nil {
+		matchLabels = *selector.MatchLabels
 	}
 
-	// then get the list of deduplicated
-	finalList := DeduplicateItems(includedNamespaces, excludedNamespaces)
+	if selector.MatchExpressions != nil {
+		matchExpressions = *selector.MatchExpressions
+	}
 
-	return finalList
+	labelSelector = metav1.LabelSelector{
+		MatchLabels:      matchLabels,
+		MatchExpressions: matchExpressions,
+	}
+
+	// get all namespaces matching selector
+	allNamespaces, err := GetAllNamespaces(labelSelector)
+	if err != nil {
+		log.Error(err, "error retrieving namespaces")
+
+		return []string{}, err
+	}
+
+	// filter the list based on the included/excluded list of patterns
+	included := selector.Include
+	excluded := selector.Exclude
+	log.V(2).Info("Filtering namespace list using include/exclude lists", "include", included, "exclude", excluded)
+
+	finalList, err := Matches(allNamespaces, included, excluded)
+	if err != nil {
+		return []string{}, err
+	}
+
+	if len(finalList) == 0 {
+		log.V(2).Info("Filtered namespace list is empty.")
+	}
+
+	log.V(2).Info("Returning final filtered namespace list", "namespaces", finalList)
+
+	return finalList, err
 }
 
-//=================================================================
-//GetAllNamespaces gets the list of all namespaces from k8s.
-func GetAllNamespaces() (list []string, err error) {
-	namespaces := (*KubeClient).CoreV1().Namespaces()
-	namespaceList, err := namespaces.List(context.TODO(), metav1.ListOptions{})
+// GetAllNamespaces gets the list of all namespaces from k8s.
+func GetAllNamespaces(labelSelector metav1.LabelSelector) ([]string, error) {
+	parsedSelector, err := metav1.LabelSelectorAsSelector(&labelSelector)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing namespace LabelSelector: %w", err)
+	}
 
-	namespacesNames := []string{}
-	for _, n := range namespaceList.Items {
+	listOpt := metav1.ListOptions{
+		LabelSelector: parsedSelector.String(),
+	}
+
+	log.V(2).Info("Retrieving namespaces with LabelSelector", "LabelSelector", parsedSelector.String())
+
+	nsList, err := (KubeClient).CoreV1().Namespaces().List(context.TODO(), listOpt)
+	if err != nil {
+		log.Error(err, "could not list namespaces from the API server")
+
+		return nil, err
+	}
+
+	var namespacesNames []string
+
+	for _, n := range nsList.Items {
 		namespacesNames = append(namespacesNames, n.Name)
 	}
 
-	return namespacesNames, err
+	return namespacesNames, nil
 }

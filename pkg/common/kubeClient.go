@@ -19,7 +19,7 @@ import (
 )
 
 // KubeClient a k8s client used for k8s native resources.
-var KubeClient *kubernetes.Interface
+var KubeClient kubernetes.Interface
 
 // KubeConfig is the given kubeconfig at startup.
 var KubeConfig *rest.Config
@@ -27,14 +27,14 @@ var KubeConfig *rest.Config
 var HubConfig *rest.Config
 
 // Initialize to initialize some controller variables.
-func Initialize(kClient *kubernetes.Interface, cfg *rest.Config) {
+func Initialize(kClient kubernetes.Interface, cfg *rest.Config) {
 	KubeClient = kClient
 	KubeConfig = cfg
 }
 
 func LoadHubConfig(namespace string, secretname string) (*rest.Config, error) {
 	if HubConfig == nil {
-		secretsClient := (*KubeClient).CoreV1().Secrets(namespace)
+		secretsClient := (KubeClient).CoreV1().Secrets(namespace)
 
 		hubSecret, err := secretsClient.Get(context.TODO(), secretname, metav1.GetOptions{})
 		if err != nil {

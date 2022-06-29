@@ -3,6 +3,7 @@
 package v1
 
 import (
+	"fmt"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,10 +40,33 @@ const (
 // +kubebuilder:validation:MinLength=1
 type NonEmptyString string
 
-// Target defines the list of namespaces to include/exclude
 type Target struct {
+	// 'include' is an array of filepath expressions to include objects by name.
 	Include []NonEmptyString `json:"include,omitempty"`
+	// 'exclude' is an array of filepath expressions to exclude objects by name.
 	Exclude []NonEmptyString `json:"exclude,omitempty"`
+	// 'matchLabels' is a map of {key,value} pairs matching objects by label.
+	MatchLabels *map[string]string `json:"matchLabels,omitempty"`
+	// 'matchExpressions' is an array of label selector requirements matching objects by label.
+	MatchExpressions *[]metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
+}
+
+// Define String() so that the LabelSelector is dereferenced in the logs
+func (t Target) String() string {
+	fmtSelectorStr := "{include:%s,exclude:%s,matchLabels:%+v,matchExpressions:%+v}"
+	if t.MatchLabels == nil && t.MatchExpressions == nil {
+		return fmt.Sprintf(fmtSelectorStr, t.Include, t.Exclude, nil, nil)
+	}
+
+	if t.MatchLabels == nil {
+		return fmt.Sprintf(fmtSelectorStr, t.Include, t.Exclude, nil, *t.MatchExpressions)
+	}
+
+	if t.MatchExpressions == nil {
+		return fmt.Sprintf(fmtSelectorStr, t.Include, t.Exclude, *t.MatchLabels, nil)
+	}
+
+	return fmt.Sprintf(fmtSelectorStr, t.Include, t.Exclude, *t.MatchLabels, *t.MatchExpressions)
 }
 
 // CertificatePolicySpec defines the desired state of CertificatePolicy
@@ -50,7 +74,11 @@ type CertificatePolicySpec struct {
 	// enforce, inform
 	// +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
 	RemediationAction RemediationAction `json:"remediationAction,omitempty"`
-	// selecting a list of namespaces where the policy applies
+	// 'namespaceSelector' defines the list of namespaces to include/exclude for objects defined in
+	// spec.objectTemplates. All selector rules are ANDed. If 'include' is not provided but
+	// 'matchLabels' and/or 'matchExpressions' are, 'include' will behave as if ['*'] were given. If
+	// 'matchExpressions' and 'matchLabels' are both not provided, 'include' must be provided to
+	// retrieve namespaces.
 	NamespaceSelector Target                    `json:"namespaceSelector,omitempty"`
 	LabelSelector     map[string]NonEmptyString `json:"labelSelector,omitempty"`
 	// low, medium, high, or critical
