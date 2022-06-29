@@ -174,21 +174,6 @@ func ensureDefaultLabel(instance *policyv1.CertificatePolicy) bool {
 	return false
 }
 
-// GetSelectedNamespaces returns a string array of all namespaces that match the selector for the policy.
-func GetSelectedNamespaces(policy *policyv1.CertificatePolicy) []string {
-	selectedNamespaces := []string{}
-
-	allNamespaces, err := common.GetAllNamespaces()
-	if err != nil {
-		log.Error(err, "Unable to fetch the list of available namespaces", "Policy", policy.Name)
-	} else {
-		selectedNamespaces = common.GetSelectedNamespaces(policy.Spec.NamespaceSelector.Include,
-			policy.Spec.NamespaceSelector.Exclude, allNamespaces)
-	}
-
-	return selectedNamespaces
-}
-
 // PeriodicallyExecCertificatePolicies always check status - let this be the only function in the controller.
 func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 	log.V(3).Info("Entered PeriodicallyExecCertificatePolicies")
@@ -238,7 +223,9 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 	}
 	// update available policies if there are changed namespaces
 	for _, plc := range plcMap {
-		selectedNamespaces := GetSelectedNamespaces(plc)
+		// Retrieve the namespaces based on filters in NamespaceSelector
+		selectedNamespaces := retrieveNamespaces(plc.Spec.NamespaceSelector)
+
 		// add availablePolicy if not present
 		for _, ns := range selectedNamespaces {
 			key := fmt.Sprintf("%s/%s", ns, plc.Name)
@@ -365,7 +352,7 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	// GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	labelSelector := toLabelSet(policy.Spec.LabelSelector)
-	secretList, _ := (*common.KubeClient).CoreV1().Secrets(namespace).List(context.TODO(),
+	secretList, _ := (common.KubeClient).CoreV1().Secrets(namespace).List(context.TODO(),
 		metav1.ListOptions{LabelSelector: labelSelector.String()})
 
 	for _, secretItem := range secretList.Items {
@@ -392,6 +379,24 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	}
 
 	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
+}
+
+func retrieveNamespaces(selector policyv1.Target) []string {
+	var selectedNamespaces []string
+	// If MatchLabels/MatchExpressions/Include were not provided, return no namespaces
+	if selector.MatchLabels == nil && selector.MatchExpressions == nil && len(selector.Include) == 0 {
+		log.Info("NamespaceSelector is empty. Skipping namespace retrieval.")
+	} else {
+		var err error
+		selectedNamespaces, err = common.GetSelectedNamespaces(selector)
+		if err != nil {
+			log.Error(
+				err, "Error filtering namespaces with provided NamespaceSelector",
+				"namespaceSelector", fmt.Sprintf("%+v", selector))
+		}
+	}
+
+	return selectedNamespaces
 }
 
 // Returns true only if the secret (certificate) is not compliant.
@@ -809,7 +814,9 @@ func handleAddingPolicy(plc *policyv1.CertificatePolicy) {
 
 	addFlag := false
 
-	selectedNamespaces := GetSelectedNamespaces(plc)
+	// Retrieve the namespaces based on filters in NamespaceSelector
+	selectedNamespaces := retrieveNamespaces(plc.Spec.NamespaceSelector)
+
 	for _, ns := range selectedNamespaces {
 		key := fmt.Sprintf("%s/%s", ns, plc.Name)
 		availablePolicies.AddObject(key, plc)

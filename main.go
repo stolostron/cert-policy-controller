@@ -255,7 +255,7 @@ func main() {
 
 	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
-	common.Initialize(&generatedClient, cfg)
+	common.Initialize(generatedClient, cfg)
 	_ = controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, time.Duration(0)) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
 	// does the needed work to make sure the desired state is achieved

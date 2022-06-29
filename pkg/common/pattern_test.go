@@ -1,96 +1,98 @@
-// Copyright 2019 The Kubernetes Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (c) 2020 Red Hat, Inc.
 // Copyright Contributors to the Open Cluster Management project
 
 package common
 
 import (
-	"reflect"
-	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 )
 
-func TestFindPattern(t *testing.T) {
+func TestMatches(t *testing.T) {
 	t.Parallel()
 
 	list := []string{"Hello-World", "World-Hello", "Hello-World-Hello", "nothing", "exact"}
 
-	// testing PREFIX
-	actualResult := FindPattern("Hello*", list)
-	expectedResult := []string{"Hello-World", "Hello-World-Hello"}
-
-	if !reflect.DeepEqual(actualResult, expectedResult) {
-		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
+	tests := []struct {
+		testDescription string
+		include         []policyv1.NonEmptyString
+		exclude         []policyv1.NonEmptyString
+		expected        []string
+		errMsg          string
+	}{
+		{
+			"Filter for prefix",
+			[]policyv1.NonEmptyString{"Hello*"},
+			[]policyv1.NonEmptyString{},
+			[]string{"Hello-World", "Hello-World-Hello"},
+			"",
+		},
+		{
+			"Filter for suffix",
+			[]policyv1.NonEmptyString{"*Hello"},
+			[]policyv1.NonEmptyString{},
+			[]string{"World-Hello", "Hello-World-Hello"},
+			"",
+		},
+		{
+			"Filter for containing string",
+			[]policyv1.NonEmptyString{"*Hello*"},
+			[]policyv1.NonEmptyString{},
+			[]string{"Hello-World", "World-Hello", "Hello-World-Hello"},
+			"",
+		},
+		{
+			"Filter for nonexistent containing string",
+			[]policyv1.NonEmptyString{"*xxx*"},
+			[]policyv1.NonEmptyString{},
+			[]string{},
+			"",
+		},
+		{
+			"Filter for exact string",
+			[]policyv1.NonEmptyString{"Hello-World"},
+			[]policyv1.NonEmptyString{},
+			[]string{"Hello-World"},
+			"",
+		},
+		{
+			"Filter for internal wildcards",
+			[]policyv1.NonEmptyString{"*o*rld*"},
+			[]policyv1.NonEmptyString{},
+			[]string{"Hello-World", "World-Hello", "Hello-World-Hello"},
+			"",
+		},
+		{
+			"Malformed filter",
+			[]policyv1.NonEmptyString{"*[*"},
+			[]policyv1.NonEmptyString{},
+			[]string{},
+			"error parsing 'include' pattern '*[*': syntax error in pattern",
+		},
 	}
 
-	// testing SUFFIX
-	actualResult = FindPattern("*Hello", list)
-	expectedResult = []string{"World-Hello", "Hello-World-Hello"}
+	for _, test := range tests {
+		test := test
 
-	if !reflect.DeepEqual(actualResult, expectedResult) {
-		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
-	}
+		t.Run(
+			test.testDescription,
+			func(t *testing.T) {
+				t.Parallel()
 
-	// testing if it CONTAINS the pattern
-	actualResult = FindPattern("*Hello*", list)
-	expectedResult = []string{"Hello-World", "World-Hello", "Hello-World-Hello"}
+				actual, err := Matches(list, test.include, test.exclude)
+				if err != nil {
+					if test.errMsg == "" {
+						t.Fatalf("Encountered unexpected error: %v", err)
+					} else {
+						assert.EqualError(t, err, test.errMsg)
+					}
+				}
 
-	if !reflect.DeepEqual(actualResult, expectedResult) {
-		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
-	}
-
-	// testing if it does NOT contain the pattern
-	actualResult = FindPattern("*xxx*", list)
-	expectedResult = []string{}
-
-	if !reflect.DeepEqual(actualResult, expectedResult) {
-		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
-	}
-
-	// testing if it  contains the EXACT pattern
-	actualResult = FindPattern("Hello-World", list)
-	expectedResult = []string{"Hello-World"}
-
-	if !reflect.DeepEqual(actualResult, expectedResult) {
-		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
-	}
-
-	// testing corner case
-	actualResult = FindPattern("*ku*be", list)
-	expectedResult = []string{}
-
-	if !reflect.DeepEqual(actualResult, expectedResult) {
-		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
-	}
-}
-
-func TestDeduplicateItems(t *testing.T) {
-	t.Parallel()
-
-	included := []string{"Hello-World", "World-Hello", "Hello-World-Hello", "nothing", "exact"}
-	excluded := []string{"Hello-World", "Hello-World-Hello", "exact"}
-
-	actualResult := DeduplicateItems(included, excluded)
-	expectedResult := []string{"World-Hello", "nothing"}
-
-	if len(actualResult) != len(expectedResult) {
-		t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
-	} else {
-		sort.Strings(expectedResult)
-		sort.Strings(actualResult)
-		if !reflect.DeepEqual(actualResult, expectedResult) {
-			t.Fatalf("Expected %s but got %s", expectedResult, actualResult)
-		}
+				assert.Equal(t, actual, test.expected)
+			},
+		)
 	}
 }
