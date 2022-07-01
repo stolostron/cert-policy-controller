@@ -72,8 +72,7 @@ jobs:
     - name: E2E Tests
       run: |
         export GOPATH=$(go env GOPATH)
-        make e2e-test-coverage \
-          || true # Remove this line once E2E tests are implemented!!!
+        make e2e-test-coverage
 
     - name: Test Coverage Verification
       if: ${{ github.event_name == 'pull_request' }}
