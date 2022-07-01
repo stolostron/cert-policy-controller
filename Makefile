@@ -281,12 +281,12 @@ e2e-stop-instrumented:
 
 .PHONY: e2e-debug
 e2e-debug:
-	kubectl get all -n $(CONTROLLER_NAMESPACE)
-	kubectl get leases -n $(CONTROLLER_NAMESPACE)
-	kubectl get all -n $(WATCH_NAMESPACE)
-	kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
-	kubectl describe pods -n $(CONTROLLER_NAMESPACE)
-	kubectl logs $$(kubectl get pods -n $(CONTROLLER_NAMESPACE) -o name | grep $(IMG)) -n $(CONTROLLER_NAMESPACE)
+	-kubectl get all -n $(CONTROLLER_NAMESPACE)
+	-kubectl get leases -n $(CONTROLLER_NAMESPACE)
+	-kubectl get all -n $(WATCH_NAMESPACE)
+	-kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
+	-kubectl describe pods -n $(CONTROLLER_NAMESPACE)
+	-kubectl logs $$(kubectl get pods -n $(CONTROLLER_NAMESPACE) -o name | grep $(IMG)) -n $(CONTROLLER_NAMESPACE)
 
 ############################################################
 # test coverage
