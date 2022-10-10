@@ -26,17 +26,20 @@ import (
 )
 
 /*
-	apiVersion: mcm.ibm.com/v1
-		kind: GRCPolicy
-		metadata:
-			name: GRC-policy
-		spec:
-			namespaces:
-				include: ["default"]
-				exclude: ["kube*"]
-			remediationAction: enforce # or inform
-			conditions:
-				ownership: [ReplicaSet, Deployment, DeamonSet, ReplicationController]
+apiVersion: mcm.ibm.com/v1
+kind: GRCPolicy
+metadata:
+
+	name: GRC-policy
+
+spec:
+
+	namespaces:
+		include: ["default"]
+		exclude: ["kube*"]
+	remediationAction: enforce # or inform
+	conditions:
+		ownership: [ReplicaSet, Deployment, DeamonSet, ReplicationController]
 */
 var plc = &policiesv1.CertificatePolicy{
 	ObjectMeta: metav1.ObjectMeta{

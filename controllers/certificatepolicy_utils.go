@@ -18,7 +18,7 @@ import (
 
 var format = "%s; %s"
 
-//=================================================================
+// =================================================================
 // convertPolicyStatusToString to be able to pass the status as event.
 func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuration time.Duration) string {
 	result := "ComplianceState is undetermined"
