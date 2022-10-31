@@ -65,16 +65,3 @@ func Matches(
 
 	return matchingNamespaces, nil
 }
-
-// ExtractNamespaceLabel to find out the cluster-namespace from the label.
-func ExtractNamespaceLabel(instance *policyv1.CertificatePolicy) string {
-	if instance.ObjectMeta.Labels == nil {
-		return ""
-	}
-
-	if _, ok := instance.ObjectMeta.Labels["policy.open-cluster-management.io/cluster-namespace"]; ok {
-		return instance.ObjectMeta.Labels["policy.open-cluster-management.io/cluster-namespace"]
-	}
-
-	return ""
-}
