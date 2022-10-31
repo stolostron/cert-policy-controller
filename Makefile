@@ -33,6 +33,7 @@ else
 endif
 # Test coverage threshold
 export COVERAGE_MIN ?= 65
+COVERAGE_E2E_OUT ?= coverage_e2e.out
 
 # Image URL to use all building/pushing image targets;
 # Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
@@ -175,7 +176,7 @@ K8S_VERSION = 1.21.2
 
 .PHONY: test
 test: test-dependencies
-	KUBEBUILDER_ASSETS=$(LOCAL_BIN) go test $(TESTARGS) ./...
+	KUBEBUILDER_ASSETS=$(LOCAL_BIN) go test $(TESTARGS) `go list ./... | grep -v test/e2e`
 
 .PHONY: test-coverage
 test-coverage: TESTARGS = -json -cover -covermode=atomic -coverprofile=coverage_unit.out
@@ -241,9 +242,17 @@ kind-create-cluster:
 	kind create cluster --name $(KIND_NAME) $(KIND_ARGS)
 	kind get kubeconfig --name $(KIND_NAME) > $(PWD)/kubeconfig_managed
 
+.PHONY: kind-additional-cluster
+kind-additional-cluster:
+	@echo "creating cluster"
+	kind create cluster --name $(KIND_NAME)2 $(KIND_ARGS)
+	kind get kubeconfig --name $(KIND_NAME)2 > $(PWD)/kubeconfig_managed2
+	kubectl config use-context kind-$(KIND_NAME)
+
 .PHONY: kind-delete-cluster
 kind-delete-cluster:
 	kind delete cluster --name $(KIND_NAME)
+	kind delete cluster --name $(KIND_NAME)2
 
 .PHONY: install-crds
 install-crds:
@@ -264,8 +273,14 @@ e2e-test: e2e-dependencies
 	$(GINKGO) -v --fail-fast --slow-spec-threshold=10s $(E2E_TEST_ARGS) test/e2e
 
 .PHONY: e2e-test-coverage
-e2e-test-coverage: E2E_TEST_ARGS = --json-report=report_e2e.json --output-dir=.
+e2e-test-coverage: E2E_TEST_ARGS = --json-report=report_e2e.json --label-filter="!hosted-mode" --output-dir=.
 e2e-test-coverage: e2e-run-instrumented e2e-test e2e-stop-instrumented
+
+.PHONY: e2e-test-hosted-mode-coverage
+e2e-test-hosted-mode-coverage: E2E_TEST_ARGS = --json-report=report_e2e_hosted_mode.json --label-filter="hosted-mode" --output-dir=.
+e2e-test-hosted-mode-coverage: COVERAGE_E2E_OUT = coverage_e2e_hosted_mode.out
+e2e-test-hosted-mode-coverage: export TARGET_KUBECONFIG_PATH = $(PWD)/kubeconfig_managed2
+e2e-test-hosted-mode-coverage: e2e-run-instrumented e2e-test e2e-stop-instrumented
 
 .PHONY: e2e-build-instrumented
 e2e-build-instrumented:
@@ -273,7 +288,7 @@ e2e-build-instrumented:
 
 .PHONY: e2e-run-instrumented
 e2e-run-instrumented: e2e-build-instrumented
-	WATCH_NAMESPACE="$(WATCH_NAMESPACE)" ./build/_output/bin/$(IMG)-instrumented -test.run "^TestRunMain$$" -test.coverprofile=coverage_e2e.out &>/dev/null &
+	WATCH_NAMESPACE="$(WATCH_NAMESPACE)" ./build/_output/bin/$(IMG)-instrumented -test.run "^TestRunMain$$" -test.coverprofile=$(COVERAGE_E2E_OUT) &>/dev/null &
 
 .PHONY: e2e-stop-instrumented
 e2e-stop-instrumented:

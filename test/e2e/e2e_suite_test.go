@@ -41,7 +41,7 @@ var (
 
 func TestE2e(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Config policy controller e2e Suite")
+	RunSpecs(t, "Certificate policy controller e2e Suite")
 }
 
 func init() {
@@ -71,7 +71,7 @@ var _ = BeforeSuite(func() {
 	defaultImageRegistry = "quay.io/open-cluster-management"
 	testNamespace = "managed"
 	testNamespaces := []string{testNamespace, "range1", "range2"}
-	defaultTimeoutSeconds = 60
+	defaultTimeoutSeconds = 90
 	By("Create Namespaces if needed")
 	namespaces := clientManaged.CoreV1().Namespaces()
 	for _, ns := range testNamespaces {

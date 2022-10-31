@@ -12,6 +12,7 @@ vendor/
 .vscode/launch.json
 cmd/manager/__debug_bin
 kubeconfig_managed
+kubeconfig_managed2
 
 report.json
 report_*.json

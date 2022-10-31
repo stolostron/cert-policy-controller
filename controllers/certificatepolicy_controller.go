@@ -23,11 +23,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
@@ -47,9 +47,6 @@ var (
 	availablePolicies common.SyncedPolicyMap
 	// PlcChan a channel used to pass policies ready for update.
 	PlcChan chan *policyv1.CertificatePolicy
-	// KubeClient a k8s client used for k8s native resources.
-	KubeClient       *kubernetes.Interface
-	reconcilingAgent *Reconciler
 	// NamespaceWatched defines which namespace we can watch for the Certificate policies and ignore others.
 	NamespaceWatched string
 	// EventOnParent specifies if we also want to send events to the parent policy. Available options are yes/no/ifpresent.
@@ -62,10 +59,9 @@ var (
 var log = ctrl.Log.WithName(ControllerName)
 
 // Initialize to initialize some controller variables.
-func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, namespace, eventParent string,
+func (r *CertificatePolicyReconciler) Initialize(namespace, eventParent string,
 	defaultDuration time.Duration,
 ) (err error) {
-	KubeClient = kClient
 	PlcChan = make(chan *policyv1.CertificatePolicy, 100) // buffering up to 100 policies for update
 
 	NamespaceWatched = namespace
@@ -77,11 +73,17 @@ func Initialize(kClient *kubernetes.Interface, mgr manager.Manager, namespace, e
 	return nil
 }
 
+var _ reconcile.Reconciler = &CertificatePolicyReconciler{}
+
 // Reconciler reconciles a CertificatePolicy object.
-type Reconciler struct {
+type CertificatePolicyReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
+	// The Kubernetes client to use when evaluating/enforcing policies. Most times,
+	// this will be the same cluster where the controller is running.
+	TargetK8sClient kubernetes.Interface
+	TargetK8sConfig *rest.Config
 }
 
 //+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies,verbs=get;list;watch;create;update;patch;delete
@@ -96,13 +98,10 @@ type Reconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+func (r *CertificatePolicyReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling CertificatePolicy")
 
-	if reconcilingAgent == nil {
-		reconcilingAgent = r
-	}
 	// Fetch the CertificatePolicy instance
 	instance := &policyv1.CertificatePolicy{}
 
@@ -138,7 +137,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 
 		instance.Status.CompliancyDetails = make(map[string]policyv1.CompliancyDetails)
 
-		handleAddingPolicy(instance)
+		r.handleAddingPolicy(instance)
 	}
 
 	reqLogger.V(1).Info("Successful processing", "instance.Name", instance.Name, "instance.Namespace",
@@ -174,7 +173,7 @@ func ensureDefaultLabel(instance *policyv1.CertificatePolicy) bool {
 }
 
 // PeriodicallyExecCertificatePolicies always check status - let this be the only function in the controller.
-func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
+func (r *CertificatePolicyReconciler) PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 	log.V(3).Info("Entered PeriodicallyExecCertificatePolicies")
 	var plcToUpdateMap map[string]*policyv1.CertificatePolicy
 
@@ -185,11 +184,11 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 
 		plcToUpdateMap = make(map[string]*policyv1.CertificatePolicy)
 
-		stateChange := ProcessPolicies(plcToUpdateMap)
+		stateChange := r.ProcessPolicies(plcToUpdateMap)
 
 		if stateChange {
 			// update status of all policies that changed:
-			faultyPlc, err := updatePolicyStatus(plcToUpdateMap)
+			faultyPlc, err := r.updatePolicyStatus(plcToUpdateMap)
 			if err != nil {
 				log.Error(err, "Unable to update policy status", "Name", faultyPlc.Name, "Namespace",
 					faultyPlc.Namespace)
@@ -212,7 +211,7 @@ func PeriodicallyExecCertificatePolicies(freq uint, loopflag bool) {
 }
 
 // ProcessPolicies reads each policy and looks for violations returning true if a change is found.
-func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool {
+func (r *CertificatePolicyReconciler) ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool {
 	stateChange := false
 
 	plcMap := make(map[string]*policyv1.CertificatePolicy)
@@ -223,7 +222,7 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 	// update available policies if there are changed namespaces
 	for _, plc := range plcMap {
 		// Retrieve the namespaces based on filters in NamespaceSelector
-		selectedNamespaces := retrieveNamespaces(plc.Spec.NamespaceSelector)
+		selectedNamespaces := r.retrieveNamespaces(plc.Spec.NamespaceSelector)
 
 		// add availablePolicy if not present
 		for _, ns := range selectedNamespaces {
@@ -262,7 +261,7 @@ func ProcessPolicies(plcToUpdateMap map[string]*policyv1.CertificatePolicy) bool
 
 		log.V(2).Info("Checking certificates", "namespace", namespace, "policy.Name", policy.Name)
 
-		update, nonCompliant, list := checkSecrets(policy, namespace)
+		update, nonCompliant, list := r.checkSecrets(policy, namespace)
 
 		if strings.EqualFold(string(policy.Spec.RemediationAction), string(policyv1.Enforce)) {
 			log.V(1).Info("Enforce is set, but not implemented on this controller")
@@ -338,7 +337,9 @@ func toLabelSet(v map[string]policyv1.NonEmptyString) labels.Set {
 // Checks each namespace for certificates that are going to expire within 3 months
 // Returns whether a state change is happening, the number of uncompliant certificates
 // and a list of the uncompliant certificates.
-func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, uint, map[string]policyv1.Cert) {
+func (r *CertificatePolicyReconciler) checkSecrets(policy *policyv1.CertificatePolicy,
+	namespace string,
+) (bool, uint, map[string]policyv1.Cert) {
 	slog := log.WithValues("policy.Namespace", policy.Namespace, "policy.Name", policy.Name)
 	slog.V(3).Info("Entered checkSecrets")
 
@@ -351,7 +352,7 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	// GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
 	// Loops through all the secrets within the CertificatePolicy's specified namespace
 	labelSelector := toLabelSet(policy.Spec.LabelSelector)
-	secretList, _ := (common.KubeClient).CoreV1().Secrets(namespace).List(context.TODO(),
+	secretList, _ := r.TargetK8sClient.CoreV1().Secrets(namespace).List(context.TODO(),
 		metav1.ListOptions{LabelSelector: labelSelector.String()})
 
 	for _, secretItem := range secretList.Items {
@@ -380,14 +381,14 @@ func checkSecrets(policy *policyv1.CertificatePolicy, namespace string) (bool, u
 	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
 }
 
-func retrieveNamespaces(selector policyv1.Target) []string {
+func (r *CertificatePolicyReconciler) retrieveNamespaces(selector policyv1.Target) []string {
 	var selectedNamespaces []string
 	// If MatchLabels/MatchExpressions/Include were not provided, return no namespaces
 	if selector.MatchLabels == nil && selector.MatchExpressions == nil && len(selector.Include) == 0 {
 		log.Info("NamespaceSelector is empty. Skipping namespace retrieval.")
 	} else {
 		var err error
-		selectedNamespaces, err = common.GetSelectedNamespaces(selector)
+		selectedNamespaces, err = common.GetSelectedNamespaces(r.TargetK8sClient, selector)
 		if err != nil {
 			log.Error(
 				err, "Error filtering namespaces with provided NamespaceSelector",
@@ -744,7 +745,8 @@ func checkComplianceChangeBasedOnDetails(plc *policyv1.CertificatePolicy) (compl
 	return reflect.DeepEqual(previous, plc.Status.ComplianceState)
 }
 
-func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*policyv1.CertificatePolicy, error) {
+func (r *CertificatePolicyReconciler) updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy,
+) (*policyv1.CertificatePolicy, error) {
 	log.V(3).Info("Entered updatePolicyStatus")
 
 	for _, instance := range policies { // policies is a map where: key = plc.Name, value = pointer to plc
@@ -767,20 +769,20 @@ func updatePolicyStatus(policies map[string]*policyv1.CertificatePolicy) (*polic
 			}
 		}
 
-		err := reconcilingAgent.Status().Update(context.TODO(), instance)
+		err := r.Status().Update(context.TODO(), instance)
 		if err != nil {
 			return instance, err
 		}
 
 		if EventOnParent != "no" {
-			createParentPolicyEvent(instance)
+			r.createParentPolicyEvent(instance)
 		}
 
-		if reconcilingAgent.Recorder != nil {
+		if r.Recorder != nil {
 			if instance.Status.ComplianceState == policyv1.NonCompliant {
-				reconcilingAgent.Recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
+				r.Recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
 			} else {
-				reconcilingAgent.Recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+				r.Recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
 			}
 		}
 	}
@@ -798,7 +800,7 @@ func handleRemovingPolicy(name string) {
 	}
 }
 
-func handleAddingPolicy(plc *policyv1.CertificatePolicy) {
+func (r *CertificatePolicyReconciler) handleAddingPolicy(plc *policyv1.CertificatePolicy) {
 	log.V(3).Info("Entered handleAddingPolicy")
 
 	// clean up that policy from the availablePolicies list, in case the modification is in the
@@ -814,7 +816,7 @@ func handleAddingPolicy(plc *policyv1.CertificatePolicy) {
 	addFlag := false
 
 	// Retrieve the namespaces based on filters in NamespaceSelector
-	selectedNamespaces := retrieveNamespaces(plc.Spec.NamespaceSelector)
+	selectedNamespaces := r.retrieveNamespaces(plc.Spec.NamespaceSelector)
 
 	for _, ns := range selectedNamespaces {
 		key := fmt.Sprintf("%s/%s", ns, plc.Name)
@@ -858,7 +860,7 @@ func printMap(myMap map[string]*policyv1.CertificatePolicy) {
 	}
 }
 
-func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
+func (r *CertificatePolicyReconciler) createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 	ilog := log.WithValues("instance.Namespace", instance.Namespace, "instance.Name", instance.Name)
 	ilog.V(3).Info("Entered createParentPolicyEvent")
 
@@ -872,15 +874,15 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 
 	parentPlc := createParentPolicy(instance)
 
-	if reconcilingAgent.Recorder != nil {
+	if r.Recorder != nil {
 		if instance.Status.ComplianceState == policyv1.NonCompliant {
 			ilog.V(3).Info("Update parent policy, non-compliant policy")
-			reconcilingAgent.Recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s",
+			r.Recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s",
 				instance.Namespace, instance.Name),
 				convertPolicyStatusToString(instance, DefaultDuration))
 		} else {
 			ilog.V(3).Info("Update parent policy, compliant policy")
-			reconcilingAgent.Recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s",
+			r.Recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s",
 				instance.Namespace, instance.Name),
 				convertPolicyStatusToString(instance, DefaultDuration))
 		}
@@ -890,15 +892,11 @@ func createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
 func createParentPolicy(instance *policyv1.CertificatePolicy) extpolicyv1.Policy {
 	log.V(3).Info("Entered createParentPolicy")
 
-	ns := common.ExtractNamespaceLabel(instance)
-	if ns == "" {
-		ns = NamespaceWatched
-	}
-
 	plc := extpolicyv1.Policy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.OwnerReferences[0].Name,
-			Namespace: ns, // Assumes the parent policy is in the watched-namespace passed as flag
+			Name: instance.OwnerReferences[0].Name,
+			// It's assumed that the parent policy is in the same namespace as the cert policy
+			Namespace: instance.Namespace,
 			UID:       instance.OwnerReferences[0].UID,
 		},
 		TypeMeta: metav1.TypeMeta{
@@ -911,7 +909,7 @@ func createParentPolicy(instance *policyv1.CertificatePolicy) extpolicyv1.Policy
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *CertificatePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&policyv1.CertificatePolicy{}).

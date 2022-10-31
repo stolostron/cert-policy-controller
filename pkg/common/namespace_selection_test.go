@@ -31,7 +31,6 @@ import (
 func TestGetSelectedNamespaces(t *testing.T) {
 	// Initialize controller client to return namespaces for test
 	simpleClient := testclient.NewSimpleClientset()
-	Initialize(simpleClient, nil)
 
 	// Initialize set of namespaces for the test
 	for i := 1; i <= 5; i++ {
@@ -190,7 +189,7 @@ func TestGetSelectedNamespaces(t *testing.T) {
 		t.Run(
 			name,
 			func(t *testing.T) {
-				actual, err := GetSelectedNamespaces(test.selector)
+				actual, err := GetSelectedNamespaces(simpleClient, test.selector)
 				if err != nil {
 					if test.errMsg == "" {
 						t.Fatalf("Encountered unexpected error: %v", err)
@@ -208,7 +207,6 @@ func TestGetSelectedNamespaces(t *testing.T) {
 func TestGetAllNamespaces(t *testing.T) {
 	// Initialize controller client to return namespaces for test
 	simpleClient := testclient.NewSimpleClientset()
-	Initialize(simpleClient, nil)
 
 	// Initialize set of namespaces for the test
 	for i := 1; i <= 5; i++ {
@@ -342,7 +340,7 @@ func TestGetAllNamespaces(t *testing.T) {
 		t.Run(
 			name,
 			func(t *testing.T) {
-				actual, err := GetAllNamespaces(test.labelSelector)
+				actual, err := GetAllNamespaces(simpleClient, test.labelSelector)
 				if err != nil {
 					if test.errMsg == "" {
 						t.Fatalf("Encountered unexpected error: %v", err)

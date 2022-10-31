@@ -1,0 +1,10 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: CertificatePolicy # cert management expiration
+metadata:
+  name: policy-cert-expiration
+spec:
+  namespaceSelector:
+    include: ["default"]
+  remediationAction: inform # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
+  severity: low
+  minimumDuration: 300h

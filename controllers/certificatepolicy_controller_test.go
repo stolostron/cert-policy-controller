@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policiesv1 "open-cluster-management.io/cert-policy-controller/api/v1"
-	"open-cluster-management.io/cert-policy-controller/pkg/common"
 )
 
 func TestReconcile(t *testing.T) {
@@ -66,7 +65,7 @@ func TestReconcile(t *testing.T) {
 	cl := fake.NewClientBuilder()
 	cl.WithRuntimeObjects(objs...)
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client
-	r := &Reconciler{Client: cl.Build(), Scheme: s, Recorder: nil}
+	r := &CertificatePolicyReconciler{Client: cl.Build(), Scheme: s, Recorder: nil}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -76,9 +75,6 @@ func TestReconcile(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
-	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
-
-	common.Initialize(simpleClient, nil)
 
 	res, err := r.Reconcile(context.TODO(), req)
 	if err != nil {
@@ -129,15 +125,14 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	cl := fake.NewClientBuilder()
 	cl.WithRuntimeObjects(objs...)
 
-	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
-	r := &Reconciler{Client: cl.Build(), Scheme: s, Recorder: nil}
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
+	r := &CertificatePolicyReconciler{Client: cl.Build(), Scheme: s, Recorder: nil, TargetK8sClient: simpleClient}
 
-	common.Initialize(simpleClient, nil)
-
-	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	_, err := r.TargetK8sClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
 	if err != nil {
 		t.Logf("Error creating namespace: %s", err)
+		assert.Nil(t, err)
 	}
 
 	_, err = r.Reconcile(context.TODO(), req)
@@ -179,8 +174,8 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 				certPolicy.Name = fmt.Sprintf("%s-%d", certPolicy.Name, i)
 				certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{test.namespaceSelector}
 
-				handleAddingPolicy(certPolicy)
-				PeriodicallyExecCertificatePolicies(1, false)
+				r.handleAddingPolicy(certPolicy)
+				r.PeriodicallyExecCertificatePolicies(1, false)
 
 				policy, found := availablePolicies.GetObject(test.cacheNamespace + "/" + certPolicy.Name)
 				assert.True(t, found)
@@ -198,10 +193,6 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 }
 
 func TestCheckComplianceBasedOnDetails(t *testing.T) {
-	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
-
-	common.Initialize(simpleClient, nil)
-
 	certPolicy := policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -268,15 +259,20 @@ func TestCreateParentPolicy(t *testing.T) {
 	ownerReferences = append(ownerReferences, ownerReference)
 	certPolicy.OwnerReferences = ownerReferences
 
+	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
+
 	policy := createParentPolicy(certPolicy)
 	assert.NotNil(t, policy)
-	createParentPolicyEvent(certPolicy)
+	r.createParentPolicyEvent(certPolicy)
 }
 
 func TestHandleAddingPolicy(t *testing.T) {
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
-	common.Initialize(simpleClient, nil)
+	r := &CertificatePolicyReconciler{
+		Client: nil, Scheme: nil,
+		Recorder: nil, TargetK8sClient: simpleClient,
+	}
 
 	typeMeta := metav1.TypeMeta{
 		Kind: "namespace",
@@ -302,7 +298,7 @@ func TestHandleAddingPolicy(t *testing.T) {
 	}
 	certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{"default"}
 
-	handleAddingPolicy(certPolicy)
+	r.handleAddingPolicy(certPolicy)
 	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
@@ -494,10 +490,11 @@ func TestProcessPolicies(t *testing.T) {
 			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 	}
-	handleAddingPolicy(instance)
+	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
+	r.handleAddingPolicy(instance)
 
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
-	value := ProcessPolicies(plcToUpdateMap)
+	value := r.ProcessPolicies(plcToUpdateMap)
 	assert.True(t, value)
 
 	_, found := availablePolicies.GetObject("/" + instance.Name)
@@ -565,7 +562,10 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
-	common.Initialize(simpleClient, nil)
+	r := &CertificatePolicyReconciler{
+		Client: nil, Scheme: nil, Recorder: nil,
+		TargetK8sClient: simpleClient,
+	}
 
 	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
 	if err != nil {
@@ -587,14 +587,14 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	target := []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	handleAddingPolicy(instance)
+	r.handleAddingPolicy(instance)
 
 	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
 	labelSelector := toLabelSet(instance.Spec.LabelSelector)
-	secretList, _ := (common.KubeClient).CoreV1().Secrets("default").List(
+	secretList, _ := simpleClient.CoreV1().Secrets("default").List(
 		context.TODO(), metav1.ListOptions{
 			LabelSelector: labelSelector.String(),
 		},
@@ -605,7 +605,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	assert.Nil(t, err)
 	assert.NotNil(t, cert)
 
-	update, nonCompliant, list := checkSecrets(instance, "default")
+	update, nonCompliant, list := r.checkSecrets(instance, "default")
 
 	assert.Nil(t, err)
 	assert.Equal(t, uint(1), nonCompliant)
@@ -664,21 +664,21 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 
 	target = []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
-	handleAddingPolicy(instance)
+	r.handleAddingPolicy(instance)
 
 	policy, found = availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 
 	labelSelector = toLabelSet(instance.Spec.LabelSelector)
-	secretList, _ = (common.KubeClient).CoreV1().Secrets("default").List(
+	secretList, _ = simpleClient.CoreV1().Secrets("default").List(
 		context.TODO(), metav1.ListOptions{
 			LabelSelector: labelSelector.String(),
 		},
 	)
 	assert.Equal(t, 2, len(secretList.Items))
 
-	update, nonCompliant, list = checkSecrets(instance, "default")
+	update, nonCompliant, list = r.checkSecrets(instance, "default")
 
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), nonCompliant)
@@ -768,7 +768,10 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
-	common.Initialize(simpleClient, nil)
+	r := &CertificatePolicyReconciler{
+		Client: nil, Scheme: nil, Recorder: nil,
+		TargetK8sClient: simpleClient,
+	}
 
 	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns1, metav1.CreateOptions{})
 	if err != nil {
@@ -799,7 +802,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	handleAddingPolicy(instance)
+	r.handleAddingPolicy(instance)
 
 	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -807,7 +810,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
 
-	stateChange := ProcessPolicies(plcToUpdateMap)
+	stateChange := r.ProcessPolicies(plcToUpdateMap)
 	assert.True(t, stateChange)
 
 	message := convertPolicyStatusToString(instance, DefaultDuration)

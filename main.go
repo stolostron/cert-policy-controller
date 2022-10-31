@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -35,7 +36,6 @@ import (
 
 	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 	controllers "open-cluster-management.io/cert-policy-controller/controllers"
-	"open-cluster-management.io/cert-policy-controller/pkg/common"
 	"open-cluster-management.io/cert-policy-controller/version"
 	//+kubebuilder:scaffold:imports
 )
@@ -140,7 +140,7 @@ func main() {
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
-	var eventOnParent, defaultDuration, clusterName, hubConfigPath, probeAddr string
+	var eventOnParent, defaultDuration, clusterName, hubConfigPath, targetKubeConfig, probeAddr string
 	var frequency uint
 	var enableLease, enableLeaderElection, legacyLeaderElection bool
 
@@ -166,6 +166,12 @@ func main() {
 	)
 	pflag.StringVar(&hubConfigPath, "hub-kubeconfig-path",
 		"/var/run/klusterlet/kubeconfig", "Path to the hub kubeconfig",
+	)
+	pflag.StringVar(
+		&targetKubeConfig,
+		"target-kubeconfig-path",
+		"",
+		"A path to an alternative kubeconfig for policy evaluation and enforcement.",
 	)
 	pflag.StringVar(&clusterName, "cluster-name", "default-cluster", "Name of the cluster")
 	flag.StringVar(&probeAddr, "health-probe-bind-address",
@@ -236,11 +242,36 @@ func main() {
 
 	setupLog.Info("Registering components")
 
-	if err = (&controllers.Reconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("certificatepolicy-controller"),
-	}).SetupWithManager(mgr); err != nil {
+	var targetK8sClient kubernetes.Interface
+	var targetK8sConfig *rest.Config
+
+	if targetKubeConfig == "" {
+		targetK8sConfig = cfg
+		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
+	} else {
+		var err error
+
+		targetK8sConfig, err = clientcmd.BuildConfigFromFlags("", targetKubeConfig)
+		if err != nil {
+			setupLog.Error(err, "Failed to load the target kubeconfig", "path", targetKubeConfig)
+			os.Exit(1)
+		}
+
+		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
+
+		setupLog.Info(
+			"Overrode the target Kubernetes cluster for policy evaluation and enforcement", "path", targetKubeConfig,
+		)
+	}
+
+	r := &controllers.CertificatePolicyReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		Recorder:        mgr.GetEventRecorderFor("certificatepolicy-controller"),
+		TargetK8sClient: targetK8sClient,
+		TargetK8sConfig: targetK8sConfig,
+	}
+	if err = r.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CertificatePolicy")
 		os.Exit(1)
 	}
@@ -258,11 +289,10 @@ func main() {
 
 	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
-	common.Initialize(generatedClient, cfg)
-	_ = controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, time.Duration(0)) /* #nosec G104 */
+	_ = r.Initialize(namespace, eventOnParent, time.Duration(0)) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
 	// does the needed work to make sure the desired state is achieved
-	go controllers.PeriodicallyExecCertificatePolicies(frequency, true)
+	go r.PeriodicallyExecCertificatePolicies(frequency, true)
 
 	if enableLease {
 		startLeaseController(generatedClient, hubConfigPath, clusterName)
