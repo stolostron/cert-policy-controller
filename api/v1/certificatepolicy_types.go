@@ -71,7 +71,7 @@ func (t Target) String() string {
 
 // CertificatePolicySpec defines the desired state of CertificatePolicy
 type CertificatePolicySpec struct {
-	// enforce, inform
+	// Only Inform is currently supported. Setting this to Enforce will have the same effect as Inform.
 	// +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
 	RemediationAction RemediationAction `json:"remediationAction,omitempty"`
 	// 'namespaceSelector' defines the list of namespaces to include/exclude for objects defined in
@@ -79,8 +79,9 @@ type CertificatePolicySpec struct {
 	// 'matchLabels' and/or 'matchExpressions' are, 'include' will behave as if ['*'] were given. If
 	// 'matchExpressions' and 'matchLabels' are both not provided, 'include' must be provided to
 	// retrieve namespaces.
-	NamespaceSelector Target                    `json:"namespaceSelector,omitempty"`
-	LabelSelector     map[string]NonEmptyString `json:"labelSelector,omitempty"`
+	NamespaceSelector Target `json:"namespaceSelector,omitempty"`
+	// Restrict the secrets that will be checked to the ones that contain these labels.
+	LabelSelector map[string]NonEmptyString `json:"labelSelector,omitempty"`
 	// low, medium, high, or critical
 	// +kubebuilder:validation:Enum=low;Low;medium;Medium;high;High;critical;Critical
 	Severity string `json:"severity,omitempty"`
