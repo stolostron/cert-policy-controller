@@ -26,7 +26,10 @@ WATCH_NAMESPACE ?= $(MANAGED_CLUSTER_NAME)
 # Handle KinD configuration
 KIND_NAME ?= test-managed
 KIND_VERSION ?= latest
-ifneq ($(KIND_VERSION), latest)
+# Set the Kind version tag
+ifeq ($(KIND_VERSION), minimum)
+	KIND_ARGS = --image kindest/node:v1.19.16
+else ifneq ($(KIND_VERSION), latest)
 	KIND_ARGS = --image kindest/node:$(KIND_VERSION)
 else
 	KIND_ARGS =
