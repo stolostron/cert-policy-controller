@@ -15,7 +15,7 @@ import (
 	policyv1 "github.com/stolostron/cert-policy-controller/api/v1"
 )
 
-//=================================================================
+// =================================================================
 // GetSelectedNamespaces returns the list of filtered namespaces according to the policy namespace selector.
 func GetSelectedNamespaces(included []policyv1.NonEmptyString, excluded []policyv1.NonEmptyString,
 	allNamespaces []string,
@@ -47,8 +47,8 @@ func GetSelectedNamespaces(included []policyv1.NonEmptyString, excluded []policy
 	return finalList
 }
 
-//=================================================================
-//GetAllNamespaces gets the list of all namespaces from k8s.
+// =================================================================
+// GetAllNamespaces gets the list of all namespaces from k8s.
 func GetAllNamespaces() (list []string, err error) {
 	namespaces := (*KubeClient).CoreV1().Namespaces()
 	namespaceList, err := namespaces.List(context.TODO(), metav1.ListOptions{})
