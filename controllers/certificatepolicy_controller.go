@@ -836,7 +836,7 @@ func cleanupAvailablePolicies(namespace string, name string) {
 	}
 }
 
-//=================================================================
+// =================================================================
 // Helper functions that pretty prints a map.
 func printMap(myMap map[string]*policyv1.CertificatePolicy) {
 	if len(myMap) == 0 {
