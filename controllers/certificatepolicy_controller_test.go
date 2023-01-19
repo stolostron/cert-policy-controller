@@ -17,7 +17,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -480,45 +479,37 @@ func TestHaveNewNonCompliantCertificate(t *testing.T) {
 	assert.True(t, haveNewNonCompliantCertificate(instance, "default", certmap))
 }
 
-func TestProcessPolicies(t *testing.T) {
-	instance := &policiesv1.CertificatePolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo-process-policies",
-			Namespace: "default",
-		},
-		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
-		},
-	}
-	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
-	r.handleAddingPolicy(instance)
+func createNamespace(t *testing.T, simpleClient kubernetes.Interface, namespace string) {
+	t.Helper()
 
-	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
-	value := r.ProcessPolicies(plcToUpdateMap)
-	assert.True(t, value)
-
-	_, found := availablePolicies.GetObject("/" + instance.Name)
-	assert.True(t, found)
-}
-
-func TestParseCertificate(t *testing.T) {
 	nstypeMeta := metav1.TypeMeta{
 		Kind: "namespace",
 	}
 	nsobjMeta := metav1.ObjectMeta{
-		Name: "default",
+		Name: namespace,
 	}
 	ns := coretypes.Namespace{
 		TypeMeta:   nstypeMeta,
 		ObjectMeta: nsobjMeta,
 	}
 
+	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	if err != nil {
+		t.Logf("Error creating namespace: %s", err)
+	}
+}
+
+func createExpiredCertSecret(t *testing.T, simpleClient kubernetes.Interface,
+	namespace string, name string, labels map[string]string,
+) {
+	t.Helper()
+
 	typeMeta := metav1.TypeMeta{
 		Kind: "Secret",
 	}
 	objMeta := metav1.ObjectMeta{
-		Name:      "foo",
-		Namespace: "default",
+		Name:      name,
+		Namespace: namespace,
 	}
 
 	crt := `-----BEGIN CERTIFICATE-----
@@ -550,6 +541,37 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 		Data:       data,
 	}
 
+	if labels != nil {
+		secret.ObjectMeta.Labels = labels
+	}
+
+	s, err := simpleClient.CoreV1().Secrets(namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
+	assert.NotNil(t, s)
+	assert.Nil(t, err)
+}
+
+func TestProcessPolicies(t *testing.T) {
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo-process-policies",
+			Namespace: "default",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
+		},
+	}
+	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
+	r.handleAddingPolicy(instance)
+
+	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
+	value := r.ProcessPolicies(plcToUpdateMap)
+	assert.True(t, value)
+
+	_, found := availablePolicies.GetObject("/" + instance.Name)
+	assert.True(t, found)
+}
+
+func TestParseCertificate(t *testing.T) {
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-parse-certificate",
@@ -567,22 +589,9 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 		TargetK8sClient: simpleClient,
 	}
 
-	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
-	if err != nil {
-		t.Logf("Error creating namespace: %s", err)
-	}
+	createNamespace(t, simpleClient, "default")
 
-	s, err := simpleClient.CoreV1().Secrets("default").Create(context.TODO(), &secret, metav1.CreateOptions{})
-	assert.NotNil(t, s)
-	assert.Nil(t, err)
-
-	if err != nil {
-		t.Logf("Error creating a secret: %s", err)
-	}
-
-	output, err := json.Marshal(s)
-	assert.Nil(t, err)
-	t.Log(string(output))
+	createExpiredCertSecret(t, simpleClient, "default", "foo", map[string]string{})
 
 	target := []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
@@ -616,36 +625,6 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	handleRemovingPolicy("foo")
 
-	crt = `-----BEGIN CERTIFICATE-----
-MIIC8TCCAdmgAwIBAgIQJHdwEog9UZAGSgMMmG9giDANBgkqhkiG9w0BAQsFADAY
-MRYwFAYDVQQDEw10ZWFtcy5pYm0uY29tMB4XDTIwMTAyODE3MjcyMFoXDTIwMTIx
-NzE3MjcyMFowGDEWMBQGA1UEAxMNdGVhbXMuaWJtLmNvbTCCASIwDQYJKoZIhvcN
-AQEBBQADggEPADCCAQoCggEBAMDFIiih358zPhzZ9bcgz8ACdznKogMAey+yWyUX
-utYc00HEkq6XeKrOMcWT5bCQ5IqsEkCBQtHUT7kKwyG8yF+4QD33/dsEkqyhfKFI
-yxqKxRb0R8ATPnI4dzdmrYEDdvGrI0ddfBAMnWwDv2S7bqADvx2OWkFIRUtCK1fE
-l6iPAoSzjNs5wn2F2hNpcty+vQ6dygqjCL2rwzSaR14GZNaAvpKFTNdA8dCkoSZN
-LA2nwDQEdszNVQZzRfxaCZc/jwmyglJY1hj2xTZHsw3DpLrWLrBihx4uXHku5aMs
-j7JEkRudLvjB6Z9dizEyU1oX6lc3UOd9/qVDDvIOfe4J7A0CAwEAAaM3MDUwDgYD
-VR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAwFQYDVR0RBA4wDIIKKi50ZXN0LmNv
-bTANBgkqhkiG9w0BAQsFAAOCAQEAr3cWZowiRt98v7e8c/4CwhhCmT1VPX1i6Nlx
-XFBu7PdR/UtY1I/1rT2YbSFNuboYYBcQtziTGkNWyJSw+PBpT0nrUbOLROVRHYmB
-14d+qwQ9qDwrRKc8fo7ITKdOLpuQi6LbdYU+jytDCbXWalLjiceLHWYxWPpkgktS
-16Xucz9C7/VP9/VhFIU1rhtqpcUFO5BUAuDZ3LrTEE+JAZQuzVvinIwGMBSYxhTp
-xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
-6IKHLAbLnpMLsbbTXFpp4NiSUssKbPxrJLOMB7xTvwNHnQS/og==
------END CERTIFICATE-----`
-
-	data["tls.crt"] = []byte(crt)
-	objMeta = metav1.ObjectMeta{
-		Name:      "bar",
-		Namespace: "default",
-	}
-	secret = coretypes.Secret{
-		TypeMeta:   typeMeta,
-		ObjectMeta: objMeta,
-		Data:       data,
-	}
-
 	instance = &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -658,9 +637,7 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 		},
 	}
 
-	s, err = simpleClient.CoreV1().Secrets("default").Create(context.TODO(), &secret, metav1.CreateOptions{})
-	assert.NotNil(t, s)
-	assert.Nil(t, err)
+	createExpiredCertSecret(t, simpleClient, "default", "bar", map[string]string{})
 
 	target = []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
@@ -689,70 +666,6 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 }
 
 func TestMultipleNamespaces(t *testing.T) {
-	nstypeMeta := metav1.TypeMeta{
-		Kind: "namespace",
-	}
-	nsobjMeta1 := metav1.ObjectMeta{
-		Name: "default1",
-	}
-	nsobjMeta2 := metav1.ObjectMeta{
-		Name: "default2",
-	}
-	ns1 := coretypes.Namespace{
-		TypeMeta:   nstypeMeta,
-		ObjectMeta: nsobjMeta1,
-	}
-	ns2 := coretypes.Namespace{
-		TypeMeta:   nstypeMeta,
-		ObjectMeta: nsobjMeta2,
-	}
-
-	typeMeta := metav1.TypeMeta{
-		Kind: "Secret",
-	}
-	objMeta1 := metav1.ObjectMeta{
-		Name:      "foo1",
-		Namespace: "default1",
-	}
-	objMeta2 := metav1.ObjectMeta{
-		Name:      "foo2",
-		Namespace: "default2",
-	}
-
-	crt := `-----BEGIN CERTIFICATE-----
-MIIDRjCCAi4CCQCCORszFlswxjANBgkqhkiG9w0BAQsFADBlMQswCQYDVQQGEwJV
-UzELMAkGA1UECAwCTkMxEDAOBgNVBAcMB1JhbGVpZ2gxEDAOBgNVBAoMB1JlZCBI
-YXQxEjAQBgNVBAsMCU9wZW5TaGlmdDERMA8GA1UEAwwIcG9saWNpZXMwHhcNMjAw
-MzA1MTQwNjQzWhcNMjAwMzEwMTQwNjQzWjBlMQswCQYDVQQGEwJVUzELMAkGA1UE
-CAwCTkMxEDAOBgNVBAcMB1JhbGVpZ2gxEDAOBgNVBAoMB1JlZCBIYXQxEjAQBgNV
-BAsMCU9wZW5TaGlmdDERMA8GA1UEAwwIcG9saWNpZXMwggEiMA0GCSqGSIb3DQEB
-AQUAA4IBDwAwggEKAoIBAQC5WwmD2ebCa5hM4yi4TCYFRY/DA4eBLpT5+BqKEL12
-inPGSQP37XHF6f6VFqnK/Nr/uzs//24SHDHMUyrFdfYEGFQ9iRcnC4KCYLAeFQ4G
-B0DRZSeSzxVVp0sbNMrzoOF5YTuCb+yUr+8Zx5Q7V5JNr/MVRYs33Rj8M+WQ45bb
-oy0ehCuvnfvEgzzQY32gkxcB09d6V3sZbth1s88P/pAqcrUQua7XD6eYVGSD8zeY
-7Mahqt4lvPiIj6T3qhauH1/sUfl/X98mdabsCkhIgx6fP9Xvx/U/PsjmOBC1ED2E
-Jwk5X7U9Nx9tj0KMRHetE5Hn6H/hBqCunWHF18PsDXbfAgMBAAEwDQYJKoZIhvcN
-AQELBQADggEBAADBYj6epTrRQ9B+StWEp9x1O+WP0c9BXljW1OtQ/QSVWcIfcdI5
-8oGACTPBSyGdHMKJ2zw5bGP8nDwk33d6AcFVsERLHz2VUTajeAFFKSEpVIgqFyDw
-ViB36ya7lnJ+RLReJmYI/E55kv/p2x0C0t/BynA0gIFSmIj7IpccimDPJiAyCEtB
-uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
-9MGk0Ozkk5mqeHjfpsrmbyfADasUY2rMc6fwT6UiP80C5m/KEtL8xU92PQDKAhdO
-1uwcab91yRPT7mmQ9oeY6k8SMhb1doHA8vc=
------END CERTIFICATE-----`
-
-	data := make(map[string][]byte)
-	data["tls.crt"] = []byte(crt)
-	secret1 := coretypes.Secret{
-		TypeMeta:   typeMeta,
-		ObjectMeta: objMeta1,
-		Data:       data,
-	}
-	secret2 := coretypes.Secret{
-		TypeMeta:   typeMeta,
-		ObjectMeta: objMeta2,
-		Data:       data,
-	}
-
 	instance := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-multiple-namespaces",
@@ -773,31 +686,10 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 		TargetK8sClient: simpleClient,
 	}
 
-	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns1, metav1.CreateOptions{})
-	if err != nil {
-		t.Logf("Error creating namespace 1: %s", err)
-	}
-
-	_, err = simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns2, metav1.CreateOptions{})
-	if err != nil {
-		t.Logf("Error creating namespace 2: %s", err)
-	}
-
-	s, err := simpleClient.CoreV1().Secrets("default1").Create(context.TODO(), &secret1, metav1.CreateOptions{})
-	assert.NotNil(t, s)
-	assert.Nil(t, err)
-
-	if err != nil {
-		t.Logf("Error creating secret 1: %s", err)
-	}
-
-	s, err = simpleClient.CoreV1().Secrets("default2").Create(context.TODO(), &secret2, metav1.CreateOptions{})
-	assert.NotNil(t, s)
-	assert.Nil(t, err)
-
-	if err != nil {
-		t.Logf("Error creating secret 2: %s", err)
-	}
+	createNamespace(t, simpleClient, "default1")
+	createNamespace(t, simpleClient, "default2")
+	createExpiredCertSecret(t, simpleClient, "default1", "foo1", map[string]string{})
+	createExpiredCertSecret(t, simpleClient, "default2", "foo2", map[string]string{})
 
 	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
@@ -819,6 +711,65 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	first := strings.Index(message, "default1")
 	second := strings.Index(message, "default2")
 	assert.Less(t, first, second)
+
+	handleRemovingPolicy("foo")
+}
+
+func TestSecretLabelSelection(t *testing.T) {
+	selector := make(map[string]policiesv1.NonEmptyString)
+	selector["selection"] = "match"
+	instance := &policiesv1.CertificatePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo-multiple-namespaces",
+			Namespace: "default2",
+		},
+		Spec: policiesv1.CertificatePolicySpec{
+			NamespaceSelector: policiesv1.Target{
+				Include: []policiesv1.NonEmptyString{"def*"},
+			},
+			MinDuration:   &metav1.Duration{Duration: time.Hour * 24 * 35},
+			LabelSelector: selector,
+		},
+	}
+
+	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+
+	r := &CertificatePolicyReconciler{
+		Client: nil, Scheme: nil, Recorder: nil,
+		TargetK8sClient: simpleClient,
+	}
+
+	createNamespace(t, simpleClient, "default1")
+	createNamespace(t, simpleClient, "default2")
+	createExpiredCertSecret(t, simpleClient, "default1", "foo1", map[string]string{})
+
+	labels := make(map[string]string)
+	labels["selection"] = "match"
+	createExpiredCertSecret(t, simpleClient, "default2", "foo2", labels)
+
+	target := []policiesv1.NonEmptyString{"def*"}
+	instance.Spec.NamespaceSelector.Include = target
+
+	r.handleAddingPolicy(instance)
+
+	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
+	assert.True(t, found)
+	assert.NotNil(t, policy)
+
+	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
+
+	stateChange := r.ProcessPolicies(plcToUpdateMap)
+	assert.True(t, stateChange)
+
+	// With the label selector only the secret default2 is matched
+	message := convertPolicyStatusToString(instance, DefaultDuration)
+	assert.NotNil(t, message)
+	t.Logf("Message created for policy: %s", message)
+	first := strings.Index(message, "default1")
+	assert.Equal(t, first, -1)
+
+	second := strings.Index(message, "default2")
+	assert.Less(t, 0, second)
 
 	handleRemovingPolicy("foo")
 }
