@@ -3,9 +3,9 @@ resources:
 
 # Use patches to add field validation that Kubebuilder markers can't
 patches:
-- path: patches.json
-  target:
-    group: apiextensions.k8s.io
-    version: v1
-    kind: CustomResourceDefinition
-    name: certificatepolicies.policy.open-cluster-management.io
+  - path: patches.json
+    target:
+      group: apiextensions.k8s.io
+      version: v1
+      kind: CustomResourceDefinition
+      name: certificatepolicies.policy.open-cluster-management.io
