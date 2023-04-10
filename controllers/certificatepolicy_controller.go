@@ -38,7 +38,6 @@ import (
 const (
 	certNameLabel        = "certificate-name"
 	certManagerNameLabel = "certmanager.k8s.io/certificate-name"
-	grcCategory          = "system-and-information-integrity"
 	ControllerName       = "certificate-policy-controller"
 )
 
@@ -119,22 +118,6 @@ func (r *CertificatePolicyReconciler) Reconcile(ctx context.Context, request ctr
 	}
 
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
-		updateNeeded := false
-
-		if ensureDefaultLabel(instance) {
-			reqLogger.V(1).Info("Label update needed")
-
-			updateNeeded = true
-		}
-
-		if updateNeeded {
-			if err := r.Update(ctx, instance); err != nil {
-				reqLogger.Info("Requeuing due to error updating the label", "Error", err)
-
-				return reconcile.Result{Requeue: true}, nil
-			}
-		}
-
 		instance.Status.CompliancyDetails = make(map[string]policyv1.CompliancyDetails)
 
 		r.handleAddingPolicy(ctx, instance)
@@ -144,32 +127,6 @@ func (r *CertificatePolicyReconciler) Reconcile(ctx context.Context, request ctr
 		instance.Namespace)
 
 	return reconcile.Result{}, nil
-}
-
-func ensureDefaultLabel(instance *policyv1.CertificatePolicy) bool {
-	log.V(3).Info("Entered ensureDefaultLabel")
-	// we need to ensure this label exists -> category: "System and Information Integrity"
-	if instance.ObjectMeta.Labels == nil {
-		newlbl := make(map[string]string)
-		newlbl["category"] = grcCategory
-		instance.ObjectMeta.Labels = newlbl
-
-		return true
-	}
-
-	if _, ok := instance.ObjectMeta.Labels["category"]; !ok {
-		instance.ObjectMeta.Labels["category"] = grcCategory
-
-		return true
-	}
-
-	if instance.ObjectMeta.Labels["category"] != grcCategory {
-		instance.ObjectMeta.Labels["category"] = grcCategory
-
-		return true
-	}
-
-	return false
 }
 
 // PeriodicallyExecCertificatePolicies always check status - let this be the only function in the controller.
