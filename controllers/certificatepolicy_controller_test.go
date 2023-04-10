@@ -205,35 +205,6 @@ func TestCheckComplianceBasedOnDetails(t *testing.T) {
 	checkComplianceBasedOnDetails(&certPolicy)
 }
 
-func TestEnsureDefaultLabel(t *testing.T) {
-	certPolicy := &policiesv1.CertificatePolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-	}
-	updateNeeded := ensureDefaultLabel(certPolicy)
-	assert.True(t, updateNeeded)
-
-	labels1 := map[string]string{}
-	labels1["category"] = grcCategory
-	certPolicy.Labels = labels1
-	updateNeeded = ensureDefaultLabel(certPolicy)
-	assert.False(t, updateNeeded)
-
-	labels2 := map[string]string{}
-	labels2["category"] = "foo"
-	certPolicy.Labels = labels2
-	updateNeeded = ensureDefaultLabel(certPolicy)
-	assert.True(t, updateNeeded)
-
-	labels3 := map[string]string{}
-	labels3["foo"] = grcCategory
-	certPolicy.Labels = labels3
-	updateNeeded = ensureDefaultLabel(certPolicy)
-	assert.True(t, updateNeeded)
-}
-
 func TestCheckComplianceChangeBasedOnDetails(t *testing.T) {
 	certPolicy := policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
