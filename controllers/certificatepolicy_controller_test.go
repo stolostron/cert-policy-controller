@@ -173,8 +173,8 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 				certPolicy.Name = fmt.Sprintf("%s-%d", certPolicy.Name, i)
 				certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{test.namespaceSelector}
 
-				r.handleAddingPolicy(certPolicy)
-				r.PeriodicallyExecCertificatePolicies(1, false)
+				r.handleAddingPolicy(context.TODO(), certPolicy)
+				r.PeriodicallyExecCertificatePolicies(context.TODO(), 1, false)
 
 				policy, found := availablePolicies.GetObject(test.cacheNamespace + "/" + certPolicy.Name)
 				assert.True(t, found)
@@ -191,7 +191,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	}
 }
 
-func TestCheckComplianceBasedOnDetails(t *testing.T) {
+func TestCheckComplianceBasedOnDetails(_ *testing.T) {
 	certPolicy := policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -268,14 +268,14 @@ func TestHandleAddingPolicy(t *testing.T) {
 	}
 	certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{"default"}
 
-	r.handleAddingPolicy(certPolicy)
+	r.handleAddingPolicy(context.TODO(), certPolicy)
 	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 	handleRemovingPolicy(certPolicy.Name)
 }
 
-func TestPrintMap(t *testing.T) {
+func TestPrintMap(_ *testing.T) {
 	certPolicy := policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -532,10 +532,10 @@ func TestProcessPolicies(t *testing.T) {
 		},
 	}
 	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
-	r.handleAddingPolicy(instance)
+	r.handleAddingPolicy(context.TODO(), instance)
 
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
-	value := r.ProcessPolicies(plcToUpdateMap)
+	value := r.ProcessPolicies(context.TODO(), plcToUpdateMap)
 	assert.True(t, value)
 
 	_, found := availablePolicies.GetObject("/" + instance.Name)
@@ -567,7 +567,7 @@ func TestParseCertificate(t *testing.T) {
 	target := []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	r.handleAddingPolicy(instance)
+	r.handleAddingPolicy(context.TODO(), instance)
 
 	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -585,7 +585,7 @@ func TestParseCertificate(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, cert)
 
-	update, nonCompliant, list := r.checkSecrets(instance, "default")
+	update, nonCompliant, list := r.checkSecrets(context.TODO(), instance, "default")
 
 	assert.Nil(t, err)
 	assert.Equal(t, uint(1), nonCompliant)
@@ -612,7 +612,7 @@ func TestParseCertificate(t *testing.T) {
 
 	target = []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
-	r.handleAddingPolicy(instance)
+	r.handleAddingPolicy(context.TODO(), instance)
 
 	policy, found = availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -626,7 +626,7 @@ func TestParseCertificate(t *testing.T) {
 	)
 	assert.Equal(t, 2, len(secretList.Items))
 
-	update, nonCompliant, list = r.checkSecrets(instance, "default")
+	update, nonCompliant, list = r.checkSecrets(context.TODO(), instance, "default")
 
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), nonCompliant)
@@ -665,7 +665,7 @@ func TestMultipleNamespaces(t *testing.T) {
 	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	r.handleAddingPolicy(instance)
+	r.handleAddingPolicy(context.TODO(), instance)
 
 	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -673,7 +673,7 @@ func TestMultipleNamespaces(t *testing.T) {
 
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
 
-	stateChange := r.ProcessPolicies(plcToUpdateMap)
+	stateChange := r.ProcessPolicies(context.TODO(), plcToUpdateMap)
 	assert.True(t, stateChange)
 
 	message := convertPolicyStatusToString(instance, DefaultDuration)
@@ -721,7 +721,7 @@ func TestSecretLabelSelection(t *testing.T) {
 	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	r.handleAddingPolicy(instance)
+	r.handleAddingPolicy(context.TODO(), instance)
 
 	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -729,7 +729,7 @@ func TestSecretLabelSelection(t *testing.T) {
 
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
 
-	stateChange := r.ProcessPolicies(plcToUpdateMap)
+	stateChange := r.ProcessPolicies(context.TODO(), plcToUpdateMap)
 	assert.True(t, stateChange)
 
 	// With the label selector only the secret default2 is matched

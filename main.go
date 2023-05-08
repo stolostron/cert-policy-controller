@@ -3,7 +3,7 @@
 
 package main
 
-// nolint:gci
+//nolint:gci
 import (
 	"context"
 	"errors"
@@ -19,16 +19,14 @@ import (
 	"github.com/stolostron/go-log-utils/zaputil"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/klog/v2"
-	"open-cluster-management.io/addon-framework/pkg/lease"
-	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
-
-	// Import all Kubernetes client auth plugins to ensure that exec-entrypoint and run can make use of them.
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
+	"open-cluster-management.io/addon-framework/pkg/lease"
+	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -37,7 +35,6 @@ import (
 	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 	controllers "open-cluster-management.io/cert-policy-controller/controllers"
 	"open-cluster-management.io/cert-policy-controller/version"
-	//+kubebuilder:scaffold:imports
 )
 
 var (
@@ -56,7 +53,7 @@ func printVersion() {
 		"GOOS", runtime.GOOS, "GOARCH", runtime.GOARCH)
 }
 
-// nolint:wsl
+//nolint:wsl
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(extpolicyv1.AddToScheme(scheme))
@@ -292,7 +289,7 @@ func main() {
 	_ = r.Initialize(namespace, eventOnParent, time.Duration(0)) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
 	// does the needed work to make sure the desired state is achieved
-	go r.PeriodicallyExecCertificatePolicies(frequency, true)
+	go r.PeriodicallyExecCertificatePolicies(context.TODO(), frequency, true)
 
 	if enableLease {
 		startLeaseController(generatedClient, hubConfigPath, clusterName)
