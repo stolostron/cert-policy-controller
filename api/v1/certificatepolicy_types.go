@@ -89,21 +89,21 @@ type CertificatePolicySpec struct {
 	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
 	// Minimum CA duration before a signing certificate expires that it is considered non-compliant.
 	// Golang's time units only.
-	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"` // nolint:tagliatelle
+	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"` //nolint:tagliatelle
 	// Maximum duration for a certificate, longer duration is considered non-compliant.
 	// Golang's time units only.
 	MaxDuration *metav1.Duration `json:"maximumDuration,omitempty"`
 	// Maximum CA duration for a signing certificate, longer duration is considered non-compliant.
 	// Golang's time units only.
-	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"` // nolint:tagliatelle
+	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"` //nolint:tagliatelle
 	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
 	//  Golang's regexp syntax only.
 	// +kubebuilder:validation:MinLength=1
-	AllowedSANPattern string `json:"allowedSANPattern,omitempty"` // nolint:tagliatelle
+	AllowedSANPattern string `json:"allowedSANPattern,omitempty"` //nolint:tagliatelle
 	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
 	// Golang's regexp syntax only.
 	// +kubebuilder:validation:MinLength=1
-	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"` // nolint:tagliatelle
+	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"` //nolint:tagliatelle
 }
 
 // CertificatePolicyStatus defines the observed state of CertificatePolicy
