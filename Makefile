@@ -82,7 +82,7 @@ dependencies-go:
 
 .PHONY: build
 build:
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -a -tags netgo -o ./build/_output/bin/cert-policy-controller ./main.go
+	@go build -o ./build/_output/bin/$(IMG) ./main.go
 
 # Run against the current locally configured Kubernetes cluster
 .PHONY: run
