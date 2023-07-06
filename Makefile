@@ -81,7 +81,7 @@ dependencies-go:
 
 .PHONY: build
 build:
-	@go build -o ./build/_output/bin/$(IMG) ./main.go
+	CGO_ENABLED=1 go build -o ./build/_output/bin/$(IMG) ./main.go
 
 # Run against the current locally configured Kubernetes cluster
 .PHONY: run
