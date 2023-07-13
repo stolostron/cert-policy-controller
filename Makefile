@@ -20,7 +20,7 @@ GOOS = $(shell go env GOOS)
 TESTARGS_DEFAULT := -v
 TESTARGS ?= $(TESTARGS_DEFAULT)
 # Deployment configuration
-CONTROLLER_NAMESPACE ?= open-cluster-management-agent-addon
+KIND_NAMESPACE ?= open-cluster-management-agent-addon
 MANAGED_CLUSTER_NAME ?= managed
 WATCH_NAMESPACE ?= $(MANAGED_CLUSTER_NAME)
 # Handle KinD configuration
@@ -101,19 +101,19 @@ build-images:
 # Install necessary resources into a cluster
 .PHONY: deploy
 deploy:
-	kubectl apply -f deploy/operator.yaml -n $(CONTROLLER_NAMESPACE)
-	kubectl apply -f deploy/crds/ -n $(CONTROLLER_NAMESPACE)
-	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
+	kubectl apply -f deploy/operator.yaml -n $(KIND_NAMESPACE)
+	kubectl apply -f deploy/crds/ -n $(KIND_NAMESPACE)
+	kubectl set env deployment/$(IMG) -n $(KIND_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
 .PHONY: deploy-controller
 deploy-controller: create-ns install-crds
 	@echo installing $(IMG)
-	kubectl -n $(CONTROLLER_NAMESPACE) apply -f deploy/operator.yaml
-	kubectl set env deployment/$(IMG) -n $(CONTROLLER_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
+	kubectl -n $(KIND_NAMESPACE) apply -f deploy/operator.yaml
+	kubectl set env deployment/$(IMG) -n $(KIND_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
 .PHONY: create-ns
 create-ns:
-	@kubectl create namespace $(CONTROLLER_NAMESPACE) || true
+	@kubectl create namespace $(KIND_NAMESPACE) || true
 	@kubectl create namespace $(WATCH_NAMESPACE) || true
 
 ############################################################
@@ -223,18 +223,34 @@ kind-bootstrap-cluster-dev: kind-create-cluster install-crds install-resources
 .PHONY: kind-deploy-controller
 kind-deploy-controller: install-crds
 	@echo installing $(IMG)
-	kubectl create ns $(CONTROLLER_NAMESPACE) || true
-	kubectl apply -f deploy/operator.yaml -n $(CONTROLLER_NAMESPACE)
-	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"env\":[{\"name\":\"WATCH_NAMESPACE\",\"value\":\"$(WATCH_NAMESPACE)\"}]}]}}}}"
+	kubectl create ns $(KIND_NAMESPACE) || true
+	kubectl apply -f deploy/operator.yaml -n $(KIND_NAMESPACE)
+	kubectl patch deployment $(IMG) -n $(KIND_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"env\":[{\"name\":\"WATCH_NAMESPACE\",\"value\":\"$(WATCH_NAMESPACE)\"}]}]}}}}"
+
+HOSTED ?= none
 
 .PHONY: kind-deploy-controller-dev
-kind-deploy-controller-dev: kind-deploy-controller
+kind-deploy-controller-dev:
+	if [ "$(HOSTED)" = "hosted" ]; then\
+		$(MAKE) kind-deploy-controller-dev-addon ;\
+	else\
+		$(MAKE) kind-deploy-controller-dev-normal ;\
+	fi
+
+.PHONY: kind-deploy-controller-dev-normal
+kind-deploy-controller-dev-normal: kind-deploy-controller
 	@echo Pushing image to KinD cluster
 	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name $(KIND_NAME)
 	@echo "Patch deployment image"
-	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"imagePullPolicy\":\"Never\",\"args\":[]}]}}}}"
-	kubectl patch deployment $(IMG) -n $(CONTROLLER_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
-	kubectl rollout status -n $(CONTROLLER_NAMESPACE) deployment $(IMG) --timeout=180s
+	kubectl patch deployment $(IMG) -n $(KIND_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"imagePullPolicy\":\"Never\",\"args\":[]}]}}}}"
+	kubectl patch deployment $(IMG) -n $(KIND_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
+	kubectl rollout status -n $(KIND_NAMESPACE) deployment $(IMG) --timeout=180s
+
+.PHONY: kind-deploy-controller-dev-addon
+kind-deploy-controller-dev-addon:
+	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name $(KIND_NAME)
+	kubectl annotate -n $(subst -hosted,,$(KIND_NAMESPACE)) --overwrite managedclusteraddon config-policy-controller\
+		addon.open-cluster-management.io/values='{"args": {"frequency": 10}, "global":{"imagePullPolicy": "Never", "imageOverrides":{"cert_policy_controller": "$(REGISTRY)/$(IMG):$(TAG)"}}}'
 
 .PHONY: kind-create-cluster
 kind-create-cluster:
@@ -296,12 +312,12 @@ e2e-stop-instrumented:
 
 .PHONY: e2e-debug
 e2e-debug:
-	-kubectl get all -n $(CONTROLLER_NAMESPACE)
-	-kubectl get leases -n $(CONTROLLER_NAMESPACE)
+	-kubectl get all -n $(KIND_NAMESPACE)
+	-kubectl get leases -n $(KIND_NAMESPACE)
 	-kubectl get all -n $(WATCH_NAMESPACE)
 	-kubectl get certificatepolicies.policy.open-cluster-management.io --all-namespaces
-	-kubectl describe pods -n $(CONTROLLER_NAMESPACE)
-	-kubectl logs $$(kubectl get pods -n $(CONTROLLER_NAMESPACE) -o name | grep $(IMG)) -n $(CONTROLLER_NAMESPACE)
+	-kubectl describe pods -n $(KIND_NAMESPACE)
+	-kubectl logs $$(kubectl get pods -n $(KIND_NAMESPACE) -o name | grep $(IMG)) -n $(KIND_NAMESPACE)
 
 ############################################################
 # test coverage
