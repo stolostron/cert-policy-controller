@@ -249,7 +249,7 @@ kind-deploy-controller-dev-normal: kind-deploy-controller
 .PHONY: kind-deploy-controller-dev-addon
 kind-deploy-controller-dev-addon:
 	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name $(KIND_NAME)
-	kubectl annotate -n $(subst -hosted,,$(KIND_NAMESPACE)) --overwrite managedclusteraddon config-policy-controller\
+	kubectl annotate -n $(subst -hosted,,$(KIND_NAMESPACE)) --overwrite managedclusteraddon cert-policy-controller\
 		addon.open-cluster-management.io/values='{"args": {"frequency": 10}, "global":{"imagePullPolicy": "Never", "imageOverrides":{"cert_policy_controller": "$(REGISTRY)/$(IMG):$(TAG)"}}}'
 
 .PHONY: kind-create-cluster
