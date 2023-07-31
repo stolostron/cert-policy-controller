@@ -34,7 +34,7 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 	}
 
 	// Message format:
-	//  NonCompliant; x certificates expire in less than 300h: namespace:secretname, namespace:secretname, ...
+	//  NonCompliant; x certificates expire in less than 300h: namespace:secretname1, namespace:secretname2, ...
 	expireCount := 0
 	expireCACount := 0
 	durationCount := 0

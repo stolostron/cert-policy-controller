@@ -16,7 +16,7 @@ limitations under the License.
 
 package controllers
 
-// nolint:gci
+//nolint:gci
 import (
 	"path/filepath"
 	"testing"
@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
-	//+kubebuilder:scaffold:imports
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
