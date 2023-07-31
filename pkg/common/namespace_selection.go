@@ -20,7 +20,7 @@ import (
 var log = ctrl.Log
 
 // GetSelectedNamespaces returns the list of filtered namespaces according to the policy namespace selector.
-func GetSelectedNamespaces(selector policyv1.Target) ([]string, error) {
+func GetSelectedNamespaces(ctx context.Context, selector policyv1.Target) ([]string, error) {
 	// Build LabelSelector from provided MatchLabels and MatchExpressions
 	var labelSelector metav1.LabelSelector
 	// Handle when MatchLabels/MatchExpressions were not provided to prevent nil pointer dereference.
@@ -43,7 +43,7 @@ func GetSelectedNamespaces(selector policyv1.Target) ([]string, error) {
 	}
 
 	// get all namespaces matching selector
-	allNamespaces, err := GetAllNamespaces(labelSelector)
+	allNamespaces, err := GetAllNamespaces(ctx, labelSelector)
 	if err != nil {
 		log.Error(err, "error retrieving namespaces")
 
@@ -70,7 +70,7 @@ func GetSelectedNamespaces(selector policyv1.Target) ([]string, error) {
 }
 
 // GetAllNamespaces gets the list of all namespaces from k8s.
-func GetAllNamespaces(labelSelector metav1.LabelSelector) ([]string, error) {
+func GetAllNamespaces(ctx context.Context, labelSelector metav1.LabelSelector) ([]string, error) {
 	parsedSelector, err := metav1.LabelSelectorAsSelector(&labelSelector)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing namespace LabelSelector: %w", err)
@@ -82,7 +82,7 @@ func GetAllNamespaces(labelSelector metav1.LabelSelector) ([]string, error) {
 
 	log.V(2).Info("Retrieving namespaces with LabelSelector", "LabelSelector", parsedSelector.String())
 
-	nsList, err := (KubeClient).CoreV1().Namespaces().List(context.TODO(), listOpt)
+	nsList, err := (KubeClient).CoreV1().Namespaces().List(ctx, listOpt)
 	if err != nil {
 		log.Error(err, "could not list namespaces from the API server")
 

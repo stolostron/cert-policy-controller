@@ -3,7 +3,7 @@
 
 package main
 
-// nolint:gci
+//nolint:gci
 import (
 	"context"
 	"errors"
@@ -56,7 +56,7 @@ func printVersion() {
 		"GOOS", runtime.GOOS, "GOARCH", runtime.GOARCH)
 }
 
-// nolint:wsl
+//nolint:wsl
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(extpolicyv1.AddToScheme(scheme))
@@ -262,7 +262,7 @@ func main() {
 	_ = controllers.Initialize(&generatedClient, mgr, namespace, eventOnParent, time.Duration(0)) /* #nosec G104 */
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
 	// does the needed work to make sure the desired state is achieved
-	go controllers.PeriodicallyExecCertificatePolicies(frequency, true)
+	go controllers.PeriodicallyExecCertificatePolicies(context.TODO(), frequency, true)
 
 	if enableLease {
 		startLeaseController(generatedClient, hubConfigPath, clusterName)

@@ -179,8 +179,8 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 				certPolicy.Name = fmt.Sprintf("%s-%d", certPolicy.Name, i)
 				certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{test.namespaceSelector}
 
-				handleAddingPolicy(certPolicy)
-				PeriodicallyExecCertificatePolicies(1, false)
+				handleAddingPolicy(context.TODO(), certPolicy)
+				PeriodicallyExecCertificatePolicies(context.TODO(), 1, false)
 
 				policy, found := availablePolicies.GetObject(test.cacheNamespace + "/" + certPolicy.Name)
 				assert.True(t, found)
@@ -197,7 +197,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	}
 }
 
-func TestCheckComplianceBasedOnDetails(t *testing.T) {
+func TestCheckComplianceBasedOnDetails(_ *testing.T) {
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 
 	common.Initialize(simpleClient, nil)
@@ -302,14 +302,14 @@ func TestHandleAddingPolicy(t *testing.T) {
 	}
 	certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{"default"}
 
-	handleAddingPolicy(certPolicy)
+	handleAddingPolicy(context.TODO(), certPolicy)
 	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
 	assert.True(t, found)
 	assert.NotNil(t, policy)
 	handleRemovingPolicy(certPolicy.Name)
 }
 
-func TestPrintMap(t *testing.T) {
+func TestPrintMap(_ *testing.T) {
 	certPolicy := policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -494,10 +494,10 @@ func TestProcessPolicies(t *testing.T) {
 			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
 		},
 	}
-	handleAddingPolicy(instance)
+	handleAddingPolicy(context.TODO(), instance)
 
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
-	value := ProcessPolicies(plcToUpdateMap)
+	value := ProcessPolicies(context.TODO(), plcToUpdateMap)
 	assert.True(t, value)
 
 	_, found := availablePolicies.GetObject("/" + instance.Name)
@@ -587,7 +587,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	target := []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	handleAddingPolicy(instance)
+	handleAddingPolicy(context.TODO(), instance)
 
 	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -605,7 +605,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	assert.Nil(t, err)
 	assert.NotNil(t, cert)
 
-	update, nonCompliant, list := checkSecrets(instance, "default")
+	update, nonCompliant, list := checkSecrets(context.TODO(), instance, "default")
 
 	assert.Nil(t, err)
 	assert.Equal(t, uint(1), nonCompliant)
@@ -664,7 +664,7 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 
 	target = []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
-	handleAddingPolicy(instance)
+	handleAddingPolicy(context.TODO(), instance)
 
 	policy, found = availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -678,7 +678,7 @@ xUSmOkQ0VchHrQY4a3z4yzgWIdDe34DhonLA1njXcd66kzY5cD1EykmLcIPFLqCx
 	)
 	assert.Equal(t, 2, len(secretList.Items))
 
-	update, nonCompliant, list = checkSecrets(instance, "default")
+	update, nonCompliant, list = checkSecrets(context.TODO(), instance, "default")
 
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), nonCompliant)
@@ -799,7 +799,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	handleAddingPolicy(instance)
+	handleAddingPolicy(context.TODO(), instance)
 
 	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
 	assert.True(t, found)
@@ -807,7 +807,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
 
-	stateChange := ProcessPolicies(plcToUpdateMap)
+	stateChange := ProcessPolicies(context.TODO(), plcToUpdateMap)
 	assert.True(t, stateChange)
 
 	message := convertPolicyStatusToString(instance, DefaultDuration)
