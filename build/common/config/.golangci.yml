@@ -191,7 +191,6 @@ issues:
     - declarations should never be cuddled
     - don't use leading k in Go names
     - "require-error: for error assertions use require"
-    - "is deprecated:"
 
   exclude-rules:
     # Allow dot imports in the tests.
