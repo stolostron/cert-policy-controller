@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 	controllers "open-cluster-management.io/cert-policy-controller/controllers"
@@ -204,18 +205,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	cacheOptions := cache.Options{
+		DefaultNamespaces: make(map[string]cache.Config),
+	}
+
+	for _, namespace := range strings.Split(namespace, ",") {
+		cacheOptions.DefaultNamespaces[namespace] = cache.Config{}
+	}
+
+	metricsOptions := server.Options{
+		BindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
+	}
+
 	options := ctrl.Options{
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "cert-policy-controller.open-cluster-management.io",
-		MetricsBindAddress:     fmt.Sprintf("%s:%d", metricsHost, metricsPort),
-		Namespace:              namespace,
+		Metrics:                metricsOptions,
 		Scheme:                 scheme,
-	}
-
-	if strings.Contains(namespace, ",") {
-		options.Namespace = ""
-		options.NewCache = cache.MultiNamespacedCacheBuilder(strings.Split(namespace, ","))
+		Cache:                  cacheOptions,
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
