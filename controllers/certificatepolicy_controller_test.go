@@ -131,7 +131,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	_, err := r.TargetK8sClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
 	if err != nil {
 		t.Logf("Error creating namespace: %s", err)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	}
 
 	_, err = r.Reconcile(context.TODO(), req)
@@ -518,7 +518,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 
 	s, err := simpleClient.CoreV1().Secrets(namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
 	assert.NotNil(t, s)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestProcessPolicies(t *testing.T) {
@@ -582,12 +582,12 @@ func TestParseCertificate(t *testing.T) {
 	assert.Len(t, secretList.Items, 1)
 
 	cert, err := parseCertificate(&secretList.Items[0])
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, cert)
 
 	update, nonCompliant, list := r.checkSecrets(context.TODO(), instance, "default")
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, uint(1), nonCompliant)
 	assert.True(t, update)
 
@@ -624,11 +624,11 @@ func TestParseCertificate(t *testing.T) {
 			LabelSelector: labelSelector.String(),
 		},
 	)
-	assert.Equal(t, 2, len(secretList.Items))
+	assert.Len(t, secretList.Items, 2)
 
 	update, nonCompliant, list = r.checkSecrets(context.TODO(), instance, "default")
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, uint(2), nonCompliant)
 	assert.True(t, update)
 
@@ -737,7 +737,7 @@ func TestSecretLabelSelection(t *testing.T) {
 	assert.NotNil(t, message)
 	t.Logf("Message created for policy: %s", message)
 	first := strings.Index(message, "default1")
-	assert.Equal(t, first, -1)
+	assert.Equal(t, -1, first)
 
 	second := strings.Index(message, "default2")
 	assert.Less(t, 0, second)

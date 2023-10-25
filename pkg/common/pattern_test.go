@@ -91,7 +91,7 @@ func TestMatches(t *testing.T) {
 					}
 				}
 
-				assert.Equal(t, actual, test.expected)
+				assert.Equal(t, test.expected, actual)
 			},
 		)
 	}

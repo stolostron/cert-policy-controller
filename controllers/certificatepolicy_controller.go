@@ -566,7 +566,7 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	changed := false
 
 	// Add in default/generic message that can be overridden
-	msg := fmt.Sprintf("%s violations detected in namespace `%s`", fmt.Sprint(count), namespace)
+	msg := fmt.Sprintf("%d violations detected in namespace `%s`", count, namespace)
 	if message != "" {
 		msg = message
 	}

@@ -123,14 +123,14 @@ create-ns:
 # Lint code
 .PHONY: lint-dependencies
 lint-dependencies:
-	$(call go-get-tool,github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.2)
+	$(call go-get-tool,github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.1)
 
 .PHONY: lint
 lint: lint-dependencies lint-all
 
 .PHONY: fmt-dependencies
 fmt-dependencies:
-	$(call go-get-tool,github.com/daixiang0/gci@v0.10.1)
+	$(call go-get-tool,github.com/daixiang0/gci@v0.11.2)
 	$(call go-get-tool,mvdan.cc/gofumpt@v0.5.0)
 
 .PHONY: fmt
@@ -167,7 +167,7 @@ controller-gen: ## Download controller-gen locally if necessary.
 
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,sigs.k8s.io/kustomize/kustomize/v5@v5.0.1)
+	$(call go-get-tool,sigs.k8s.io/kustomize/kustomize/v5@v5.2.1)
 
 ############################################################
 # unit test
@@ -203,7 +203,7 @@ envtest:
 
 .PHONY: gosec
 gosec:
-	$(call go-get-tool,github.com/securego/gosec/v2/cmd/gosec@v2.15.0)
+	$(call go-get-tool,github.com/securego/gosec/v2/cmd/gosec@v2.18.2)
 
 .PHONY: gosec-scan
 gosec-scan: gosec
