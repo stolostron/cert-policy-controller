@@ -17,7 +17,7 @@ package common
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +34,7 @@ func TestGetSelectedNamespaces(t *testing.T) {
 
 	// Initialize set of namespaces for the test
 	for i := 1; i <= 5; i++ {
-		idx := fmt.Sprint(i)
+		idx := strconv.Itoa(i)
 
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -210,7 +210,7 @@ func TestGetAllNamespaces(t *testing.T) {
 
 	// Initialize set of namespaces for the test
 	for i := 1; i <= 5; i++ {
-		idx := fmt.Sprint(i)
+		idx := strconv.Itoa(i)
 
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
