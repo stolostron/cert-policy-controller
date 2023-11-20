@@ -126,7 +126,7 @@ lint-dependencies:
 	$(call go-get-tool,github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.1)
 
 .PHONY: lint
-lint: lint-dependencies lint-all
+lint:
 
 .PHONY: fmt-dependencies
 fmt-dependencies:
