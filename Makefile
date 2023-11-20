@@ -100,7 +100,7 @@ build-images:
 
 # Install necessary resources into a cluster
 .PHONY: deploy
-deploy:
+deploy: create-ns
 	kubectl apply -f deploy/operator.yaml -n $(KIND_NAMESPACE)
 	kubectl apply -f deploy/crds/ -n $(KIND_NAMESPACE)
 	kubectl set env deployment/$(IMG) -n $(KIND_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
