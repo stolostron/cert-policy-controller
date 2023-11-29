@@ -215,7 +215,7 @@ func TestCheckComplianceChangeBasedOnDetails(t *testing.T) {
 	assert.False(t, flag)
 }
 
-func TestCreateParentPolicy(t *testing.T) {
+func TestSendComplianceEvent(t *testing.T) {
 	certPolicy := &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -229,11 +229,16 @@ func TestCreateParentPolicy(t *testing.T) {
 	ownerReferences = append(ownerReferences, ownerReference)
 	certPolicy.OwnerReferences = ownerReferences
 
-	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
+	// Create a fake client to mock API calls.
+	objs := []runtime.Object{certPolicy}
+	clBuilder := fake.NewClientBuilder()
+	clBuilder.WithRuntimeObjects(objs...)
+	cl := clBuilder.Build()
 
-	policy := createParentPolicy(certPolicy)
-	assert.NotNil(t, policy)
-	r.createParentPolicyEvent(certPolicy)
+	r := &CertificatePolicyReconciler{Client: cl, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
+
+	err := r.sendComplianceEvent(context.TODO(), certPolicy)
+	assert.NoError(t, err)
 }
 
 func TestHandleAddingPolicy(t *testing.T) {
