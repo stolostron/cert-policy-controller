@@ -25,7 +25,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
-	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -77,8 +76,9 @@ var _ reconcile.Reconciler = &CertificatePolicyReconciler{}
 // Reconciler reconciles a CertificatePolicy object.
 type CertificatePolicyReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	InstanceName string
 	// The Kubernetes client to use when evaluating/enforcing policies. Most times,
 	// this will be the same cluster where the controller is running.
 	TargetK8sClient kubernetes.Interface
@@ -731,25 +731,92 @@ func (r *CertificatePolicyReconciler) updatePolicyStatus(
 			}
 		}
 
-		err := r.Status().Update(ctx, instance)
+		err := r.sendComplianceEvent(ctx, instance)
 		if err != nil {
 			return instance, err
 		}
 
-		if EventOnParent != "no" {
-			r.createParentPolicyEvent(instance)
+		// next do the status update
+		err = r.Status().Update(ctx, instance)
+		if err != nil {
+			return instance, err
 		}
 
 		if r.Recorder != nil {
+			eType := "Normal"
 			if instance.Status.ComplianceState == policyv1.NonCompliant {
-				r.Recorder.Event(instance, corev1.EventTypeWarning, "Policy updated", message)
-			} else {
-				r.Recorder.Event(instance, corev1.EventTypeNormal, "Policy updated", message)
+				eType = "Warning"
 			}
+
+			r.Recorder.Event(instance, eType, "Policy updated", message)
 		}
 	}
 
 	return nil, nil
+}
+
+func (r *CertificatePolicyReconciler) sendComplianceEvent(ctx context.Context,
+	instance *policyv1.CertificatePolicy,
+) error {
+	if len(instance.OwnerReferences) == 0 {
+		return nil // there is nothing to do, since no owner is set
+	}
+
+	now := time.Now()
+	event := &corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			// This event name matches the convention of recorders from client-go
+			Name:      fmt.Sprintf("%v.%x", instance.Name, now.UnixNano()),
+			Namespace: instance.Namespace,
+		},
+		Reason:  fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name),
+		Message: convertPolicyStatusToString(instance, DefaultDuration),
+		Source: corev1.EventSource{
+			Component: ControllerName,
+			Host:      r.InstanceName,
+		},
+		FirstTimestamp: metav1.NewTime(now),
+		LastTimestamp:  metav1.NewTime(now),
+		Count:          1,
+		Type:           "Normal",
+		EventTime:      metav1.NewMicroTime(now),
+		Action:         "ComplianceStateUpdate",
+		Related: &corev1.ObjectReference{
+			Kind:       instance.Kind,
+			Namespace:  instance.Namespace,
+			Name:       instance.Name,
+			UID:        instance.UID,
+			APIVersion: instance.APIVersion,
+		},
+		ReportingController: ControllerName,
+
+		ReportingInstance: r.InstanceName,
+	}
+
+	if instance.Status.ComplianceState == policyv1.NonCompliant {
+		event.Type = "Warning"
+	}
+
+	if len(instance.OwnerReferences) > 0 {
+		ownerRef := instance.OwnerReferences[0]
+		event.InvolvedObject = corev1.ObjectReference{
+			Kind:       ownerRef.Kind,
+			Namespace:  instance.Namespace, // k8s ensures owners are always in the same namespace
+			Name:       ownerRef.Name,
+			UID:        ownerRef.UID,
+			APIVersion: ownerRef.APIVersion,
+		}
+	} else {
+		event.InvolvedObject = corev1.ObjectReference{
+			Kind:       instance.Kind,
+			Namespace:  instance.Namespace, // k8s ensures owners are always in the same namespace
+			Name:       instance.Name,
+			UID:        instance.UID,
+			APIVersion: instance.APIVersion,
+		}
+	}
+
+	return r.Create(ctx, event)
 }
 
 func handleRemovingPolicy(name string) {
@@ -820,54 +887,6 @@ func printMap(myMap map[string]*policyv1.CertificatePolicy) {
 	for k, v := range myMap {
 		log.Info("-", "namespace", k, "policy", v.Name)
 	}
-}
-
-func (r *CertificatePolicyReconciler) createParentPolicyEvent(instance *policyv1.CertificatePolicy) {
-	ilog := log.WithValues("instance.Namespace", instance.Namespace, "instance.Name", instance.Name)
-	ilog.V(3).Info("Entered createParentPolicyEvent")
-
-	if len(instance.OwnerReferences) == 0 {
-		return // there is nothing to do, since no owner is set
-	}
-	// Assumes the Certificate policy has a single owner, or we chose the first owner in the list
-	if string(instance.OwnerReferences[0].UID) == "" {
-		return // there is nothing to do, since no owner UID is set
-	}
-
-	parentPlc := createParentPolicy(instance)
-
-	if r.Recorder != nil {
-		if instance.Status.ComplianceState == policyv1.NonCompliant {
-			ilog.V(3).Info("Update parent policy, non-compliant policy")
-			r.Recorder.Event(&parentPlc, corev1.EventTypeWarning, fmt.Sprintf("policy: %s/%s",
-				instance.Namespace, instance.Name),
-				convertPolicyStatusToString(instance, DefaultDuration))
-		} else {
-			ilog.V(3).Info("Update parent policy, compliant policy")
-			r.Recorder.Event(&parentPlc, corev1.EventTypeNormal, fmt.Sprintf("policy: %s/%s",
-				instance.Namespace, instance.Name),
-				convertPolicyStatusToString(instance, DefaultDuration))
-		}
-	}
-}
-
-func createParentPolicy(instance *policyv1.CertificatePolicy) extpolicyv1.Policy {
-	log.V(3).Info("Entered createParentPolicy")
-
-	plc := extpolicyv1.Policy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: instance.OwnerReferences[0].Name,
-			// It's assumed that the parent policy is in the same namespace as the cert policy
-			Namespace: instance.Namespace,
-			UID:       instance.OwnerReferences[0].UID,
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Policy",
-			APIVersion: "policy.open-cluster-management.io/v1",
-		},
-	}
-
-	return plc
 }
 
 // SetupWithManager sets up the controller with the Manager.
