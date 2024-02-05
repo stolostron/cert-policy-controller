@@ -28,9 +28,11 @@ import (
 	"open-cluster-management.io/addon-framework/pkg/lease"
 	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	policyv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 	controllers "open-cluster-management.io/cert-policy-controller/controllers"
@@ -258,7 +260,9 @@ func main() {
 		TargetK8sClient: targetK8sClient,
 		TargetK8sConfig: targetK8sConfig,
 	}
-	if err = r.SetupWithManager(mgr); err != nil {
+	if err = ctrl.NewControllerManagedBy(mgr).
+		For(&policyv1.CertificatePolicy{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Complete(r); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CertificatePolicy")
 		os.Exit(1)
 	}
