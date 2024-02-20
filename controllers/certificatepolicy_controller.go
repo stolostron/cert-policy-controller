@@ -38,6 +38,8 @@ const (
 	certNameLabel        = "certificate-name"
 	certManagerNameLabel = "certmanager.k8s.io/certificate-name"
 	ControllerName       = "certificate-policy-controller"
+	PolicyDBIDAnnotation = "policy.open-cluster-management.io/policy-compliance-db-id"
+	ParentDBIDAnnotation = "policy.open-cluster-management.io/parent-policy-compliance-db-id"
 )
 
 var (
@@ -791,6 +793,21 @@ func (r *CertificatePolicyReconciler) sendComplianceEvent(ctx context.Context,
 		ReportingController: ControllerName,
 
 		ReportingInstance: r.InstanceName,
+	}
+
+	eventAnnotations := map[string]string{}
+
+	instanceAnnotations := instance.GetAnnotations()
+	if instanceAnnotations[ParentDBIDAnnotation] != "" {
+		eventAnnotations[ParentDBIDAnnotation] = instanceAnnotations[ParentDBIDAnnotation]
+	}
+
+	if instanceAnnotations[PolicyDBIDAnnotation] != "" {
+		eventAnnotations[PolicyDBIDAnnotation] = instanceAnnotations[PolicyDBIDAnnotation]
+	}
+
+	if len(eventAnnotations) > 0 {
+		event.Annotations = eventAnnotations
 	}
 
 	if instance.Status.ComplianceState == policyv1.NonCompliant {
