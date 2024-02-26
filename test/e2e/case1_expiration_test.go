@@ -39,7 +39,7 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 		altKubeconfigPath = os.Getenv(envName)
 		Expect(altKubeconfigPath).ToNot(Equal(""))
 
-		targetK8sConfig, err := clientcmd.BuildConfigFromFlags("", altKubeconfigPath)
+		targetK8sConfig, err := clientcmd.BuildConfigFromFlags("", altKubeconfigPath+"_e2e")
 		Expect(err).ToNot(HaveOccurred())
 
 		targetK8sClient, err = kubernetes.NewForConfig(targetK8sConfig)
@@ -47,7 +47,7 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 	})
 
 	AfterAll(func() {
-		utils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace)
+		utils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace, "--kubeconfig", kubeconfigManaged)
 
 		err := targetK8sClient.CoreV1().Secrets("default").Delete(context.TODO(), case1SecretName, metav1.DeleteOptions{})
 		if !errors.IsNotFound(err) {
@@ -57,7 +57,7 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 
 	It("should be created properly on the managed cluster", func() {
 		By("Creating " + case1PolicyYaml + " on managed")
-		utils.Kubectl("apply", "-f", case1PolicyYaml, "-n", testNamespace)
+		utils.Kubectl("apply", "-f", case1PolicyYaml, "-n", testNamespace, "--kubeconfig", kubeconfigManaged)
 		plc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 			case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(plc).NotTo(BeNil())
@@ -70,7 +70,7 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 	})
 	It("should create expired certificate on managed cluster", func() {
 		By("creating " + case1ExpiredCertificate + " on managed cluster")
-		utils.Kubectl("apply", "-f", case1ExpiredCertificate, "--kubeconfig="+altKubeconfigPath)
+		utils.Kubectl("apply", "-f", case1ExpiredCertificate, "--kubeconfig="+altKubeconfigPath+"_e2e")
 		Eventually(func() interface{} {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
@@ -79,7 +79,7 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 		}, defaultTimeoutSeconds, 1).Should(Equal("NonCompliant"))
 	})
 	It("should become Compliant with unexpired certificate on managed cluster", func() {
-		utils.Kubectl("apply", "-f", case1UnexpiredCertificate, "--kubeconfig="+altKubeconfigPath)
+		utils.Kubectl("apply", "-f", case1UnexpiredCertificate, "--kubeconfig="+altKubeconfigPath+"_e2e")
 		Eventually(func() interface{} {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
@@ -91,15 +91,26 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 
 var _ = Describe("Test certificate policy expiration", Ordered, func() {
 	AfterAll(func() {
-		utils.Kubectl("delete", "-f", case1ParentPolicyYaml, "-n", testNamespace, "--ignore-not-found")
-		utils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace, "--ignore-not-found")
-		utils.Kubectl("delete", "secret", case1SecretName, "-n", "default", "--ignore-not-found")
-		utils.Kubectl("delete", "events", "-n", testNamespace, "--all")
+		utils.Kubectl("delete",
+			"-f", case1ParentPolicyYaml,
+			"-n", testNamespace,
+			"--ignore-not-found",
+			"--kubeconfig", kubeconfigManaged)
+		utils.Kubectl("delete",
+			"-f", case1PolicyYaml,
+			"-n", testNamespace,
+			"--ignore-not-found",
+			"--kubeconfig", kubeconfigManaged)
+		utils.Kubectl("delete", "secret", case1SecretName,
+			"-n", "default",
+			"--ignore-not-found",
+			"--kubeconfig", kubeconfigManaged)
+		utils.Kubectl("delete", "events", "-n", testNamespace, "--all", "--kubeconfig", kubeconfigManaged)
 	})
 
 	It("should be created properly on the managed cluster", func(ctx context.Context) {
 		By("Creating " + case1ParentPolicyYaml + " on managed")
-		utils.Kubectl("apply", "-f", case1ParentPolicyYaml, "-n", testNamespace)
+		utils.Kubectl("apply", "-f", case1ParentPolicyYaml, "-n", testNamespace, "--kubeconfig", kubeconfigManaged)
 		parentPlc := utils.GetWithTimeout(clientManagedDynamic, gvrPolicy,
 			case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(parentPlc).NotTo(BeNil())
@@ -134,7 +145,7 @@ var _ = Describe("Test certificate policy expiration", Ordered, func() {
 	})
 	It("should create expired certificate on managed cluster", func() {
 		By("creating " + case1ExpiredCertificate + " on managed cluster")
-		utils.Kubectl("apply", "-f", case1ExpiredCertificate)
+		utils.Kubectl("apply", "-f", case1ExpiredCertificate, "--kubeconfig", kubeconfigManaged)
 		Eventually(func() interface{} {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
@@ -143,7 +154,7 @@ var _ = Describe("Test certificate policy expiration", Ordered, func() {
 		}, defaultTimeoutSeconds, 1).Should(Equal("NonCompliant"))
 	})
 	It("should become Compliant with unexpired certificate on managed cluster", func() {
-		utils.Kubectl("apply", "-f", case1UnexpiredCertificate)
+		utils.Kubectl("apply", "-f", case1UnexpiredCertificate, "--kubeconfig", kubeconfigManaged)
 		Eventually(func() interface{} {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)

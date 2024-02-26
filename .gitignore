@@ -11,8 +11,7 @@ vendor/
 !vbh/build-harness-extensions
 .vscode/launch.json
 cmd/manager/__debug_bin
-kubeconfig_managed
-kubeconfig_managed2
+kubeconfig_*
 
 report.json
 report_*.json
