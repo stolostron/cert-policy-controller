@@ -1,11 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: certificatepolicies.policy.open-cluster-management.io
 spec:
   group: policy.open-cluster-management.io
@@ -22,14 +20,19 @@ spec:
         description: CertificatePolicy is the Schema for the certificatepolicies API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -37,15 +40,15 @@ spec:
             description: CertificatePolicySpec defines the desired state of CertificatePolicy
             properties:
               allowedSANPattern:
-                description: A pattern that must match any defined SAN entries in
-                  the certificate for the certificate to be compliant.  Golang's regexp
-                  syntax only.
+                description: |-
+                  A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
+                   Golang's regexp syntax only.
                 minLength: 1
                 type: string
               disallowedSANPattern:
-                description: A pattern that must not match any defined SAN entries
-                  in the certificate for the certificate to be compliant. Golang's
-                  regexp syntax only.
+                description: |-
+                  A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
+                  Golang's regexp syntax only.
                 minLength: 1
                 type: string
               labelSelector:
@@ -56,29 +59,31 @@ spec:
                   that contain these labels.
                 type: object
               maximumCADuration:
-                description: Maximum CA duration for a signing certificate, longer
-                  duration is considered non-compliant. Golang's time units only.
+                description: |-
+                  Maximum CA duration for a signing certificate, longer duration is considered non-compliant.
+                  Golang's time units only.
                 type: string
               maximumDuration:
-                description: Maximum duration for a certificate, longer duration is
-                  considered non-compliant. Golang's time units only.
+                description: |-
+                  Maximum duration for a certificate, longer duration is considered non-compliant.
+                  Golang's time units only.
                 type: string
               minimumCADuration:
-                description: Minimum CA duration before a signing certificate expires
-                  that it is considered non-compliant. Golang's time units only.
+                description: |-
+                  Minimum CA duration before a signing certificate expires that it is considered non-compliant.
+                  Golang's time units only.
                 type: string
               minimumDuration:
                 description: Minimum duration before a certificate expires that it
                   is considered non-compliant. Golang's time units only.
                 type: string
               namespaceSelector:
-                description: '''namespaceSelector'' defines the list of namespaces
-                  to include/exclude for objects defined in spec.objectTemplates.
-                  All selector rules are ANDed. If ''include'' is not provided but
-                  ''matchLabels'' and/or ''matchExpressions'' are, ''include'' will
-                  behave as if [''*''] were given. If ''matchExpressions'' and ''matchLabels''
-                  are both not provided, ''include'' must be provided to retrieve
-                  namespaces.'
+                description: |-
+                  'namespaceSelector' defines the list of namespaces to include/exclude for objects defined in
+                  spec.objectTemplates. All selector rules are ANDed. If 'include' is not provided but
+                  'matchLabels' and/or 'matchExpressions' are, 'include' will behave as if ['*'] were given. If
+                  'matchExpressions' and 'matchLabels' are both not provided, 'include' must be provided to
+                  retrieve namespaces.
                 properties:
                   exclude:
                     description: '''exclude'' is an array of filepath expressions
@@ -98,24 +103,24 @@ spec:
                     description: '''matchExpressions'' is an array of label selector
                       requirements matching objects by label.'
                     items:
-                      description: A label selector requirement is a selector that
-                        contains values, a key, and an operator that relates the key
-                        and values.
+                      description: |-
+                        A label selector requirement is a selector that contains values, a key, and an operator that
+                        relates the key and values.
                       properties:
                         key:
                           description: key is the label key that the selector applies
                             to.
                           type: string
                         operator:
-                          description: operator represents a key's relationship to
-                            a set of values. Valid operators are In, NotIn, Exists
-                            and DoesNotExist.
+                          description: |-
+                            operator represents a key's relationship to a set of values.
+                            Valid operators are In, NotIn, Exists and DoesNotExist.
                           type: string
                         values:
-                          description: values is an array of string values. If the
-                            operator is In or NotIn, the values array must be non-empty.
-                            If the operator is Exists or DoesNotExist, the values
-                            array must be empty. This array is replaced during a strategic
+                          description: |-
+                            values is an array of string values. If the operator is In or NotIn,
+                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                            the values array must be empty. This array is replaced during a strategic
                             merge patch.
                           items:
                             type: string
@@ -174,19 +179,19 @@ spec:
                           ca:
                             type: boolean
                           duration:
-                            description: A Duration represents the elapsed time between
-                              two instants as an int64 nanosecond count. The representation
-                              limits the largest representable duration to approximately
-                              290 years.
+                            description: |-
+                              A Duration represents the elapsed time between two instants
+                              as an int64 nanosecond count. The representation limits the
+                              largest representable duration to approximately 290 years.
                             format: int64
                             type: integer
                           expiration:
                             type: string
                           expiry:
-                            description: A Duration represents the elapsed time between
-                              two instants as an int64 nanosecond count. The representation
-                              limits the largest representable duration to approximately
-                              290 years.
+                            description: |-
+                              A Duration represents the elapsed time between two instants
+                              as an int64 nanosecond count. The representation limits the
+                              largest representable duration to approximately 290 years.
                             format: int64
                             type: integer
                           sans:
@@ -209,9 +214,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
