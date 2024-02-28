@@ -113,6 +113,8 @@ func convertPolicyStatusToString(plc *policyv1.CertificatePolicy, defaultDuratio
 				}
 			}
 		}
+
+		return fmt.Sprintf(format, result, "All evaluated certificates are compliant")
 	}
 
 	return result
