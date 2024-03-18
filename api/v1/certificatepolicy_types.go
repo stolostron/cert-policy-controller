@@ -9,7 +9,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// RemediationAction : enforce or inform
+// +kubebuilder:validation:MinLength=1
+type NonEmptyString string
+
+// +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
 type RemediationAction string
 
 const (
@@ -20,34 +23,28 @@ const (
 	Inform RemediationAction = "Inform"
 )
 
-// ComplianceState shows the state of enforcement
+// ComplianceState reports the compliance that results from parameters of the certificate policy.
+//
+// +kubebuilder:validation:Enum=Compliant;NonCompliant;UnknownCompliancy
 type ComplianceState string
 
 const (
-	// Compliant is an ComplianceState
-	Compliant ComplianceState = "Compliant"
-
-	// NonCompliant is an ComplianceState
-	NonCompliant ComplianceState = "NonCompliant"
-
-	// UnknownCompliancy is an ComplianceState
+	Compliant         ComplianceState = "Compliant"
+	NonCompliant      ComplianceState = "NonCompliant"
 	UnknownCompliancy ComplianceState = "UnknownCompliancy"
 )
 
-// A custom type is required since there is no way to have a kubebuilder marker
-// apply to the items of a slice.
-
-// +kubebuilder:validation:MinLength=1
-type NonEmptyString string
-
 type Target struct {
-	// 'include' is an array of filepath expressions to include objects by name.
+	// Include is an array of filepath expressions to include objects by name.
 	Include []NonEmptyString `json:"include,omitempty"`
-	// 'exclude' is an array of filepath expressions to exclude objects by name.
+
+	// Exclude is an array of filepath expressions to exclude objects by name.
 	Exclude []NonEmptyString `json:"exclude,omitempty"`
-	// 'matchLabels' is a map of {key,value} pairs matching objects by label.
+
+	// MatchLabels is a map of {key,value} pairs matching objects by label.
 	MatchLabels *map[string]string `json:"matchLabels,omitempty"`
-	// 'matchExpressions' is an array of label selector requirements matching objects by label.
+
+	// MatchExpressions is an array of label selector requirements matching objects by label.
 	MatchExpressions *[]metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
 }
 
@@ -69,73 +66,123 @@ func (t Target) String() string {
 	return fmt.Sprintf(fmtSelectorStr, t.Include, t.Exclude, *t.MatchLabels, *t.MatchExpressions)
 }
 
-// CertificatePolicySpec defines the desired state of CertificatePolicy
+// CertificatePolicySpec defines which certificates need to be checked and how those certificates
+// should be configured to be compliant with the policy. Enforce remediation action is not currently
+// supported, so you are responsible to take actions to fix any noncompliant certificates.
 type CertificatePolicySpec struct {
-	// Only Inform is currently supported. Setting this to Enforce will have the same effect as Inform.
-	// +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
+	// RemediationAction must be set to "Inform". Enforce is not currently supported, so setting this
+	// to "Enforce" has the same effect as "Inform".
 	RemediationAction RemediationAction `json:"remediationAction,omitempty"`
-	// 'namespaceSelector' defines the list of namespaces to include/exclude for objects defined in
-	// spec.objectTemplates. All selector rules are ANDed. If 'include' is not provided but
-	// 'matchLabels' and/or 'matchExpressions' are, 'include' will behave as if ['*'] were given. If
-	// 'matchExpressions' and 'matchLabels' are both not provided, 'include' must be provided to
-	// retrieve namespaces.
+
+	// NamespaceSelector determines namespaces on the managed cluster in which to validate
+	// certificates. The Include and Exclude parameters accept file path expressions to include and
+	// exclude namespaces by name. The MatchExpressions and MatchLabels parameters specify namespaces
+	// to include by label. See the Kubernetes labels and selectors documentation. The resulting list
+	// is compiled by using the intersection of results from all parameters. You must provide either
+	// Include or at least one of MatchExpressions or MatchLabels to retrieve namespaces.
 	NamespaceSelector Target `json:"namespaceSelector,omitempty"`
-	// Restrict the secrets that will be checked to the ones that contain these labels.
+
+	// LabelSelector restricts the secrets that are checked to the ones that match these labels.
 	LabelSelector map[string]NonEmptyString `json:"labelSelector,omitempty"`
-	// low, medium, high, or critical
+
+	// Severity is a user-defined severity for when a certificate is found out of compliance with this
+	// certificate policy. Accepted values are low, medium, high, and critical.
+	//
 	// +kubebuilder:validation:Enum=low;Low;medium;Medium;high;High;critical;Critical
 	Severity string `json:"severity,omitempty"`
-	// Minimum duration before a certificate expires that it is considered non-compliant. Golang's time units only.
+
+	// MinDuration is the minimum duration for the expiration of a certificate, where a value that is
+	// lesser than that duration is considered noncompliant. The value follows the Golang duration
+	// format 0h0m0s, where hours (h) is the largest accepted unit of time.
 	MinDuration *metav1.Duration `json:"minimumDuration,omitempty"`
-	// Minimum CA duration before a signing certificate expires that it is considered non-compliant.
-	// Golang's time units only.
-	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"` //nolint:tagliatelle
-	// Maximum duration for a certificate, longer duration is considered non-compliant.
-	// Golang's time units only.
+
+	// MaxDuration is the maximum duration for the expiration of a certificate, where a value that is
+	// greater than that duration is considered noncompliant. The value follows the Golang duration
+	// format 0h0m0s, where hours (h) is the largest accepted unit of time.
 	MaxDuration *metav1.Duration `json:"maximumDuration,omitempty"`
-	// Maximum CA duration for a signing certificate, longer duration is considered non-compliant.
-	// Golang's time units only.
+
+	// MinCADuration is the minimum duration for the expiration of the certificate authority (CA),
+	// where any value lesser than that duration is considered noncompliant. The value follows the
+	// Golang duration format 0h0m0s, where hours (h) is the largest accepted unit of time.
+	MinCADuration *metav1.Duration `json:"minimumCADuration,omitempty"` //nolint:tagliatelle
+
+	// MaxCADuration is the maximum duration for the expiration of the certificate authority (CA),
+	// where a value that is greater than that duration is considered noncompliant. The value follows
+	// the Golang duration format 0h0m0s, where hours (h) is the largest accepted unit of time.
 	MaxCADuration *metav1.Duration `json:"maximumCADuration,omitempty"` //nolint:tagliatelle
-	// A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
-	//  Golang's regexp syntax only.
+
+	// AllowedSANPattern is the pattern that must match any defined subject alternative name (SAN)
+	// entries in the certificate for the certificate to be compliant. Refer to
+	// https://pkg.go.dev/regexp/syntax for the regular expression syntax.
+	//
 	// +kubebuilder:validation:MinLength=1
 	AllowedSANPattern string `json:"allowedSANPattern,omitempty"` //nolint:tagliatelle
-	// A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
-	// Golang's regexp syntax only.
+
+	// DisallowedSANPattern is the pattern that must not match any defined subject alternative name
+	// (SAN) entries in the certificate for the certificate to be compliant. Refer to
+	// https://pkg.go.dev/regexp/syntax for the regular expression syntax.
+	//
 	// +kubebuilder:validation:MinLength=1
 	DisallowedSANPattern string `json:"disallowedSANPattern,omitempty"` //nolint:tagliatelle
 }
 
-// CertificatePolicyStatus defines the observed state of CertificatePolicy
+// Cert reports the related secret and parsed details of a certificate.
+type Cert struct {
+	// Secret is the name of the secret containing the certificate.
+	Secret string `json:"secretName,omitempty"`
+
+	// Expiration is the string representation of the expiration of the certificate from the time of
+	// the report.
+	Expiration string `json:"expiration,omitempty"`
+
+	// Expiry is the time.Duration representation of the expiration of the certificate from the time
+	// of the report.
+	Expiry time.Duration `json:"expiry,omitempty"`
+
+	// CA is a boolean reporting whether the certificate contains a CA.
+	CA bool `json:"ca,omitempty"`
+
+	// Duration is the total duration of the certificate by calculating the difference between its
+	// NotAfter and NotBefore values.
+	Duration time.Duration `json:"duration,omitempty"`
+
+	// Sans is a list of subject alternative names in the certificate.
+	Sans []string `json:"sans,omitempty"`
+}
+
+// CompliancyDetails reports the details related to whether the policy is compliant.
+type CompliancyDetails struct {
+	// NonCompliantCertificates reports the total number of noncompliant certificates.
+	NonCompliantCertificates uint `json:"nonCompliantCertificates,omitempty"`
+
+	// NonCompliantCertificatesList reports a map of the details for each noncompliant certificate,
+	// where the key comes from the "certificate-name" label, "certmanager.k8s.io/certificate-name"
+	// label, or defaults to the name of the secret.
+	NonCompliantCertificatesList map[string]Cert `json:"nonCompliantCertificatesList,omitempty"`
+
+	// Message is a human-readable summary of the compliance details.
+	Message string `json:"message,omitempty"`
+}
+
+// CertificatePolicyStatus reports the observed status that results from parameters of the
+// certificate policy.
 type CertificatePolicyStatus struct {
-	// Compliant, NonCompliant, UnknownCompliancy
 	ComplianceState ComplianceState `json:"compliant,omitempty"`
-	// map of namespaces to its compliancy details
+
+	// CompliancyDetails is a map of namespaces to the compliance details of its contained
+	// certificates.
 	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"`
 }
 
-// CompliancyDetails defines the all the details related to whether or not the policy is compliant
-type CompliancyDetails struct {
-	NonCompliantCertificates     uint            `json:"nonCompliantCertificates,omitempty"`
-	NonCompliantCertificatesList map[string]Cert `json:"nonCompliantCertificatesList,omitempty"`
-	Message                      string          `json:"message,omitempty"` // Overall message of this compliance
-}
-
-// Cert contains its related secret and when it expires
-type Cert struct {
-	Secret     string        `json:"secretName,omitempty"`
-	Expiration string        `json:"expiration,omitempty"`
-	Expiry     time.Duration `json:"expiry,omitempty"`
-	CA         bool          `json:"ca,omitempty"`
-	Duration   time.Duration `json:"duration,omitempty"`
-	Sans       []string      `json:"sans,omitempty"`
-}
-
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:path=certificatepolicies,scope=Namespaced
-
-// CertificatePolicy is the Schema for the certificatepolicies API
+// CertificatePolicy is the schema for the certificatepolicies API. Certificate policy monitors
+// certificates on a cluster against user-defined restrictions, and it returns a noncompliance
+// status if any certificate does not meet the requirements of the parameters. By default the
+// certificate policy uses the 'tls.crt' key of a secret to find the certificate, but you can use an
+// alternate key if specified in the 'certificate_key_name' label on the secret.
+//
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=certificatepolicies,scope=Namespaced
 type CertificatePolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -144,9 +191,9 @@ type CertificatePolicy struct {
 	Status CertificatePolicyStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-
-// CertificatePolicyList contains a list of CertificatePolicy
+// CertificatePolicyList contains a list of certificate policies.
+//
+// +kubebuilder:object:root=true
 type CertificatePolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

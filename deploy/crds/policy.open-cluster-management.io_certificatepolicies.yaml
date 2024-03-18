@@ -18,7 +18,12 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: CertificatePolicy is the Schema for the certificatepolicies API
+        description: |-
+          CertificatePolicy is the schema for the certificatepolicies API. Certificate policy monitors
+          certificates on a cluster against user-defined restrictions, and it returns a noncompliance
+          status if any certificate does not meet the requirements of the parameters. By default the
+          certificate policy uses the 'tls.crt' key of a secret to find the certificate, but you can use an
+          alternate key if specified in the 'certificate_key_name' label on the secret.
         properties:
           apiVersion:
             description: |-
@@ -38,75 +43,86 @@ spec:
           metadata:
             type: object
           spec:
-            description: CertificatePolicySpec defines the desired state of CertificatePolicy
+            description: |-
+              CertificatePolicySpec defines which certificates need to be checked and how those certificates
+              should be configured to be compliant with the policy. Enforce remediation action is not currently
+              supported, so you are responsible to take actions to fix any noncompliant certificates.
             properties:
               allowedSANPattern:
                 description: |-
-                  A pattern that must match any defined SAN entries in the certificate for the certificate to be compliant.
-                   Golang's regexp syntax only.
+                  AllowedSANPattern is the pattern that must match any defined subject alternative name (SAN)
+                  entries in the certificate for the certificate to be compliant. Refer to
+                  https://pkg.go.dev/regexp/syntax for the regular expression syntax.
                 minLength: 1
                 type: string
               disallowedSANPattern:
                 description: |-
-                  A pattern that must not match any defined SAN entries in the certificate for the certificate to be compliant.
-                  Golang's regexp syntax only.
+                  DisallowedSANPattern is the pattern that must not match any defined subject alternative name
+                  (SAN) entries in the certificate for the certificate to be compliant. Refer to
+                  https://pkg.go.dev/regexp/syntax for the regular expression syntax.
                 minLength: 1
                 type: string
               labelSelector:
                 additionalProperties:
                   minLength: 1
                   type: string
-                description: Restrict the secrets that will be checked to the ones
-                  that contain these labels.
+                description: LabelSelector restricts the secrets that are checked
+                  to the ones that match these labels.
                 type: object
               maximumCADuration:
                 description: |-
-                  Maximum CA duration for a signing certificate, longer duration is considered non-compliant.
-                  Golang's time units only.
+                  MaxCADuration is the maximum duration for the expiration of the certificate authority (CA),
+                  where a value that is greater than that duration is considered noncompliant. The value follows
+                  the Golang duration format 0h0m0s, where hours (h) is the largest accepted unit of time.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               maximumDuration:
                 description: |-
-                  Maximum duration for a certificate, longer duration is considered non-compliant.
-                  Golang's time units only.
+                  MaxDuration is the maximum duration for the expiration of a certificate, where a value that is
+                  greater than that duration is considered noncompliant. The value follows the Golang duration
+                  format 0h0m0s, where hours (h) is the largest accepted unit of time.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               minimumCADuration:
                 description: |-
-                  Minimum CA duration before a signing certificate expires that it is considered non-compliant.
-                  Golang's time units only.
+                  MinCADuration is the minimum duration for the expiration of the certificate authority (CA),
+                  where any value lesser than that duration is considered noncompliant. The value follows the
+                  Golang duration format 0h0m0s, where hours (h) is the largest accepted unit of time.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               minimumDuration:
-                description: Minimum duration before a certificate expires that it
-                  is considered non-compliant. Golang's time units only.
+                description: |-
+                  MinDuration is the minimum duration for the expiration of a certificate, where a value that is
+                  lesser than that duration is considered noncompliant. The value follows the Golang duration
+                  format 0h0m0s, where hours (h) is the largest accepted unit of time.
                 pattern: ^(?:(?:[0-9]+(?:.[0-9])?)(?:h|m|s|(?:ms)|(?:us)|(?:ns)))+$
                 type: string
               namespaceSelector:
                 description: |-
-                  'namespaceSelector' defines the list of namespaces to include/exclude for objects defined in
-                  spec.objectTemplates. All selector rules are ANDed. If 'include' is not provided but
-                  'matchLabels' and/or 'matchExpressions' are, 'include' will behave as if ['*'] were given. If
-                  'matchExpressions' and 'matchLabels' are both not provided, 'include' must be provided to
-                  retrieve namespaces.
+                  NamespaceSelector determines namespaces on the managed cluster in which to validate
+                  certificates. The Include and Exclude parameters accept file path expressions to include and
+                  exclude namespaces by name. The MatchExpressions and MatchLabels parameters specify namespaces
+                  to include by label. See the Kubernetes labels and selectors documentation. The resulting list
+                  is compiled by using the intersection of results from all parameters. You must provide either
+                  Include or at least one of MatchExpressions or MatchLabels to retrieve namespaces.
                 properties:
                   exclude:
-                    description: '''exclude'' is an array of filepath expressions
-                      to exclude objects by name.'
+                    description: Exclude is an array of filepath expressions to exclude
+                      objects by name.
                     items:
                       minLength: 1
                       type: string
                     type: array
                   include:
-                    description: '''include'' is an array of filepath expressions
-                      to include objects by name.'
+                    description: Include is an array of filepath expressions to include
+                      objects by name.
                     items:
                       minLength: 1
                       type: string
                     type: array
                   matchExpressions:
-                    description: '''matchExpressions'' is an array of label selector
-                      requirements matching objects by label.'
+                    description: MatchExpressions is an array of label selector requirements
+                      matching objects by label.
                     items:
                       description: |-
                         A label selector requirement is a selector that contains values, a key, and an operator that
@@ -138,13 +154,14 @@ spec:
                   matchLabels:
                     additionalProperties:
                       type: string
-                    description: '''matchLabels'' is a map of {key,value} pairs matching
-                      objects by label.'
+                    description: MatchLabels is a map of {key,value} pairs matching
+                      objects by label.
                     type: object
                 type: object
               remediationAction:
-                description: Only Inform is currently supported. Setting this to Enforce
-                  will have the same effect as Inform.
+                description: |-
+                  RemediationAction must be set to "Inform". Enforce is not currently supported, so setting this
+                  to "Enforce" has the same effect as "Inform".
                 enum:
                 - Inform
                 - inform
@@ -152,7 +169,9 @@ spec:
                 - enforce
                 type: string
               severity:
-                description: low, medium, high, or critical
+                description: |-
+                  Severity is a user-defined severity for when a certificate is found out of compliance with this
+                  certificate policy. Accepted values are low, medium, high, and critical.
                 enum:
                 - low
                 - Low
@@ -165,53 +184,77 @@ spec:
                 type: string
             type: object
           status:
-            description: CertificatePolicyStatus defines the observed state of CertificatePolicy
+            description: |-
+              CertificatePolicyStatus reports the observed status that results from parameters of the
+              certificate policy.
             properties:
               compliancyDetails:
                 additionalProperties:
-                  description: CompliancyDetails defines the all the details related
-                    to whether or not the policy is compliant
+                  description: CompliancyDetails reports the details related to whether
+                    the policy is compliant.
                   properties:
                     message:
+                      description: Message is a human-readable summary of the compliance
+                        details.
                       type: string
                     nonCompliantCertificates:
+                      description: NonCompliantCertificates reports the total number
+                        of noncompliant certificates.
                       type: integer
                     nonCompliantCertificatesList:
                       additionalProperties:
-                        description: Cert contains its related secret and when it
-                          expires
+                        description: Cert reports the related secret and parsed details
+                          of a certificate.
                         properties:
                           ca:
+                            description: CA is a boolean reporting whether the certificate
+                              contains a CA.
                             type: boolean
                           duration:
                             description: |-
-                              A Duration represents the elapsed time between two instants
-                              as an int64 nanosecond count. The representation limits the
-                              largest representable duration to approximately 290 years.
+                              Duration is the total duration of the certificate by calculating the difference between its
+                              NotAfter and NotBefore values.
                             format: int64
                             type: integer
                           expiration:
+                            description: |-
+                              Expiration is the string representation of the expiration of the certificate from the time of
+                              the report.
                             type: string
                           expiry:
                             description: |-
-                              A Duration represents the elapsed time between two instants
-                              as an int64 nanosecond count. The representation limits the
-                              largest representable duration to approximately 290 years.
+                              Expiry is the time.Duration representation of the expiration of the certificate from the time
+                              of the report.
                             format: int64
                             type: integer
                           sans:
+                            description: Sans is a list of subject alternative names
+                              in the certificate.
                             items:
                               type: string
                             type: array
                           secretName:
+                            description: Secret is the name of the secret containing
+                              the certificate.
                             type: string
                         type: object
+                      description: |-
+                        NonCompliantCertificatesList reports a map of the details for each noncompliant certificate,
+                        where the key comes from the "certificate-name" label, "certmanager.k8s.io/certificate-name"
+                        label, or defaults to the name of the secret.
                       type: object
                   type: object
-                description: map of namespaces to its compliancy details
+                description: |-
+                  CompliancyDetails is a map of namespaces to the compliance details of its contained
+                  certificates.
                 type: object
               compliant:
-                description: Compliant, NonCompliant, UnknownCompliancy
+                description: ComplianceState reports the compliance that results from
+                  parameters of the certificate policy.
+                enum:
+                - Compliant
+                - NonCompliant
+                - UnknownCompliancy
                 type: string
             type: object
         type: object
