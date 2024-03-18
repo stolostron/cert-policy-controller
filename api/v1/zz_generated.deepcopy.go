@@ -106,13 +106,13 @@ func (in *CertificatePolicySpec) DeepCopyInto(out *CertificatePolicySpec) {
 		*out = new(metav1.Duration)
 		**out = **in
 	}
-	if in.MinCADuration != nil {
-		in, out := &in.MinCADuration, &out.MinCADuration
+	if in.MaxDuration != nil {
+		in, out := &in.MaxDuration, &out.MaxDuration
 		*out = new(metav1.Duration)
 		**out = **in
 	}
-	if in.MaxDuration != nil {
-		in, out := &in.MaxDuration, &out.MaxDuration
+	if in.MinCADuration != nil {
+		in, out := &in.MinCADuration, &out.MinCADuration
 		*out = new(metav1.Duration)
 		**out = **in
 	}
