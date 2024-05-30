@@ -25,7 +25,7 @@ COPY --from=builder ${REPO_PATH}/build/_output/bin/${COMPONENT} ${OPERATOR}
 COPY --from=builder ${REPO_PATH}/build/bin /usr/local/bin
 RUN  /usr/local/bin/user_setup
 
-RUN microdnf update && \
+RUN microdnf update -y && \
     microdnf install -y shadow-utils procps && \
     microdnf clean all
 
