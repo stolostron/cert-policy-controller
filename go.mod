@@ -1,6 +1,6 @@
 module open-cluster-management.io/cert-policy-controller
 
-go 1.21
+go 1.21.0
 
 require (
 	github.com/go-logr/zapr v1.2.4
@@ -55,13 +55,13 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.13.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/term v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.14.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
@@ -80,9 +80,6 @@ require (
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16 // Replaced so that 'go get -u' works. Remove/bump when upgrading.
-	golang.org/x/crypto => golang.org/x/crypto v0.14.0 // CVE-2021-43565
-	golang.org/x/net => golang.org/x/net v0.17.0 // CVE-2023-39325
-	golang.org/x/text => golang.org/x/text v0.13.0 // CVE-2022-32149
 	k8s.io/api => k8s.io/api v0.26.10 // Replaced so that 'go get -u' works. Remove/bump when upgrading.
 	k8s.io/client-go => k8s.io/client-go v0.26.10
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // Replaced so that 'go get -u' works. Remove/bump when upgrading.
