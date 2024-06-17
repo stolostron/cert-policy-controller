@@ -7,6 +7,7 @@ ENV COMPONENT=cert-policy-controller
 ENV REPO_PATH=/go/src/github.com/stolostron/${COMPONENT}
 WORKDIR ${REPO_PATH}
 COPY . .
+RUN go mod vendor
 RUN make build
 
 # Stage 2: Copy the binaries from the image builder to the base image
