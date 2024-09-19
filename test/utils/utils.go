@@ -26,6 +26,8 @@ func GetWithTimeout(
 	wantFound bool,
 	timeout int,
 ) *unstructured.Unstructured {
+	GinkgoHelper()
+
 	if timeout < 1 {
 		timeout = 1
 	}
