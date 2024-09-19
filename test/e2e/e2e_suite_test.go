@@ -70,7 +70,7 @@ var _ = BeforeSuite(func() {
 	clientManagedDynamic = NewKubeClientDynamic("", kubeconfigManaged, "")
 	defaultImageRegistry = "quay.io/open-cluster-management"
 	testNamespace = "managed"
-	testNamespaces := []string{testNamespace, "range1", "range2"}
+	testNamespaces := []string{testNamespace, "open-cluster-management-policies", "range1", "range2"}
 	defaultTimeoutSeconds = 90
 	By("Create Namespaces if needed")
 	namespaces := clientManaged.CoreV1().Namespaces()

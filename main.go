@@ -47,6 +47,10 @@ var (
 	setupLog          = ctrl.Log.WithName("setup")
 )
 
+// Namespace for standalone policy users.
+// Policies applied by users are deployed here. Used only in non-hosted mode.
+const ocmPolicyNs = "open-cluster-management-policies"
+
 // errNoNamespace indicates that a namespace could not be found for the current
 // environment. This was taken from operator-sdk v0.19.4.
 var errNoNamespace = fmt.Errorf("namespace not found for current environment")
@@ -142,7 +146,7 @@ func main() {
 
 	var eventOnParent, defaultDuration, clusterName, hubConfigPath, targetKubeConfig, probeAddr string
 	var frequency uint
-	var enableLease, enableLeaderElection bool
+	var enableLease, enableLeaderElection, enableOcmPolicyNamespace bool
 
 	//nolint:gomnd
 	pflag.UintVar(&frequency, "update-frequency", 10,
@@ -160,6 +164,9 @@ func main() {
 	pflag.BoolVar(&enableLeaderElection, "leader-elect", true,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.",
+	)
+	pflag.BoolVar(&enableOcmPolicyNamespace, "enable-ocm-policy-namespace", true,
+		"Enable to use open-cluster-management-policies namespace",
 	)
 	pflag.StringVar(&hubConfigPath, "hub-kubeconfig-path",
 		"/var/run/klusterlet/kubeconfig", "Path to the hub kubeconfig",
@@ -213,6 +220,11 @@ func main() {
 
 	for _, namespace := range strings.Split(namespace, ",") {
 		cacheOptions.DefaultNamespaces[namespace] = cache.Config{}
+	}
+
+	// ocmPolicyNs is cached only in non-hosted=mode
+	if targetKubeConfig == "" && enableOcmPolicyNamespace {
+		cacheOptions.DefaultNamespaces[ocmPolicyNs] = cache.Config{}
 	}
 
 	metricsOptions := server.Options{

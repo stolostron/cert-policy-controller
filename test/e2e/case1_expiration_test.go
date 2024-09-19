@@ -28,6 +28,7 @@ const (
 	case1ParentPolicyYaml     string = "../resources/case1_certificate/case1_parent_policy.yaml"
 	case1PolicyYaml           string = "../resources/case1_certificate/case1_certificate_policy.yaml"
 	envName                   string = "TARGET_KUBECONFIG_PATH"
+	ocmPolicyNs               string = "open-cluster-management-policies"
 )
 
 var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("hosted-mode"), func() {
@@ -49,7 +50,8 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 	AfterAll(func() {
 		utils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace, "--kubeconfig", kubeconfigManaged)
 
-		err := targetK8sClient.CoreV1().Secrets("default").Delete(context.TODO(), case1SecretName, metav1.DeleteOptions{})
+		err := targetK8sClient.CoreV1().Secrets("default").
+			Delete(context.TODO(), case1SecretName, metav1.DeleteOptions{})
 		if !errors.IsNotFound(err) {
 			Expect(err).ToNot(HaveOccurred())
 		}
@@ -89,30 +91,39 @@ var _ = Describe("Test hosted certificate policy expiration", Ordered, Label("ho
 	})
 })
 
-var _ = Describe("Test certificate policy expiration", Ordered, func() {
+var _ = DescribeTableSubtree("Test certificate policy expiration", Ordered, func(ns string) {
+	var testNamespaceLocal string
+
+	BeforeAll(func() {
+		testNamespaceLocal = testNamespace
+
+		if ns != "" {
+			testNamespaceLocal = ns
+		}
+	})
+
 	AfterAll(func() {
 		utils.Kubectl("delete",
 			"-f", case1ParentPolicyYaml,
-			"-n", testNamespace,
+			"-n", testNamespaceLocal,
 			"--ignore-not-found",
 			"--kubeconfig", kubeconfigManaged)
 		utils.Kubectl("delete",
 			"-f", case1PolicyYaml,
-			"-n", testNamespace,
+			"-n", testNamespaceLocal,
 			"--ignore-not-found",
 			"--kubeconfig", kubeconfigManaged)
 		utils.Kubectl("delete", "secret", case1SecretName,
 			"-n", "default",
 			"--ignore-not-found",
 			"--kubeconfig", kubeconfigManaged)
-		utils.Kubectl("delete", "events", "-n", testNamespace, "--all", "--kubeconfig", kubeconfigManaged)
+		utils.Kubectl("delete", "events", "-n", testNamespaceLocal, "--all", "--kubeconfig", kubeconfigManaged)
 	})
-
 	It("should be created properly on the managed cluster", func(ctx context.Context) {
-		By("Creating " + case1ParentPolicyYaml + " on managed")
-		utils.Kubectl("apply", "-f", case1ParentPolicyYaml, "-n", testNamespace, "--kubeconfig", kubeconfigManaged)
+		By("Creating " + case1ParentPolicyYaml + " on managed in " + testNamespaceLocal)
+		utils.Kubectl("apply", "-f", case1ParentPolicyYaml, "-n", testNamespaceLocal, "--kubeconfig", kubeconfigManaged)
 		parentPlc := utils.GetWithTimeout(clientManagedDynamic, gvrPolicy,
-			case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
+			case1CertPolicyName, testNamespaceLocal, true, defaultTimeoutSeconds)
 		Expect(parentPlc).NotTo(BeNil())
 
 		By("Creating " + case1PolicyYaml + " on managed")
@@ -131,14 +142,14 @@ var _ = Describe("Test certificate policy expiration", Ordered, func() {
 		}}
 		certPolicy.SetOwnerReferences(ownerRefs)
 
-		_, err = clientManagedDynamic.Resource(gvrCertPolicy).Namespace(testNamespace).Create(
+		_, err = clientManagedDynamic.Resource(gvrCertPolicy).Namespace(testNamespaceLocal).Create(
 			ctx, certPolicy, metav1.CreateOptions{},
 		)
 		Expect(err).ToNot(HaveOccurred())
 
 		Eventually(func() interface{} {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
-				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
+				case1CertPolicyName, testNamespaceLocal, true, defaultTimeoutSeconds)
 
 			return utils.GetComplianceState(managedPlc)
 		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
@@ -148,7 +159,7 @@ var _ = Describe("Test certificate policy expiration", Ordered, func() {
 		utils.Kubectl("apply", "-f", case1ExpiredCertificate, "--kubeconfig", kubeconfigManaged)
 		Eventually(func() interface{} {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
-				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
+				case1CertPolicyName, testNamespaceLocal, true, defaultTimeoutSeconds)
 
 			return utils.GetComplianceState(managedPlc)
 		}, defaultTimeoutSeconds, 1).Should(Equal("NonCompliant"))
@@ -157,14 +168,13 @@ var _ = Describe("Test certificate policy expiration", Ordered, func() {
 		utils.Kubectl("apply", "-f", case1UnexpiredCertificate, "--kubeconfig", kubeconfigManaged)
 		Eventually(func() interface{} {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
-				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
+				case1CertPolicyName, testNamespaceLocal, true, defaultTimeoutSeconds)
 
 			return utils.GetComplianceState(managedPlc)
 		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
 	})
-
 	It("should have the database IDs on the events", func(ctx context.Context) {
-		eventList, err := clientManaged.CoreV1().Events(testNamespace).List(
+		eventList, err := clientManaged.CoreV1().Events(testNamespaceLocal).List(
 			ctx, metav1.ListOptions{FieldSelector: "involvedObject.name=policy-cert-expiration"},
 		)
 		Expect(err).ToNot(HaveOccurred())
@@ -180,4 +190,4 @@ var _ = Describe("Test certificate policy expiration", Ordered, func() {
 			Expect(event.Annotations[controllers.PolicyDBIDAnnotation]).To(Equal("5"))
 		}
 	})
-})
+}, Entry("Test with default testNamespace", ""), Entry("Test with "+ocmPolicyNs, ocmPolicyNs))
