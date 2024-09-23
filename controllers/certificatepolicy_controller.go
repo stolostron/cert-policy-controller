@@ -12,16 +12,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -43,12 +42,6 @@ const (
 )
 
 var (
-	// availablePolicies is a cache of all available polices.
-	availablePolicies common.SyncedPolicyMap
-	// PlcChan a channel used to pass policies ready for update.
-	PlcChan chan *policyv1.CertificatePolicy
-	// NamespaceWatched defines which namespace we can watch for the Certificate policies and ignore others.
-	NamespaceWatched string
 	// EventOnParent specifies if we also want to send events to the parent policy. Available options are yes/no/ifpresent.
 	EventOnParent string
 	// DefaultDuration is the default minimum duration (if one isn't specified in a policy) that a certificate can be valid
@@ -59,13 +52,7 @@ var (
 var log = ctrl.Log.WithName(ControllerName)
 
 // Initialize to initialize some controller variables.
-func (r *CertificatePolicyReconciler) Initialize(namespace, eventParent string,
-	defaultDuration time.Duration,
-) (err error) {
-	PlcChan = make(chan *policyv1.CertificatePolicy, 100) // buffering up to 100 policies for update
-
-	NamespaceWatched = namespace
-
+func (r *CertificatePolicyReconciler) Initialize(eventParent string, defaultDuration time.Duration) (err error) {
 	EventOnParent = strings.ToLower(eventParent)
 
 	DefaultDuration = defaultDuration
@@ -94,40 +81,8 @@ type CertificatePolicyReconciler struct {
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=list
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (r *CertificatePolicyReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling CertificatePolicy")
-
-	// Fetch the CertificatePolicy instance
-	instance := &policyv1.CertificatePolicy{}
-
-	err := r.Get(ctx, request.NamespacedName, instance)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			handleRemovingPolicy(request.NamespacedName.Name)
-
-			return reconcile.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-
-		return reconcile.Result{}, err
-	}
-
-	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
-		instance.Status.CompliancyDetails = make(map[string]policyv1.CompliancyDetails)
-
-		r.handleAddingPolicy(ctx, instance)
-	}
-
-	reqLogger.V(1).Info("Successful processing", "instance.Name", instance.Name, "instance.Namespace",
-		instance.Namespace)
-
+// Reconcile does nothing since this controller is polling based.
+func (r *CertificatePolicyReconciler) Reconcile(_ context.Context, _ ctrl.Request) (ctrl.Result, error) {
 	return reconcile.Result{}, nil
 }
 
@@ -136,20 +91,28 @@ func (r *CertificatePolicyReconciler) PeriodicallyExecCertificatePolicies(
 	ctx context.Context, freq uint, loopflag bool,
 ) {
 	log.V(3).Info("Entered PeriodicallyExecCertificatePolicies")
-	var plcToUpdateMap map[string]*policyv1.CertificatePolicy
 
 	for {
 		start := time.Now()
 
-		printMap(availablePolicies.PolicyMap)
+		policies := policyv1.CertificatePolicyList{}
 
-		plcToUpdateMap = make(map[string]*policyv1.CertificatePolicy)
+		err := r.List(ctx, &policies)
+		if err != nil {
+			log.Error(err, "Failed to list policies")
 
-		stateChange := r.ProcessPolicies(ctx, plcToUpdateMap)
+			if !loopflag {
+				return
+			}
 
-		if stateChange {
+			continue
+		}
+
+		updatedPolicies := r.ProcessPolicies(ctx, &policies)
+
+		if len(updatedPolicies) > 0 {
 			// update status of all policies that changed:
-			faultyPlc, err := r.updatePolicyStatus(ctx, plcToUpdateMap)
+			faultyPlc, err := r.updatePolicyStatus(ctx, updatedPolicies)
 			if err != nil {
 				log.Error(err, "Unable to update policy status", "Name", faultyPlc.Name, "Namespace",
 					faultyPlc.Namespace)
@@ -173,118 +136,67 @@ func (r *CertificatePolicyReconciler) PeriodicallyExecCertificatePolicies(
 
 // ProcessPolicies reads each policy and looks for violations returning true if a change is found.
 func (r *CertificatePolicyReconciler) ProcessPolicies(
-	ctx context.Context, plcToUpdateMap map[string]*policyv1.CertificatePolicy,
-) bool {
-	stateChange := false
+	ctx context.Context, policies *policyv1.CertificatePolicyList,
+) []*policyv1.CertificatePolicy {
+	updatedPolicies := map[types.NamespacedName]*policyv1.CertificatePolicy{}
 
-	plcMap := make(map[string]*policyv1.CertificatePolicy)
-	// create a map of all policies
-	for _, policy := range availablePolicies.PolicyMap {
-		plcMap[policy.Name] = policy
-	}
 	// update available policies if there are changed namespaces
-	for _, plc := range plcMap {
+	for i := range policies.Items {
+		policy := policies.Items[i]
+
+		namespacedName := types.NamespacedName{Namespace: policy.Namespace, Name: policy.Name}
+
+		log.Info("Checking certificates", "policy.Name", policy.Name)
+
 		// Retrieve the namespaces based on filters in NamespaceSelector
-		selectedNamespaces := r.retrieveNamespaces(ctx, plc.Spec.NamespaceSelector)
+		selectedNamespaces := r.retrieveNamespaces(ctx, policy.Spec.NamespaceSelector)
 
-		// add availablePolicy if not present
-		for _, ns := range selectedNamespaces {
-			key := fmt.Sprintf("%s/%s", ns, plc.Name)
-			_, found := availablePolicies.GetObject(key)
-
-			if !found {
-				availablePolicies.AddObject(key, plc)
-				plcToUpdateMap[plc.Name] = plc
-				// remove the dummy entry not matching namespaces if it exists
-				cleanupAvailablePolicies("", plc.Name)
-			}
-		}
-
-		handleNamespaceRemovals(plc, plcToUpdateMap, selectedNamespaces)
-
+		// If there are no applicable namespaces, make the policy compliant
 		if len(selectedNamespaces) == 0 {
-			// add a dummy entry to force updates when no namespaces match
-			key := fmt.Sprintf("/%s", plc.Name)
-			_, found := availablePolicies.GetObject(key)
+			selectedNamespaces = []string{""}
+		}
 
-			if !found {
-				availablePolicies.AddObject(key, plc)
-				plcToUpdateMap[plc.Name] = plc
+		processedNamespaces := make(map[string]bool, len(selectedNamespaces))
+
+		for _, namespace := range selectedNamespaces {
+			log.V(2).Info("Checking certificates", "namespace", namespace, "policy.Name", policy.Name)
+
+			processedNamespaces[namespace] = true
+
+			update, nonCompliant, list := r.checkSecrets(ctx, &policy, namespace)
+
+			message := buildPolicyStatusMessage(list, nonCompliant, namespace, &policy)
+
+			countUpdated := addViolationCount(&policy, message, nonCompliant, namespace, list)
+			if countUpdated || update {
+				updatedPolicies[namespacedName] = &policy
+			}
+
+			log.V(3).Info("Finished processing policy for namespace", "name", policy.Name, "namespace", namespace,
+				"countUpdated", countUpdated, "update", update, "state", policy.Status.ComplianceState)
+		}
+
+		// Remove no longer selected namespaces
+		for existingNamespace := range policy.Status.CompliancyDetails {
+			if !processedNamespaces[existingNamespace] {
+				delete(policy.Status.CompliancyDetails, existingNamespace)
+				updatedPolicies[namespacedName] = &policy
 			}
 		}
-	}
 
-	if len(plcToUpdateMap) > 0 {
-		stateChange = true
-	}
-
-	// Loops through all of the cert policies looking for violations
-	for key, policy := range availablePolicies.PolicyMap {
-		namespace := strings.Split(key, "/")[0]
-
-		log.V(2).Info("Checking certificates", "namespace", namespace, "policy.Name", policy.Name)
-
-		update, nonCompliant, list := r.checkSecrets(ctx, policy, namespace)
-
-		if strings.EqualFold(string(policy.Spec.RemediationAction), string(policyv1.Enforce)) {
-			log.V(1).Info("Enforce is set, but not implemented on this controller")
-		}
-
-		message := buildPolicyStatusMessage(list, nonCompliant, namespace, policy)
-
-		countUpdated := addViolationCount(policy, message, nonCompliant, namespace, list)
-		if countUpdated || update {
-			plcToUpdateMap[policy.Name] = policy
-		}
-
-		if countUpdated {
-			stateChange = true
-		}
-
-		log.V(3).Info("Finished processing policy", "name", policy.Name, "namespace", namespace,
-			"countUpdated", countUpdated, "update", update, "stateChange", stateChange, "state",
-			policy.Status.ComplianceState)
-	}
-
-	for _, policy := range plcMap {
 		// need to see if we change from noncompliant to compliant
-		currentStatus := policy.Status.ComplianceState
-		checkComplianceBasedOnDetails(policy)
+		checkComplianceBasedOnDetails(&policy)
+
 		log.V(1).Info("Got compliance", "policy.Name", policy.Name, "state", policy.Status.ComplianceState)
-
-		if currentStatus != policy.Status.ComplianceState {
-			stateChange = true
-		}
 	}
 
-	return stateChange
-}
+	rv := make([]*policyv1.CertificatePolicy, 0, len(updatedPolicies))
 
-// handleNamespaceRemovals make sure policies get updated for cases where a namespace has been removed.
-func handleNamespaceRemovals(policy *policyv1.CertificatePolicy,
-	plcToUpdateMap map[string]*policyv1.CertificatePolicy, selectedNamespaces []string,
-) {
-	for key, plc := range availablePolicies.PolicyMap {
-		namespace := strings.Split(key, "/")[0]
-
-		if plc.Name == policy.Name {
-			found := false
-
-			for _, ns := range selectedNamespaces {
-				if ns == namespace {
-					found = true
-
-					break
-				}
-			}
-
-			if !found {
-				// the namespace was not found, clean up
-				cleanupAvailablePolicies(namespace, policy.Name)
-				plcToUpdateMap[policy.Name] = policy
-			}
-		}
+	for _, policy := range updatedPolicies {
+		rv = append(rv, policy)
 	}
+
+	return rv
 }
 
 // toLabelSet converts a map of NonEmptyStrings to a Kubernetes label set.
@@ -667,52 +579,12 @@ func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
 	}
 }
 
-func checkComplianceChangeBasedOnDetails(plc *policyv1.CertificatePolicy) (complianceChanged bool) {
-	log.V(3).Info("Entered checkComplianceChangeBasedOnDetails")
-	// used in case we also want to know not just the compliance state, but also whether the compliance changed or not.
-	previous := plc.Status.ComplianceState
-
-	if plc.Status.CompliancyDetails == nil {
-		plc.Status.ComplianceState = policyv1.UnknownCompliancy
-
-		return reflect.DeepEqual(previous, plc.Status.ComplianceState)
-	}
-
-	if plc.Status.CompliancyDetails == nil {
-		plc.Status.ComplianceState = policyv1.UnknownCompliancy
-
-		return reflect.DeepEqual(previous, plc.Status.ComplianceState)
-	}
-
-	if len(plc.Status.CompliancyDetails) == 0 {
-		plc.Status.ComplianceState = policyv1.UnknownCompliancy
-
-		return reflect.DeepEqual(previous, plc.Status.ComplianceState)
-	}
-
-	plc.Status.ComplianceState = policyv1.Compliant
-
-	for _, details := range plc.Status.CompliancyDetails {
-		if details.NonCompliantCertificates > 0 {
-			plc.Status.ComplianceState = policyv1.NonCompliant
-		} else {
-			return reflect.DeepEqual(previous, plc.Status.ComplianceState)
-		}
-	}
-
-	if plc.Status.ComplianceState != policyv1.NonCompliant {
-		plc.Status.ComplianceState = policyv1.Compliant
-	}
-
-	return reflect.DeepEqual(previous, plc.Status.ComplianceState)
-}
-
 func (r *CertificatePolicyReconciler) updatePolicyStatus(
-	ctx context.Context, policies map[string]*policyv1.CertificatePolicy,
+	ctx context.Context, policies []*policyv1.CertificatePolicy,
 ) (*policyv1.CertificatePolicy, error) {
 	log.V(3).Info("Entered updatePolicyStatus")
 
-	for _, instance := range policies { // policies is a map where: key = plc.Name, value = pointer to plc
+	for _, instance := range policies {
 		ilog := log.WithValues("instance.Namespace", instance.Namespace, "instance.Name", instance.Name)
 		ilog.V(3).Info("Updating the Policy Status")
 
@@ -833,76 +705,6 @@ func (r *CertificatePolicyReconciler) sendComplianceEvent(ctx context.Context,
 	}
 
 	return r.Create(ctx, event)
-}
-
-func handleRemovingPolicy(name string) {
-	log.V(3).Info("Entered handleRemovingPolicy")
-
-	for k, v := range availablePolicies.PolicyMap {
-		if v.Name == name {
-			availablePolicies.RemoveObject(k)
-		}
-	}
-}
-
-func (r *CertificatePolicyReconciler) handleAddingPolicy(ctx context.Context, plc *policyv1.CertificatePolicy) {
-	log.V(3).Info("Entered handleAddingPolicy")
-
-	// clean up that policy from the availablePolicies list, in case the modification is in the
-	// namespace selector
-	for key, policy := range availablePolicies.PolicyMap {
-		if policy.Name == plc.Name {
-			availablePolicies.RemoveObject(key)
-		}
-	}
-
-	cleanupAvailablePolicies("", plc.Name)
-
-	addFlag := false
-
-	// Retrieve the namespaces based on filters in NamespaceSelector
-	selectedNamespaces := r.retrieveNamespaces(ctx, plc.Spec.NamespaceSelector)
-
-	for _, ns := range selectedNamespaces {
-		key := fmt.Sprintf("%s/%s", ns, plc.Name)
-		availablePolicies.AddObject(key, plc)
-
-		addFlag = true
-	}
-
-	if !addFlag {
-		key := fmt.Sprintf("/%s", plc.Name)
-		availablePolicies.AddObject(key, plc)
-	}
-}
-
-func cleanupAvailablePolicies(namespace string, name string) {
-	key := fmt.Sprintf("%s/%s", namespace, name)
-	if policy, found := availablePolicies.GetObject(key); found {
-		if policy.Name == name {
-			availablePolicies.RemoveObject(key)
-
-			if policy.Status.CompliancyDetails != nil {
-				delete(policy.Status.CompliancyDetails, namespace)
-			}
-		}
-	}
-}
-
-// =================================================================
-// Helper functions that pretty prints a map.
-func printMap(myMap map[string]*policyv1.CertificatePolicy) {
-	if len(myMap) == 0 {
-		log.Info("Waiting for policies to be available for processing...")
-
-		return
-	}
-
-	log.Info("Available policies in namespaces:")
-
-	for k, v := range myMap {
-		log.Info("-", "namespace", k, "policy", v.Name)
-	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
