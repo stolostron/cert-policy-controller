@@ -31,80 +31,26 @@ import (
 	testclient "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policiesv1 "open-cluster-management.io/cert-policy-controller/api/v1"
 )
 
-func TestReconcile(t *testing.T) {
-	name := "foo"
-	namespace := "default"
-	instance := &policiesv1.CertificatePolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration:          &metav1.Duration{Duration: time.Hour * 24 * 35},
-			AllowedSANPattern:    "[[:alpha:]]",
-			DisallowedSANPattern: "[^\\*]",
-			MinCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 35},
-			MaxCADuration:        &metav1.Duration{Duration: time.Hour * 24 * 35},
-			MaxDuration:          &metav1.Duration{Duration: time.Hour * 24 * 35},
-		},
-	}
-
-	// Objects to track in the fake client.
-	objs := []runtime.Object{instance}
-	// Register operator types with the runtime scheme.
-	s := scheme.Scheme
-	s.AddKnownTypes(policiesv1.GroupVersion, instance)
-
-	// Create a fake client to mock API calls.
-	cl := fake.NewClientBuilder()
-	cl.WithRuntimeObjects(objs...)
-	// Create a ReconcileCertificatePolicy object with the scheme and fake client
-	r := &CertificatePolicyReconciler{Client: cl.Build(), Scheme: s, Recorder: nil}
-
-	// Mock request to simulate Reconcile() being called on an event for a
-	// watched resource .
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
-
-	res, err := r.Reconcile(context.TODO(), req)
-	if err != nil {
-		t.Fatalf("reconcile: (%v)", err)
-	}
-
-	t.Log(res)
-}
-
 func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
-	name := "foo"
-	namespace := "default"
-	typeMeta := metav1.TypeMeta{
-		Kind: "namespace",
-	}
-	objMeta := metav1.ObjectMeta{
-		Name: "default",
-	}
-	ns := coretypes.Namespace{
-		TypeMeta:   typeMeta,
-		ObjectMeta: objMeta,
-	}
-	// Mock request to simulate Reconcile() being called on an event for a
-	// watched resource .
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      name,
-			Namespace: namespace,
+	ns := &coretypes.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default",
 		},
 	}
+
 	instance := &policiesv1.CertificatePolicy{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CertificatePolicy",
+			APIVersion: policiesv1.GroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
@@ -115,28 +61,25 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	}
 
 	// Objects to track in the fake client.
-	objs := []runtime.Object{instance}
+	objs := []runtime.Object{ns, instance}
 	// Register operator types with the runtime scheme.
-	s := scheme.Scheme
-	s.AddKnownTypes(policiesv1.GroupVersion, instance)
+	s := runtime.NewScheme()
+	err := scheme.AddToScheme(s)
+	assert.NoError(t, err)
+	err = policiesv1.AddToScheme(s)
+	assert.NoError(t, err)
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewClientBuilder()
-	cl.WithRuntimeObjects(objs...)
+	cl := fake.NewClientBuilder().WithStatusSubresource(instance).WithScheme(s).WithRuntimeObjects(objs...)
 
 	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
 	r := &CertificatePolicyReconciler{Client: cl.Build(), Scheme: s, Recorder: nil, TargetK8sClient: simpleClient}
 
-	_, err := r.TargetK8sClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	_, err = r.TargetK8sClient.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
 	if err != nil {
 		t.Logf("Error creating namespace: %s", err)
 		assert.NoError(t, err)
-	}
-
-	_, err = r.Reconcile(context.TODO(), req)
-	if err != nil {
-		t.Fatalf("reconcile: (%v)", err)
 	}
 
 	tests := []struct {
@@ -162,30 +105,31 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 		},
 	}
 
-	for i, test := range tests {
-		i := i
+	for _, test := range tests {
 		test := test
 
 		t.Run(
 			test.description,
 			func(t *testing.T) {
-				certPolicy := instance.DeepCopy()
-				certPolicy.Name = fmt.Sprintf("%s-%d", certPolicy.Name, i)
+				certPolicy := policiesv1.CertificatePolicy{}
+
+				err := r.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
+				assert.NoError(t, err)
+
 				certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{test.namespaceSelector}
 
-				r.handleAddingPolicy(context.TODO(), certPolicy)
+				err = r.Update(context.TODO(), &certPolicy)
+				assert.NoError(t, err)
+
 				r.PeriodicallyExecCertificatePolicies(context.TODO(), 1, false)
 
-				policy, found := availablePolicies.GetObject(test.cacheNamespace + "/" + certPolicy.Name)
-				assert.True(t, found)
-				assert.NotNil(t, policy)
-				assert.Equal(t, test.complianceState, policy.Status.ComplianceState)
-				assert.Equal(t, test.expectedMsg, policy.Status.CompliancyDetails[test.cacheNamespace].Message)
+				certPolicy = policiesv1.CertificatePolicy{}
 
-				handleRemovingPolicy(certPolicy.Name)
-				policy, found = availablePolicies.GetObject(test.cacheNamespace + "/" + certPolicy.Name)
-				assert.False(t, found)
-				assert.Nil(t, policy)
+				err = r.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
+				assert.NoError(t, err)
+
+				assert.Equal(t, test.complianceState, certPolicy.Status.ComplianceState)
+				assert.Equal(t, test.expectedMsg, certPolicy.Status.CompliancyDetails[test.cacheNamespace].Message)
 			},
 		)
 	}
@@ -198,21 +142,8 @@ func TestCheckComplianceBasedOnDetails(_ *testing.T) {
 			Namespace: "default",
 		},
 	}
-	policies := map[string]*policiesv1.CertificatePolicy{}
-	policies["policy1"] = &certPolicy
 
 	checkComplianceBasedOnDetails(&certPolicy)
-}
-
-func TestCheckComplianceChangeBasedOnDetails(t *testing.T) {
-	certPolicy := policiesv1.CertificatePolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-	}
-	flag := checkComplianceChangeBasedOnDetails(&certPolicy)
-	assert.False(t, flag)
 }
 
 func TestSendComplianceEvent(t *testing.T) {
@@ -230,66 +161,19 @@ func TestSendComplianceEvent(t *testing.T) {
 	certPolicy.OwnerReferences = ownerReferences
 
 	// Create a fake client to mock API calls.
-	objs := []runtime.Object{certPolicy}
-	clBuilder := fake.NewClientBuilder()
-	clBuilder.WithRuntimeObjects(objs...)
-	cl := clBuilder.Build()
-
-	r := &CertificatePolicyReconciler{Client: cl, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
-
-	err := r.sendComplianceEvent(context.TODO(), certPolicy)
+	s := runtime.NewScheme()
+	err := scheme.AddToScheme(s)
 	assert.NoError(t, err)
-}
+	err = policiesv1.AddToScheme(s)
+	assert.NoError(t, err)
 
-func TestHandleAddingPolicy(t *testing.T) {
-	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+	objs := []runtime.Object{certPolicy}
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objs...).Build()
 
-	r := &CertificatePolicyReconciler{
-		Client: nil, Scheme: nil,
-		Recorder: nil, TargetK8sClient: simpleClient,
-	}
+	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil, TargetK8sClient: nil}
 
-	typeMeta := metav1.TypeMeta{
-		Kind: "namespace",
-	}
-	objMeta := metav1.ObjectMeta{
-		Name: "default",
-	}
-	ns := &coretypes.Namespace{
-		TypeMeta:   typeMeta,
-		ObjectMeta: objMeta,
-	}
-
-	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
-	if err != nil {
-		t.Logf("Error creating namespace: %s", err)
-	}
-
-	certPolicy := &policiesv1.CertificatePolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo-handle-adding-policy",
-			Namespace: "default",
-		},
-	}
-	certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{"default"}
-
-	r.handleAddingPolicy(context.TODO(), certPolicy)
-	policy, found := availablePolicies.GetObject(certPolicy.Namespace + "/" + certPolicy.Name)
-	assert.True(t, found)
-	assert.NotNil(t, policy)
-	handleRemovingPolicy(certPolicy.Name)
-}
-
-func TestPrintMap(_ *testing.T) {
-	certPolicy := policiesv1.CertificatePolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-	}
-	policies := map[string]*policiesv1.CertificatePolicy{}
-	policies["policy1"] = &certPolicy
-	printMap(policies)
+	err = r.sendComplianceEvent(context.TODO(), certPolicy)
+	assert.NoError(t, err)
 }
 
 func TestGetPatternsUsed(t *testing.T) {
@@ -527,24 +411,25 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 }
 
 func TestProcessPolicies(t *testing.T) {
-	instance := &policiesv1.CertificatePolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo-process-policies",
-			Namespace: "default",
-		},
-		Spec: policiesv1.CertificatePolicySpec{
-			MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
+	policies := &policiesv1.CertificatePolicyList{
+		Items: []policiesv1.CertificatePolicy{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-process-policies",
+					Namespace: "default",
+				},
+				Spec: policiesv1.CertificatePolicySpec{
+					MinDuration: &metav1.Duration{Duration: time.Hour * 24 * 35},
+				},
+			},
 		},
 	}
+
 	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
-	r.handleAddingPolicy(context.TODO(), instance)
 
-	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
-	value := r.ProcessPolicies(context.TODO(), plcToUpdateMap)
-	assert.True(t, value)
+	updatedPolicies := r.ProcessPolicies(context.TODO(), policies)
 
-	_, found := availablePolicies.GetObject("/" + instance.Name)
-	assert.True(t, found)
+	assert.Len(t, updatedPolicies, 1)
 }
 
 func TestParseCertificate(t *testing.T) {
@@ -572,12 +457,6 @@ func TestParseCertificate(t *testing.T) {
 	target := []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	r.handleAddingPolicy(context.TODO(), instance)
-
-	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
-	assert.True(t, found)
-	assert.NotNil(t, policy)
-
 	labelSelector := toLabelSet(instance.Spec.LabelSelector)
 	secretList, _ := simpleClient.CoreV1().Secrets("default").List(
 		context.TODO(), metav1.ListOptions{
@@ -599,8 +478,6 @@ func TestParseCertificate(t *testing.T) {
 	message := buildPolicyStatusMessage(list, nonCompliant, "default", instance)
 	assert.NotNil(t, message)
 
-	handleRemovingPolicy("foo")
-
 	instance = &policiesv1.CertificatePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -617,11 +494,6 @@ func TestParseCertificate(t *testing.T) {
 
 	target = []policiesv1.NonEmptyString{"default"}
 	instance.Spec.NamespaceSelector.Include = target
-	r.handleAddingPolicy(context.TODO(), instance)
-
-	policy, found = availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
-	assert.True(t, found)
-	assert.NotNil(t, policy)
 
 	labelSelector = toLabelSet(instance.Spec.LabelSelector)
 	secretList, _ = simpleClient.CoreV1().Secrets("default").List(
@@ -670,25 +542,19 @@ func TestMultipleNamespaces(t *testing.T) {
 	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	r.handleAddingPolicy(context.TODO(), instance)
+	policies := &policiesv1.CertificatePolicyList{
+		Items: []policiesv1.CertificatePolicy{*instance},
+	}
 
-	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
-	assert.True(t, found)
-	assert.NotNil(t, policy)
+	updatedPolicies := r.ProcessPolicies(context.TODO(), policies)
+	assert.Len(t, updatedPolicies, 1)
 
-	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
-
-	stateChange := r.ProcessPolicies(context.TODO(), plcToUpdateMap)
-	assert.True(t, stateChange)
-
-	message := convertPolicyStatusToString(instance, DefaultDuration)
+	message := convertPolicyStatusToString(updatedPolicies[0], DefaultDuration)
 	assert.NotNil(t, message)
 	t.Logf("Message created for policy: %s", message)
 	first := strings.Index(message, "default1")
 	second := strings.Index(message, "default2")
 	assert.Less(t, first, second)
-
-	handleRemovingPolicy("foo")
 }
 
 func TestSecretLabelSelection(t *testing.T) {
@@ -726,19 +592,15 @@ func TestSecretLabelSelection(t *testing.T) {
 	target := []policiesv1.NonEmptyString{"def*"}
 	instance.Spec.NamespaceSelector.Include = target
 
-	r.handleAddingPolicy(context.TODO(), instance)
+	policies := &policiesv1.CertificatePolicyList{
+		Items: []policiesv1.CertificatePolicy{*instance},
+	}
 
-	policy, found := availablePolicies.GetObject(instance.Namespace + "/" + instance.Name)
-	assert.True(t, found)
-	assert.NotNil(t, policy)
-
-	plcToUpdateMap := make(map[string]*policiesv1.CertificatePolicy)
-
-	stateChange := r.ProcessPolicies(context.TODO(), plcToUpdateMap)
-	assert.True(t, stateChange)
+	updatedPolicies := r.ProcessPolicies(context.TODO(), policies)
+	assert.Len(t, updatedPolicies, 1)
 
 	// With the label selector only the secret default2 is matched
-	message := convertPolicyStatusToString(instance, DefaultDuration)
+	message := convertPolicyStatusToString(updatedPolicies[0], DefaultDuration)
 	assert.NotNil(t, message)
 	t.Logf("Message created for policy: %s", message)
 	first := strings.Index(message, "default1")
@@ -746,6 +608,4 @@ func TestSecretLabelSelection(t *testing.T) {
 
 	second := strings.Index(message, "default2")
 	assert.Less(t, 0, second)
-
-	handleRemovingPolicy("foo")
 }
