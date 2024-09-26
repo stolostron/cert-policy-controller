@@ -131,8 +131,7 @@ type Cert struct {
 	// Secret is the name of the secret containing the certificate.
 	Secret string `json:"secretName,omitempty"`
 
-	// Expiration is the string representation of the expiration of the certificate from the time of
-	// the report.
+	// Expiration is the string representation of the expiration date of the certificate in UTC RFC 3339 format.
 	Expiration string `json:"expiration,omitempty"`
 
 	// Expiry is the time.Duration representation of the expiration of the certificate from the time

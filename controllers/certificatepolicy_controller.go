@@ -313,7 +313,7 @@ func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
 
 	cert = policyv1.Cert{
 		Secret:     secret.Name,
-		Expiration: duration.String(),
+		Expiration: expiration.UTC().Format(time.RFC3339),
 		Expiry:     duration,
 		CA:         x509Cert.IsCA,
 		Duration:   maximumDuration,
@@ -435,7 +435,13 @@ func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespa
 		for cert, certDetails := range list {
 			details := certDetails
 			if isCertificateExpiring(&details, policy) {
-				message = fmt.Sprintf("%s%s expires in %s\n", message, cert, details.Expiration)
+				verb := "expires"
+
+				if details.Expiry < 0 {
+					verb = "expired"
+				}
+
+				message = fmt.Sprintf("%s%s %s at %s\n", message, cert, verb, details.Expiration)
 			}
 
 			if isCertificateLongDuration(&details, policy) {
