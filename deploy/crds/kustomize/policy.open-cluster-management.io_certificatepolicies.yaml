@@ -212,9 +212,9 @@ spec:
                             format: int64
                             type: integer
                           expiration:
-                            description: |-
-                              Expiration is the string representation of the expiration of the certificate from the time of
-                              the report.
+                            description: Expiration is the string representation of
+                              the expiration date of the certificate in UTC RFC 3339
+                              format.
                             type: string
                           expiry:
                             description: |-

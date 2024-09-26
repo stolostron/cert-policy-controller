@@ -313,7 +313,7 @@ func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
 
 	cert = policyv1.Cert{
 		Secret:     secret.Name,
-		Expiration: duration.String(),
+		Expiration: expiration.UTC().Format(time.RFC3339),
 		Expiry:     duration,
 		CA:         x509Cert.IsCA,
 		Duration:   maximumDuration,
@@ -435,7 +435,7 @@ func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespa
 		for cert, certDetails := range list {
 			details := certDetails
 			if isCertificateExpiring(&details, policy) {
-				message = fmt.Sprintf("%s%s expires in %s\n", message, cert, details.Expiration)
+				message = fmt.Sprintf("%s%s expires on %s\n", message, cert, details.Expiration)
 			}
 
 			if isCertificateLongDuration(&details, policy) {
@@ -507,12 +507,11 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 	if count > 0 && plc.Status.ComplianceState == policyv1.Compliant {
 		changed = true
 	}
-	// The message contains the amount of time until expiration which changes each cycle
-	// Do not compare the message
-	//if msg != plc.Status.CompliancyDetails[namespace].Message {
-	//	klog.Infof("The policy %s has a new message: %s", plc.Name, msg)
-	//	changed = true
-	//}
+
+	if msg != plc.Status.CompliancyDetails[namespace].Message {
+		changed = true
+	}
+
 	if haveNewNonCompliantCertificate(plc, namespace, certificates) {
 		changed = true
 	}
