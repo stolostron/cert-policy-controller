@@ -38,6 +38,15 @@ endif
 export COVERAGE_MIN ?= 65
 COVERAGE_E2E_OUT ?= coverage_e2e.out
 
+# Get the branch of the PR target or Push in Github Action
+ifeq ($(GITHUB_EVENT_NAME), pull_request) # pull request
+	BRANCH := $(GITHUB_BASE_REF)
+else ifeq ($(GITHUB_EVENT_NAME), push) # push
+	BRANCH := $(GITHUB_REF_NAME)
+else # Default to main
+	BRANCH := main
+endif
+
 # Image URL to use all building/pushing image targets;
 # Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
 IMG ?= $(shell cat COMPONENT_NAME 2> /dev/null)
@@ -274,6 +283,7 @@ kind-delete-cluster:
 install-crds:
 	@echo installing crds
 	kubectl apply -f deploy/crds/policy.open-cluster-management.io_certificatepolicies.yaml
+	kubectl apply -f https://raw.githubusercontent.com/stolostron/governance-policy-propagator/$(BRANCH)/deploy/crds/policy.open-cluster-management.io_policies.yaml
 
 .PHONY: install-resources
 install-resources:
