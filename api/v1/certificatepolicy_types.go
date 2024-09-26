@@ -123,7 +123,8 @@ type CompliancyDetails struct {
 
 // Cert contains its related secret and when it expires
 type Cert struct {
-	Secret     string        `json:"secretName,omitempty"`
+	Secret string `json:"secretName,omitempty"`
+	// Expiration is the string representation of the expiration date of the certificate in UTC RFC 3339 format.
 	Expiration string        `json:"expiration,omitempty"`
 	Expiry     time.Duration `json:"expiry,omitempty"`
 	CA         bool          `json:"ca,omitempty"`
