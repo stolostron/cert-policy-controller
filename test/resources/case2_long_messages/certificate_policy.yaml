@@ -1,0 +1,11 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: CertificatePolicy # cert management expiration
+metadata:
+  name: case2
+spec:
+  namespaceSelector:
+    include:
+      - case2
+  remediationAction: inform
+  severity: low
+  minimumDuration: 300h
