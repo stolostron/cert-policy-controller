@@ -134,13 +134,19 @@ var _ = Describe("Test certificate policy expiration", Ordered, func() {
 	})
 	It("should create expired certificate on managed cluster", func() {
 		By("creating " + case1ExpiredCertificate + " on managed cluster")
-		utils.Kubectl("apply", "-f", case1ExpiredCertificate)
+		utils.Kubectl("apply", "-f", case1ExpiredCertificate, "--kubeconfig", kubeconfigManaged)
+
+		var certPolicy *unstructured.Unstructured
+
 		Eventually(func() interface{} {
-			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
+			certPolicy = utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespace, true, defaultTimeoutSeconds)
 
-			return utils.GetComplianceState(managedPlc)
+			return utils.GetComplianceState(certPolicy)
 		}, defaultTimeoutSeconds, 1).Should(Equal("NonCompliant"))
+
+		msg, _, _ := unstructured.NestedString(certPolicy.Object, "status", "compliancyDetails", "default", "message")
+		Expect(msg).To(ContainSubstring("expired-cert expires on 2021-04-06T02:32:56Z"))
 	})
 	It("should become Compliant with unexpired certificate on managed cluster", func() {
 		utils.Kubectl("apply", "-f", case1UnexpiredCertificate)
