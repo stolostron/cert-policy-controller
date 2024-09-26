@@ -779,7 +779,6 @@ func (r *CertificatePolicyReconciler) sendComplianceEvent(ctx context.Context,
 		LastTimestamp:  metav1.NewTime(now),
 		Count:          1,
 		Type:           "Normal",
-		EventTime:      metav1.NewMicroTime(now),
 		Action:         "ComplianceStateUpdate",
 		Related: &corev1.ObjectReference{
 			Kind:       instance.Kind,
