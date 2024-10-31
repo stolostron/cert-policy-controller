@@ -2,9 +2,6 @@ apiVersion: policy.open-cluster-management.io/v1
 kind: CertificatePolicy # cert management expiration
 metadata:
   name: policy-cert-expiration
-  annotations:
-    policy.open-cluster-management.io/parent-policy-compliance-db-id: "3"
-    policy.open-cluster-management.io/policy-compliance-db-id: "5"
 spec:
   namespaceSelector:
     include: ["default"]
