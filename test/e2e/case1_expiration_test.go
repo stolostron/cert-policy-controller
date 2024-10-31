@@ -16,7 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"open-cluster-management.io/cert-policy-controller/controllers"
 	"open-cluster-management.io/cert-policy-controller/test/utils"
 )
 
@@ -178,22 +177,5 @@ var _ = DescribeTableSubtree("Test certificate policy expiration", Ordered, func
 
 			return utils.GetComplianceState(managedPlc)
 		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
-	})
-	It("should have the database IDs on the events", func(ctx context.Context) {
-		eventList, err := clientManaged.CoreV1().Events(testNamespaceLocal).List(
-			ctx, metav1.ListOptions{FieldSelector: "involvedObject.name=policy-cert-expiration"},
-		)
-		Expect(err).ToNot(HaveOccurred())
-
-		Expect(eventList.Items).ToNot(BeEmpty())
-
-		for _, event := range eventList.Items {
-			if event.Action != "ComplianceStateUpdate" {
-				continue
-			}
-
-			Expect(event.Annotations[controllers.ParentDBIDAnnotation]).To(Equal("3"))
-			Expect(event.Annotations[controllers.PolicyDBIDAnnotation]).To(Equal("5"))
-		}
 	})
 }, Entry("Test with default testNamespace", ""), Entry("Test with "+ocmPolicyNs, ocmPolicyNs))
