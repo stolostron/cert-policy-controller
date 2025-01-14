@@ -24,10 +24,16 @@ COPY --from=builder ${REPO_PATH}/build/_output/bin/${COMPONENT} ${OPERATOR}
 COPY --from=builder ${REPO_PATH}/build/bin /usr/local/bin
 RUN  /usr/local/bin/user_setup
 
-RUN microdnf update -y && \
-    microdnf install -y shadow-utils procps && \
-    microdnf clean all
+RUN microdnf install -y shadow-utils procps
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 
 USER ${USER_UID}
+
+LABEL name="rhacm2/cert-policy-controller-rhel9"
+LABEL summary="Monitor certificates on the cluster"
+LABEL description="The CertificatePolicy kind compares the desired state of certificates with certificates on the cluster."
+LABEL io.k8s.display-name="CertificatePolicy controller"
+LABEL io.k8s.description="The CertificatePolicy kind compares the desired state of certificates with certificates on the cluster."
+LABEL com.redhat.component="acm-cert-policy-controller-container"
+LABEL io.openshift.tags="data,images"
