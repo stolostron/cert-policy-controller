@@ -103,7 +103,9 @@ func getOperatorNamespace() (string, error) {
 	return ns, nil
 }
 
-func startLeaseController(generatedClient kubernetes.Interface, hubConfigPath, clusterName string) {
+func startLeaseController(
+	ctx context.Context, generatedClient kubernetes.Interface, hubConfigPath, clusterName string,
+) {
 	operatorNs, err := getOperatorNamespace()
 	if err != nil {
 		if errors.Is(err, errNoNamespace) {
@@ -129,7 +131,7 @@ func startLeaseController(generatedClient kubernetes.Interface, hubConfigPath, c
 			leaseUpdater = leaseUpdater.WithHubLeaseConfig(hubCfg, clusterName)
 		}
 
-		go leaseUpdater.Start(context.TODO())
+		go leaseUpdater.Start(ctx)
 	}
 }
 
@@ -302,19 +304,22 @@ func main() {
 	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
 	_ = r.Initialize(eventOnParent, time.Duration(0)) /* #nosec G104 */
+
+	terminatingCtx := ctrl.SetupSignalHandler()
+
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
 	// does the needed work to make sure the desired state is achieved
-	go r.PeriodicallyExecCertificatePolicies(context.TODO(), frequency, true)
+	go r.PeriodicallyExecCertificatePolicies(terminatingCtx, frequency, true)
 
 	if enableLease {
-		startLeaseController(generatedClient, hubConfigPath, clusterName)
+		startLeaseController(terminatingCtx, generatedClient, hubConfigPath, clusterName)
 	} else {
 		setupLog.Info("Status reporting is not enabled")
 	}
 
 	setupLog.Info("Starting the manager")
 
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(terminatingCtx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
