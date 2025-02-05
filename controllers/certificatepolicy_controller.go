@@ -84,7 +84,9 @@ func (r *CertificatePolicyReconciler) Reconcile(_ context.Context, _ ctrl.Reques
 	return reconcile.Result{}, nil
 }
 
-// PeriodicallyExecCertificatePolicies always check status - let this be the only function in the controller.
+// PeriodicallyExecCertificatePolicies always check status - let this be the
+// only function in the controller. Accepts a context, duration for each loop
+// iteration, and a boolean to shut off the loop (for testing scenarios).
 func (r *CertificatePolicyReconciler) PeriodicallyExecCertificatePolicies(
 	ctx context.Context, freq uint, loopflag bool,
 ) {
@@ -103,6 +105,9 @@ func (r *CertificatePolicyReconciler) PeriodicallyExecCertificatePolicies(
 				return
 			}
 
+			// Wait if the loop duration hasn't passed yet
+			loopWait(start, float64(freq))
+
 			continue
 		}
 
@@ -117,18 +122,23 @@ func (r *CertificatePolicyReconciler) PeriodicallyExecCertificatePolicies(
 			}
 		}
 
-		if loopflag {
-			// prometheus quantiles for processing delay in each cycle
-			// making sure that if processing is > freq we don't sleep
-			// if freq > processing we sleep for the remaining duration
-			elapsed := time.Since(start) / 1000000000 // convert to seconds
-			if float64(freq) > float64(elapsed) {
-				remainingSleep := float64(freq) - float64(elapsed)
-				time.Sleep(time.Duration(remainingSleep) * time.Second)
-			}
-		} else {
+		if !loopflag {
 			return
 		}
+
+		// Wait if the loop duration hasn't passed yet
+		loopWait(start, float64(freq))
+	}
+}
+
+// loopWait calculates whether the configured duration has passed since the
+// start of the loop iteration. If it hasn't, it sleeps until the duration has
+// passed.
+func loopWait(start time.Time, freq float64) {
+	elapsed := time.Since(start).Seconds()
+	if freq > elapsed {
+		remainingSleep := freq - elapsed
+		time.Sleep(time.Duration(remainingSleep) * time.Second)
 	}
 }
 
