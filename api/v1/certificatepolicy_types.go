@@ -25,13 +25,13 @@ const (
 
 // ComplianceState reports the compliance that results from parameters of the certificate policy.
 //
-// +kubebuilder:validation:Enum=Compliant;NonCompliant;UnknownCompliancy
+// +kubebuilder:validation:Enum=Compliant;NonCompliant
 type ComplianceState string
 
 const (
 	Compliant         ComplianceState = "Compliant"
 	NonCompliant      ComplianceState = "NonCompliant"
-	UnknownCompliancy ComplianceState = "UnknownCompliancy"
+	UnknownCompliancy ComplianceState = ""
 )
 
 type Target struct {
