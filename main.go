@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -284,7 +285,12 @@ func main() {
 	}
 
 	if err = ctrl.NewControllerManagedBy(mgr).
-		For(&policyv1.CertificatePolicy{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&policyv1.CertificatePolicy{}, builder.WithPredicates(predicate.Funcs{
+			GenericFunc: func(_ event.GenericEvent) bool { return false },
+			CreateFunc:  func(_ event.CreateEvent) bool { return false },
+			UpdateFunc:  func(_ event.UpdateEvent) bool { return false },
+			DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
+		})).
 		Complete(r); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CertificatePolicy")
 		os.Exit(1)

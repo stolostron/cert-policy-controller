@@ -17,6 +17,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -79,8 +80,21 @@ type CertificatePolicyReconciler struct {
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=list
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
 
-// Reconcile does nothing since this controller is polling based.
-func (r *CertificatePolicyReconciler) Reconcile(_ context.Context, _ ctrl.Request) (ctrl.Result, error) {
+// Reconcile only runs on DeleteFunc since this controller is polling based.
+func (r *CertificatePolicyReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+	log := log.WithValues("name", request.Name, "namespace", request.Namespace)
+	policy := &policyv1.CertificatePolicy{}
+
+	err := r.Get(ctx, request.NamespacedName, policy)
+	if !k8serrors.IsNotFound(err) {
+		log.V(1).Info(fmt.Sprintf("Failure while fetching deleted policy. Re-reconciling: %s", err.Error()))
+
+		return reconcile.Result{}, err
+	}
+
+	log.V(1).Info("Handling a deleted policy")
+	removeCertPolicyMetrics(request)
+
 	return reconcile.Result{}, nil
 }
 
@@ -126,6 +140,8 @@ func (r *CertificatePolicyReconciler) PeriodicallyExecCertificatePolicies(
 			return
 		}
 
+		policyTotalEvalSecondsCounter.Observe(time.Since(start).Seconds())
+
 		// Wait if the loop duration hasn't passed yet
 		loopWait(start, float64(freq))
 	}
@@ -150,6 +166,7 @@ func (r *CertificatePolicyReconciler) ProcessPolicies(
 
 	// update available policies if there are changed namespaces
 	for i := range policies.Items {
+		evalStart := time.Now().UTC()
 		policy := policies.Items[i]
 
 		namespacedName := types.NamespacedName{Namespace: policy.Namespace, Name: policy.Name}
@@ -196,6 +213,14 @@ func (r *CertificatePolicyReconciler) ProcessPolicies(
 		checkComplianceBasedOnDetails(&policy)
 
 		log.V(1).Info("Got compliance", "policy.Name", policy.Name, "state", policy.Status.ComplianceState)
+
+		certPolicyStatusGauge.WithLabelValues(
+			policy.Name, policy.Namespace,
+		).Set(
+			getStatusValue(policy.Status.ComplianceState),
+		)
+		policyEvalSecondsCounter.WithLabelValues(policy.Name).Add(time.Now().UTC().Sub(evalStart).Seconds())
+		policyEvalCounter.WithLabelValues(policy.Name).Inc()
 	}
 
 	rv := make([]*policyv1.CertificatePolicy, 0, len(updatedPolicies))
