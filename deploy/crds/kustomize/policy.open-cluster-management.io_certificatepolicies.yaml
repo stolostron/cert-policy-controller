@@ -249,7 +249,6 @@ spec:
                 enum:
                 - Compliant
                 - NonCompliant
-                - UnknownCompliancy
                 type: string
             type: object
         type: object
