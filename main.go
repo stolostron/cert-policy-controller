@@ -3,7 +3,6 @@
 
 package main
 
-//nolint:gci
 import (
 	"context"
 	"errors"
@@ -33,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -42,32 +42,203 @@ import (
 )
 
 var (
-	metricsHost       = "0.0.0.0"
-	metricsPort int32 = 8383
-	scheme            = apiRuntime.NewScheme()
-	setupLog          = ctrl.Log.WithName("setup")
+	scheme   = apiRuntime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
+	// errNoNamespace indicates that a namespace could not be found for the current
+	// environment. This was taken from operator-sdk v0.19.4.
+	errNoNamespace = fmt.Errorf("namespace not found for current environment")
 )
 
-// Namespace for standalone policy users.
-// Policies applied by users are deployed here. Used only in non-hosted mode.
-const ocmPolicyNs = "open-cluster-management-policies"
+const (
+	// Namespace for standalone policy users.
+	// Policies applied by users are deployed here. Used only in non-hosted mode.
+	ocmPolicyNs = "open-cluster-management-policies"
+)
 
-// errNoNamespace indicates that a namespace could not be found for the current
-// environment. This was taken from operator-sdk v0.19.4.
-var errNoNamespace = fmt.Errorf("namespace not found for current environment")
-
-func printVersion() {
-	setupLog.Info("Using", "OperatorVersion", version.Version, "GoVersion", runtime.Version(),
-		"GOOS", runtime.GOOS, "GOARCH", runtime.GOARCH)
+type ctrlOpts struct {
+	eventOnParent            string
+	defaultDuration          string
+	clusterName              string
+	hubConfigPath            string
+	targetKubeConfig         string
+	metricsAddr              string
+	probeAddr                string
+	frequency                uint
+	secureMetrics            bool
+	enableLease              bool
+	enableLeaderElection     bool
+	enableOcmPolicyNamespace bool
 }
 
-//nolint:wsl
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(extpolicyv1.AddToScheme(scheme))
-
-	utilruntime.Must(policyv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+	utilruntime.Must(policyv1.AddToScheme(scheme))
+	utilruntime.Must(extpolicyv1.AddToScheme(scheme))
+}
+
+func main() {
+	zflags := zaputil.FlagConfig{
+		LevelName:   "log-level",
+		EncoderName: "log-encoder",
+	}
+
+	zflags.Bind(flag.CommandLine)
+	klog.InitFlags(flag.CommandLine)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
+	opts := parseOpts()
+
+	ctrlZap, err := zflags.BuildForCtrl()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to build zap logger for controller: %v", err))
+	}
+
+	ctrl.SetLogger(zapr.NewLogger(ctrlZap))
+
+	// send klog messages through our zap logger so they look the same (console vs JSON)
+	klogZap, err := zaputil.BuildForKlog(zflags.GetConfig(), flag.CommandLine)
+	if err != nil {
+		setupLog.Error(err, "Failed to build zap logger for klog, those logs will not go through zap")
+	} else {
+		klog.SetLogger(zapr.NewLogger(klogZap).WithName("klog"))
+	}
+
+	setupLog.Info("Using", "OperatorVersion", version.Version, "GoVersion", runtime.Version(),
+		"GOOS", runtime.GOOS, "GOARCH", runtime.GOARCH)
+
+	namespace, err := getWatchNamespace()
+	if err != nil {
+		setupLog.Error(err, "Failed to get watch namespace")
+		os.Exit(1)
+	}
+
+	// Get a config to talk to the apiserver
+	cfg, err := config.GetConfig()
+	if err != nil {
+		setupLog.Error(err, "Failed to get config for apiserver")
+		os.Exit(1)
+	}
+
+	cacheOptions := cache.Options{
+		DefaultNamespaces: make(map[string]cache.Config),
+	}
+
+	for _, namespace := range strings.Split(namespace, ",") {
+		cacheOptions.DefaultNamespaces[namespace] = cache.Config{}
+	}
+
+	// ocmPolicyNs is cached only in non-hosted=mode
+	if opts.targetKubeConfig == "" && opts.enableOcmPolicyNamespace {
+		cacheOptions.DefaultNamespaces[ocmPolicyNs] = cache.Config{}
+	}
+
+	metricsOptions := server.Options{
+		BindAddress: opts.metricsAddr,
+	}
+
+	// Configure secure metrics
+	if opts.secureMetrics {
+		metricsOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+		metricsOptions.SecureServing = true
+		metricsOptions.CertDir = "/var/run/metrics-cert"
+	}
+
+	options := ctrl.Options{
+		HealthProbeBindAddress: opts.probeAddr,
+		LeaderElection:         opts.enableLeaderElection,
+		LeaderElectionID:       "cert-policy-controller.open-cluster-management.io",
+		Metrics:                metricsOptions,
+		Scheme:                 scheme,
+		Cache:                  cacheOptions,
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	setupLog.Info("Registering components")
+
+	var targetK8sClient kubernetes.Interface
+	var targetK8sConfig *rest.Config
+
+	if opts.targetKubeConfig == "" {
+		targetK8sConfig = cfg
+		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
+	} else {
+		var err error
+
+		targetK8sConfig, err = clientcmd.BuildConfigFromFlags("", opts.targetKubeConfig)
+		if err != nil {
+			setupLog.Error(err, "Failed to load the target kubeconfig", "path", opts.targetKubeConfig)
+			os.Exit(1)
+		}
+
+		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
+
+		setupLog.Info(
+			"Overrode the target Kubernetes cluster for policy evaluation and enforcement", "path", opts.targetKubeConfig,
+		)
+	}
+
+	instanceName, _ := os.Hostname() // on an error, instanceName will be empty, which is ok
+
+	r := &controllers.CertificatePolicyReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		Recorder:        mgr.GetEventRecorderFor("certificatepolicy-controller"),
+		InstanceName:    instanceName,
+		TargetK8sClient: targetK8sClient,
+		TargetK8sConfig: targetK8sConfig,
+	}
+
+	if err = ctrl.NewControllerManagedBy(mgr).
+		For(&policyv1.CertificatePolicy{}, builder.WithPredicates(predicate.Funcs{
+			GenericFunc: func(_ event.GenericEvent) bool { return false },
+			CreateFunc:  func(_ event.CreateEvent) bool { return false },
+			UpdateFunc:  func(_ event.UpdateEvent) bool { return false },
+			DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
+		})).
+		Complete(r); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CertificatePolicy")
+		os.Exit(1)
+	}
+	//+kubebuilder:scaffold:builder
+
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		os.Exit(1)
+	}
+
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
+
+	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+
+	_ = r.Initialize(opts.eventOnParent, time.Duration(0)) /* #nosec G104 */
+
+	terminatingCtx := ctrl.SetupSignalHandler()
+
+	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
+	// does the needed work to make sure the desired state is achieved
+	go r.PeriodicallyExecCertificatePolicies(terminatingCtx, opts.frequency, true)
+
+	if opts.enableLease {
+		startLeaseController(terminatingCtx, generatedClient, opts.hubConfigPath, opts.clusterName)
+	} else {
+		setupLog.Info("Status reporting is not enabled")
+	}
+
+	setupLog.Info("Starting the manager")
+
+	if err := mgr.Start(terminatingCtx); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
 }
 
 // getWatchNamespace returns the Namespace the operator should be watching for changes.
@@ -136,197 +307,62 @@ func startLeaseController(
 	}
 }
 
-func main() {
-	zflags := zaputil.FlagConfig{
-		LevelName:   "log-level",
-		EncoderName: "log-encoder",
-	}
-	zflags.Bind(flag.CommandLine)
+func parseOpts() ctrlOpts {
+	opts := ctrlOpts{}
 
-	klog.InitFlags(flag.CommandLine)
-
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
-	var eventOnParent, defaultDuration, clusterName, hubConfigPath, targetKubeConfig, probeAddr string
-	var frequency uint
-	var enableLease, enableLeaderElection, enableOcmPolicyNamespace bool
-
-	//nolint:gomnd
-	pflag.UintVar(&frequency, "update-frequency", 10,
+	pflag.UintVar(
+		&opts.frequency, "update-frequency", 10,
 		"The status update frequency (in seconds) of a mutation policy",
 	)
-	pflag.StringVar(&eventOnParent, "parent-event", "ifpresent",
+	pflag.StringVar(
+		&opts.eventOnParent, "parent-event", "ifpresent",
 		"to also send status events on parent policy. options are: yes/no/ifpresent",
 	)
-	pflag.StringVar(&defaultDuration, "default-duration", "672h",
+	pflag.StringVar(
+		&opts.defaultDuration, "default-duration", "672h",
 		"The default minimum duration allowed for certificatepolicies to be compliant, must be in golang time format",
 	)
-	pflag.BoolVar(&enableLease, "enable-lease", false,
+	pflag.BoolVar(
+		&opts.enableLease, "enable-lease", false,
 		"If enabled, the controller will start the lease controller to report its status",
 	)
-	pflag.BoolVar(&enableLeaderElection, "leader-elect", true,
+	pflag.BoolVar(
+		&opts.enableLeaderElection, "leader-elect", true,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.",
 	)
-	pflag.BoolVar(&enableOcmPolicyNamespace, "enable-ocm-policy-namespace", true,
+	pflag.BoolVar(
+		&opts.enableOcmPolicyNamespace, "enable-ocm-policy-namespace", true,
 		"Enable to use open-cluster-management-policies namespace",
 	)
-	pflag.StringVar(&hubConfigPath, "hub-kubeconfig-path",
+	pflag.StringVar(
+		&opts.hubConfigPath, "hub-kubeconfig-path",
 		"/var/run/klusterlet/kubeconfig", "Path to the hub kubeconfig",
 	)
 	pflag.StringVar(
-		&targetKubeConfig,
+		&opts.targetKubeConfig,
 		"target-kubeconfig-path",
 		"",
 		"A path to an alternative kubeconfig for policy evaluation and enforcement.",
 	)
-	pflag.StringVar(&clusterName, "cluster-name", "default-cluster", "Name of the cluster")
-	flag.StringVar(&probeAddr, "health-probe-bind-address",
-		":8081", "The address the probe endpoint binds to.",
+	pflag.StringVar(
+		&opts.clusterName, "cluster-name", "default-cluster", "Name of the cluster",
+	)
+	pflag.StringVar(&opts.metricsAddr, "metrics-bind-address",
+		"localhost:8383", "The address the probe endpoint binds to.",
+	)
+	pflag.BoolVar(
+		&opts.secureMetrics,
+		"secure-metrics",
+		false,
+		"Enable secure metrics endpoint with certificates at /var/run/metrics-cert",
+	)
+	pflag.StringVar(
+		&opts.probeAddr, "health-probe-bind-address",
+		":8081", "The address the metrics endpoint binds to.",
 	)
 
 	pflag.Parse()
 
-	ctrlZap, err := zflags.BuildForCtrl()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to build zap logger for controller: %v", err))
-	}
-
-	ctrl.SetLogger(zapr.NewLogger(ctrlZap))
-
-	// send klog messages through our zap logger so they look the same (console vs JSON)
-	klogZap, err := zaputil.BuildForKlog(zflags.GetConfig(), flag.CommandLine)
-	if err != nil {
-		setupLog.Error(err, "Failed to build zap logger for klog, those logs will not go through zap")
-	} else {
-		klog.SetLogger(zapr.NewLogger(klogZap).WithName("klog"))
-	}
-
-	printVersion()
-
-	namespace, err := getWatchNamespace()
-	if err != nil {
-		setupLog.Error(err, "Failed to get watch namespace")
-		os.Exit(1)
-	}
-
-	// Get a config to talk to the apiserver
-	cfg, err := config.GetConfig()
-	if err != nil {
-		setupLog.Error(err, "Failed to get config for apiserver")
-		os.Exit(1)
-	}
-
-	cacheOptions := cache.Options{
-		DefaultNamespaces: make(map[string]cache.Config),
-	}
-
-	for _, namespace := range strings.Split(namespace, ",") {
-		cacheOptions.DefaultNamespaces[namespace] = cache.Config{}
-	}
-
-	// ocmPolicyNs is cached only in non-hosted=mode
-	if targetKubeConfig == "" && enableOcmPolicyNamespace {
-		cacheOptions.DefaultNamespaces[ocmPolicyNs] = cache.Config{}
-	}
-
-	metricsOptions := server.Options{
-		BindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
-	}
-
-	options := ctrl.Options{
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "cert-policy-controller.open-cluster-management.io",
-		Metrics:                metricsOptions,
-		Scheme:                 scheme,
-		Cache:                  cacheOptions,
-	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
-
-	setupLog.Info("Registering components")
-
-	var targetK8sClient kubernetes.Interface
-	var targetK8sConfig *rest.Config
-
-	if targetKubeConfig == "" {
-		targetK8sConfig = cfg
-		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
-	} else {
-		var err error
-
-		targetK8sConfig, err = clientcmd.BuildConfigFromFlags("", targetKubeConfig)
-		if err != nil {
-			setupLog.Error(err, "Failed to load the target kubeconfig", "path", targetKubeConfig)
-			os.Exit(1)
-		}
-
-		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
-
-		setupLog.Info(
-			"Overrode the target Kubernetes cluster for policy evaluation and enforcement", "path", targetKubeConfig,
-		)
-	}
-
-	instanceName, _ := os.Hostname() // on an error, instanceName will be empty, which is ok
-
-	r := &controllers.CertificatePolicyReconciler{
-		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
-		Recorder:        mgr.GetEventRecorderFor("certificatepolicy-controller"),
-		InstanceName:    instanceName,
-		TargetK8sClient: targetK8sClient,
-		TargetK8sConfig: targetK8sConfig,
-	}
-
-	if err = ctrl.NewControllerManagedBy(mgr).
-		For(&policyv1.CertificatePolicy{}, builder.WithPredicates(predicate.Funcs{
-			GenericFunc: func(_ event.GenericEvent) bool { return false },
-			CreateFunc:  func(_ event.CreateEvent) bool { return false },
-			UpdateFunc:  func(_ event.UpdateEvent) bool { return false },
-			DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
-		})).
-		Complete(r); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "CertificatePolicy")
-		os.Exit(1)
-	}
-	//+kubebuilder:scaffold:builder
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
-	}
-
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
-	}
-
-	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
-
-	_ = r.Initialize(eventOnParent, time.Duration(0)) /* #nosec G104 */
-
-	terminatingCtx := ctrl.SetupSignalHandler()
-
-	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
-	// does the needed work to make sure the desired state is achieved
-	go r.PeriodicallyExecCertificatePolicies(terminatingCtx, frequency, true)
-
-	if enableLease {
-		startLeaseController(terminatingCtx, generatedClient, hubConfigPath, clusterName)
-	} else {
-		setupLog.Info("Status reporting is not enabled")
-	}
-
-	setupLog.Info("Starting the manager")
-
-	if err := mgr.Start(terminatingCtx); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
+	return opts
 }

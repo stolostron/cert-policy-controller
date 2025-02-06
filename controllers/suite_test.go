@@ -16,7 +16,6 @@ limitations under the License.
 
 package controllers
 
-//nolint:gci
 import (
 	"path/filepath"
 	"testing"
