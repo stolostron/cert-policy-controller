@@ -20,6 +20,7 @@ TESTARGS ?= $(TESTARGS_DEFAULT)
 CONTROLLER_NAME ?= $(shell cat COMPONENT_NAME 2> /dev/null)
 CONTROLLER_NAMESPACE ?= open-cluster-management-agent-addon
 KIND_NAMESPACE ?= $(CONTROLLER_NAMESPACE)
+KIND_NAME ?= test-$(MANAGED_CLUSTER_NAME)
 MANAGED_CLUSTER_SUFFIX ?= 
 MANAGED_CLUSTER_NAME ?= managed$(MANAGED_CLUSTER_SUFFIX)
 WATCH_NAMESPACE ?= $(MANAGED_CLUSTER_NAME)
@@ -76,15 +77,15 @@ run:
 
 .PHONY: build-images
 build-images:
-	@docker build -t ${IMAGE_NAME_AND_VERSION} -f ./Dockerfile .
-	@docker tag ${IMAGE_NAME_AND_VERSION} $(REGISTRY)/$(IMG):$(TAG)
+	docker build -t ${IMAGE_NAME_AND_VERSION} -f ./Dockerfile .
+	docker tag ${IMAGE_NAME_AND_VERSION} $(REGISTRY)/$(IMG):$(TAG)
 
 .PHONY: deploy
 deploy: deploy-controller
 
 .PHONY: deploy-controller
 deploy-controller: create-ns install-crds
-	@echo installing $(IMG)
+	# Installing $(IMG)
 	kubectl -n $(KIND_NAMESPACE) apply -f deploy/operator.yaml
 	kubectl set env deployment/$(IMG) -n $(KIND_NAMESPACE) WATCH_NAMESPACE=$(WATCH_NAMESPACE)
 
@@ -143,6 +144,7 @@ gosec-scan:
 # e2e test (using KinD clusters)
 ############################################################
 GINKGO = $(LOCAL_BIN)/ginkgo
+CLUSTER_NAME = $(MANAGED_CLUSTER_NAME)
 
 .PHONY: kind-bootstrap-cluster
 kind-bootstrap-cluster: kind-bootstrap-cluster-dev kind-deploy-controller
@@ -166,9 +168,9 @@ kind-deploy-controller-dev:
 
 .PHONY: kind-deploy-controller-dev-normal
 kind-deploy-controller-dev-normal: kind-deploy-controller
-	@echo Pushing image to KinD cluster
+	# Pushing image to KinD cluster
 	kind load docker-image $(REGISTRY)/$(IMG):$(TAG) --name $(KIND_NAME)
-	@echo "Patch deployment image"
+	# Patch deployment image
 	kubectl patch deployment $(IMG) -n $(KIND_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"imagePullPolicy\":\"Never\",\"args\":[]}]}}}}"
 	kubectl patch deployment $(IMG) -n $(KIND_NAMESPACE) -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$(IMG)\",\"image\":\"$(REGISTRY)/$(IMG):$(TAG)\"}]}}}}"
 	kubectl rollout status -n $(KIND_NAMESPACE) deployment $(IMG) --timeout=180s
@@ -192,7 +194,7 @@ kind-delete-cluster:
 
 .PHONY: install-crds
 install-crds:
-	@echo installing crds
+	# Installing crds
 	kubectl apply -f deploy/crds/policy.open-cluster-management.io_certificatepolicies.yaml
 	kubectl apply -f https://raw.githubusercontent.com/stolostron/governance-policy-propagator/$(BRANCH)/deploy/crds/policy.open-cluster-management.io_policies.yaml
 
@@ -244,7 +246,7 @@ e2e-debug:
 COVERAGE_FILE = coverage.out
 .PHONY: coverage-merge
 coverage-merge: coverage-dependencies
-	@echo Merging the coverage reports into $(COVERAGE_FILE)
+	# Merging the coverage reports into $(COVERAGE_FILE)
 	$(GOCOVMERGE) $(PWD)/coverage_* > $(COVERAGE_FILE)
 
 .PHONY: coverage-verify
