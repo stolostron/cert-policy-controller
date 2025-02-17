@@ -214,8 +214,8 @@ func (r *CertificatePolicyReconciler) ProcessPolicies(
 
 		log.V(1).Info("Got compliance", "policy.Name", policy.Name, "state", policy.Status.ComplianceState)
 
-		certPolicyStatusGauge.WithLabelValues(
-			policy.Name, policy.Namespace,
+		policyStatusGauge.WithLabelValues(
+			"CertificatePolicy", policy.Name, policy.Namespace, policy.Spec.Severity,
 		).Set(
 			getStatusValue(policy.Status.ComplianceState),
 		)

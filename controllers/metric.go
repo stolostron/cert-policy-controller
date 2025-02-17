@@ -9,15 +9,17 @@ import (
 )
 
 var (
-	certPolicyStatusGauge = prometheus.NewGaugeVec(
+	policyStatusGauge = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "certificatepolicy_governance_info",
-			Help: "The compliance status of the named CertificatePolicy. " +
+			Name: "cluster_policy_governance_info",
+			Help: "The compliance status of the named managed cluster policy. " +
 				"0 == Compliant. 1 == NonCompliant. -1 == Unknown/Pending",
 		},
 		[]string{
-			"policy",           // The name of the configuration policy
-			"policy_namespace", // The namespace where the configuration policy is defined
+			"kind",             // The kind of the policy
+			"policy",           // The name of the policy
+			"policy_namespace", // The namespace where the policy is defined
+			"severity",         // The severity of the policy
 		},
 	)
 	policyTotalEvalSecondsCounter = prometheus.NewHistogram(prometheus.HistogramOpts{
@@ -45,7 +47,7 @@ var (
 func init() {
 	// Register custom metrics with the global Prometheus registry
 	metrics.Registry.MustRegister(
-		certPolicyStatusGauge,
+		policyStatusGauge,
 		policyTotalEvalSecondsCounter,
 		policyEvalSecondsCounter,
 		policyEvalCounter,
@@ -64,7 +66,8 @@ func getStatusValue(complianceState v1.ComplianceState) float64 {
 
 func removeCertPolicyMetrics(request ctrl.Request) {
 	// If a metric has an error while deleting, that means the policy was never evaluated so it can be ignored.
-	_ = certPolicyStatusGauge.DeletePartialMatch(prometheus.Labels{
+	_ = policyStatusGauge.DeletePartialMatch(prometheus.Labels{
+		"kind":             "CertificatePolicy",
 		"policy":           request.Name,
 		"policy_namespace": request.Namespace,
 	})

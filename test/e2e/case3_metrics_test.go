@@ -71,13 +71,13 @@ var _ = Describe("Test cert policy metrics", Ordered, func() {
 		By("Checking metric endpoint for configuration policy status")
 		Eventually(
 			metricCheck, defaultTimeoutSeconds, 1,
-		).WithArguments("certificatepolicy_governance_info", "policy", policyName).Should(BeNumerically("==", 1))
+		).WithArguments("cluster_policy_governance_info", "policy", policyName).Should(BeNumerically("==", 1))
 
 		By("Updating the certificate to make the policy compliant")
 		utils.Kubectl("apply", "-f", compliantCert, "-n", certNamespace)
 		Eventually(
 			metricCheck, defaultTimeoutSeconds, 1,
-		).WithArguments("certificatepolicy_governance_info", "policy", policyName).Should(BeNumerically("==", 0))
+		).WithArguments("cluster_policy_governance_info", "policy", policyName).Should(BeNumerically("==", 0))
 	})
 
 	AfterAll(func() {
@@ -87,7 +87,7 @@ var _ = Describe("Test cert policy metrics", Ordered, func() {
 		for metricName, label := range map[string]string{
 			"cert_policy_evaluation_total":         "name",
 			"cert_policy_evaluation_seconds_total": "name",
-			"certificatepolicy_governance_info":    "policy",
+			"cluster_policy_governance_info":       "policy",
 		} {
 			Eventually(
 				getMetrics, defaultTimeoutSeconds, 1,
