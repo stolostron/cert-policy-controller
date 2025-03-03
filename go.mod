@@ -1,13 +1,15 @@
 module open-cluster-management.io/cert-policy-controller
 
-go 1.21.0
+go 1.22.0
+
+toolchain go1.22.9
 
 require (
 	github.com/go-logr/zapr v1.2.4
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.29.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stolostron/go-log-utils v0.1.2
+	github.com/stolostron/go-log-utils v0.1.3
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.28.3
@@ -55,7 +57,7 @@ require (
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.26.0 // indirect
+	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.13.0 // indirect
