@@ -1,6 +1,6 @@
 module open-cluster-management.io/cert-policy-controller
 
-go 1.22.0
+go 1.23.0
 
 require (
 	github.com/go-logr/zapr v1.3.0
@@ -57,7 +57,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20240525044651-4c93da0ed11d // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.20.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
