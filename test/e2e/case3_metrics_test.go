@@ -91,7 +91,7 @@ var _ = Describe("Test cert policy metrics", Ordered, func() {
 		} {
 			Eventually(
 				getMetrics, defaultTimeoutSeconds, 1,
-			).WithArguments(metricName, fmt.Sprintf(`%s=\"%s\"`, label, policyName)).Should(HaveLen(0))
+			).WithArguments(metricName, fmt.Sprintf(`%s=\"%s\"`, label, policyName)).Should(BeEmpty())
 		}
 	})
 })
