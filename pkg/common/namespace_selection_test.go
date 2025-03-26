@@ -183,9 +183,6 @@ func TestGetSelectedNamespaces(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		name := name
-		test := test
-
 		t.Run(
 			name,
 			func(t *testing.T) {
@@ -334,9 +331,6 @@ func TestGetAllNamespaces(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		name := name
-		test := test
-
 		t.Run(
 			name,
 			func(t *testing.T) {
