@@ -245,8 +245,11 @@ func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *
 			} else if secret.Labels[certManagerNameLabel] != "" {
 				certName = secret.Labels[certManagerNameLabel]
 			}
+
 			slog.V(3).Info("Got noncompliant certifiate", "certName", certName, "secret.Name", secret.Name)
+
 			nonCompliantCertificates[certName] = *cert
+
 			if policy.Status.ComplianceState != policyv1.NonCompliant {
 				update = true
 			}
@@ -263,6 +266,7 @@ func (r *CertificatePolicyReconciler) retrieveNamespaces(ctx context.Context, se
 		log.Info("NamespaceSelector is empty. Skipping namespace retrieval.")
 	} else {
 		var err error
+
 		selectedNamespaces, err = common.GetSelectedNamespaces(ctx, r.TargetK8sClient, selector)
 		if err != nil {
 			log.Error(
@@ -430,7 +434,7 @@ func buildPolicyStatusMessage(list map[string]policyv1.Cert, count uint, namespa
 	}
 
 	if count > 0 {
-		message = fmt.Sprintf("%sList of non compliant certificates:\n", message)
+		message += "List of non compliant certificates:\n"
 
 		for cert, certDetails := range list {
 			details := certDetails
@@ -459,7 +463,7 @@ func getPatternsUsed(policy *policyv1.CertificatePolicy) string {
 	pattern := ""
 
 	if policy.Spec.AllowedSANPattern != "" {
-		pattern = fmt.Sprintf("Allowed: %s", policy.Spec.AllowedSANPattern)
+		pattern = "Allowed: " + policy.Spec.AllowedSANPattern
 	}
 
 	if policy.Spec.DisallowedSANPattern != "" {
@@ -495,7 +499,7 @@ func addViolationCount(plc *policyv1.CertificatePolicy, message string, count ui
 
 	// Do not flag the following as a state change since some namespaces could be NonCompliant so
 	// we don't want a compliant namespace in the same policy to falsely set changed as true
-	//if count == 0 && plc.Status.ComplianceState == policyv1.NonCompliant {
+	// if count == 0 && plc.Status.ComplianceState == policyv1.NonCompliant {
 	//	changed = true
 	//}
 
