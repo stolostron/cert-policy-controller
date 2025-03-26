@@ -33,11 +33,11 @@ func TestPattern(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(
 			fmt.Sprintf("duration=%s,expected=%v", test.duration, test.expected),
 			func(t *testing.T) {
 				t.Parallel()
+
 				result := regex.MatchString(test.duration)
 				if test.expected != result {
 					t.Fatalf("expected %v, got %v", test.expected, result)
