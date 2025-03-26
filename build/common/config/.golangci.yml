@@ -24,6 +24,8 @@ run:
 linters:
   enable-all: true
   disable:
+    - mnd # Disabled as tech debt: Magic number detection
+    - recvcheck # Disable linter checks for pointer vs. non-pointer receiver usage.
     - bodyclose
     - cyclop
     - depguard
