@@ -106,8 +106,6 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
-
 		t.Run(
 			test.description,
 			func(t *testing.T) {
@@ -607,5 +605,5 @@ func TestSecretLabelSelection(t *testing.T) {
 	assert.Equal(t, -1, first)
 
 	second := strings.Index(message, "default2")
-	assert.Less(t, 0, second)
+	assert.Positive(t, second)
 }
