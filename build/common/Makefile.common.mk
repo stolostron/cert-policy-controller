@@ -13,7 +13,7 @@ GOFUMPT_VERSION := v0.7.0
 # https://github.com/daixiang0/gci/releases/latest
 GCI_VERSION := v0.13.5
 # https://github.com/securego/gosec/releases/latest
-GOSEC_VERSION := v2.22.0
+GOSEC_VERSION := v2.22.2
 # https://github.com/kubernetes-sigs/kubebuilder/releases/latest
 KBVERSION := 3.15.1
 # https://github.com/kubernetes/kubernetes/releases/latest
