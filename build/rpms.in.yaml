@@ -1,0 +1,14 @@
+contentOrigin:
+  repos:
+    - repoid: ubi-9-for-${basearch}-baseos-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/${basearch}/baseos/os/
+packages:
+  - shadow-utils
+  - procps
+context:
+  containerfile: Dockerfile.rhtap
+arches:
+  - aarch64
+  - x86_64
+  - s390x
+  - ppc64le
