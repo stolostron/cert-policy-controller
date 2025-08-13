@@ -10,7 +10,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -267,10 +266,8 @@ func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *
 		secret := secretItem
 		slog.V(3).Info("Checking secret", "secret.Name", secret.Name)
 
-		cert, err := parseCertificate(&secret)
-		if err != nil {
-			slog.Error(err, "Unable to parse certificate", "secret.Name", secret.Name)
-		} else if !isCertificateCompliant(cert, policy) {
+		cert := parseCertificate(&secret)
+		if cert != nil && !isCertificateCompliant(cert, policy) {
 			certName := secret.Name
 			// Gets the certificate's name if it exists
 			if secret.Labels[certNameLabel] != "" {
@@ -279,7 +276,7 @@ func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *
 				certName = secret.Labels[certManagerNameLabel]
 			}
 
-			slog.V(3).Info("Got noncompliant certifiate", "certName", certName, "secret.Name", secret.Name)
+			slog.V(3).Info("Got noncompliant certificate", "certName", certName, "secret.Name", secret.Name)
 
 			nonCompliantCertificates[certName] = *cert
 
@@ -311,9 +308,12 @@ func (r *CertificatePolicyReconciler) retrieveNamespaces(ctx context.Context, se
 	return selectedNamespaces
 }
 
-// Returns true only if the secret (certificate) is not compliant.
-func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
-	log.V(3).Info("entered parseCertificate")
+// Returns the parsed certificate, if one exists in the secret. Checks the `tls.crt` key by default,
+// but can be configured by a "certificate_key_name" label on the secret.
+func parseCertificate(secret *corev1.Secret) *policyv1.Cert {
+	slog := log.WithValues("secret.Namespace", secret.Namespace, "secret.Name", secret.Name)
+
+	slog.V(3).Info("entered parseCertificate")
 
 	keyName := "certificate_key_name"
 	key := "tls.crt"
@@ -322,7 +322,7 @@ func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
 		key = secret.Labels[keyName]
 	}
 
-	log.V(3).Info("Checking secret", "secret.Name", secret.Name, "certificateKey", key)
+	slog.V(3).Info("Checking secret", "certificateKey", key)
 	// Get the certificate bytes
 	certBytes := secret.Data[key]
 
@@ -330,13 +330,15 @@ func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
 	// Get the x509 Certificates
 	certs, err := util.DecodeCertificateBytes(certBytes)
 	if err != nil {
-		log.Error(err, "Error decoding a certificate in the secret; ignoring this error")
+		slog.Error(err, "Error decoding a certificate in the secret; ignoring this secret")
+
+		return nil
 	}
 
 	if len(certs) < 1 {
-		msg := fmt.Sprintf("The secret %s does not contain any certificates. Skipping this secret.", secret.Name)
+		slog.V(2).Info("The secret does not contain any certificates")
 
-		return nil, errors.New(msg)
+		return nil
 	}
 
 	x509Cert := certs[0] // Certificate chains always begin with the end user certificate as a standard format
@@ -357,7 +359,7 @@ func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
 		Sans:       x509Cert.DNSNames,
 	}
 
-	return &cert, nil
+	return &cert
 }
 
 // Return false if the certificate fails any of the compliance checks.
