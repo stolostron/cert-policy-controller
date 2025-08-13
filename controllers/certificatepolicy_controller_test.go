@@ -463,13 +463,11 @@ func TestParseCertificate(t *testing.T) {
 	)
 	assert.Len(t, secretList.Items, 1)
 
-	cert, err := parseCertificate(&secretList.Items[0])
-	assert.NoError(t, err)
+	cert := parseCertificate(&secretList.Items[0])
 	assert.NotNil(t, cert)
 
 	update, nonCompliant, list := r.checkSecrets(context.TODO(), instance, "default")
 
-	assert.NoError(t, err)
 	assert.Equal(t, uint(1), nonCompliant)
 	assert.True(t, update)
 
@@ -503,7 +501,6 @@ func TestParseCertificate(t *testing.T) {
 
 	update, nonCompliant, list = r.checkSecrets(context.TODO(), instance, "default")
 
-	assert.NoError(t, err)
 	assert.Equal(t, uint(2), nonCompliant)
 	assert.True(t, update)
 
