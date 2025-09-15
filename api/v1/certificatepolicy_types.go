@@ -171,6 +171,16 @@ type CertificatePolicyStatus struct {
 	// CompliancyDetails is a map of namespaces to the compliance details of its contained
 	// certificates.
 	CompliancyDetails map[string]CompliancyDetails `json:"compliancyDetails,omitempty"`
+
+	// History is a list of the most recent compliance messages for this certificate policy.
+	// The first entry is the most recent, and the list is limited to 10 entries.
+	History []HistoryEvent `json:"history,omitempty"`
+}
+
+// HistoryEvent is a timestamped message representing the policy compliance state at that time.
+type HistoryEvent struct {
+	LastTimestamp metav1.MicroTime `json:"lastTimestamp,omitempty"`
+	Message       string           `json:"message,omitempty"`
 }
 
 // CertificatePolicy is the schema for the certificatepolicies API. Certificate policy monitors

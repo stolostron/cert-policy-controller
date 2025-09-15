@@ -643,9 +643,23 @@ func (r *CertificatePolicyReconciler) updatePolicyStatus(
 			}
 		}
 
-		err := r.sendComplianceEvent(ctx, instance)
+		updateTime := time.Now()
+
+		err := r.sendComplianceEvent(ctx, instance, updateTime)
 		if err != nil {
 			return instance, err
+		}
+
+		newEvent := policyv1.HistoryEvent{
+			LastTimestamp: metav1.NewMicroTime(updateTime),
+			Message:       convertPolicyStatusToString(instance, DefaultDuration),
+		}
+
+		instance.Status.History = append([]policyv1.HistoryEvent{newEvent}, instance.Status.History...)
+
+		maxHistoryLength := 10 // At some point, we may make this length configurable
+		if len(instance.Status.History) > maxHistoryLength {
+			instance.Status.History = instance.Status.History[:maxHistoryLength]
 		}
 
 		// next do the status update
@@ -667,18 +681,17 @@ func (r *CertificatePolicyReconciler) updatePolicyStatus(
 	return nil, nil
 }
 
-func (r *CertificatePolicyReconciler) sendComplianceEvent(ctx context.Context,
-	instance *policyv1.CertificatePolicy,
+func (r *CertificatePolicyReconciler) sendComplianceEvent(
+	ctx context.Context, instance *policyv1.CertificatePolicy, updateTime time.Time,
 ) error {
 	if len(instance.OwnerReferences) == 0 {
 		return nil // there is nothing to do, since no owner is set
 	}
 
-	now := time.Now()
 	event := &corev1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			// This event name matches the convention of recorders from client-go
-			Name:      fmt.Sprintf("%v.%x", instance.Name, now.UnixNano()),
+			Name:      fmt.Sprintf("%v.%x", instance.Name, updateTime.UnixNano()),
 			Namespace: instance.Namespace,
 		},
 		Reason:  fmt.Sprintf("policy: %s/%s", instance.Namespace, instance.Name),
@@ -687,8 +700,8 @@ func (r *CertificatePolicyReconciler) sendComplianceEvent(ctx context.Context,
 			Component: ControllerName,
 			Host:      r.InstanceName,
 		},
-		FirstTimestamp: metav1.NewTime(now),
-		LastTimestamp:  metav1.NewTime(now),
+		FirstTimestamp: metav1.NewTime(updateTime),
+		LastTimestamp:  metav1.NewTime(updateTime),
 		Count:          1,
 		Type:           "Normal",
 		Action:         "ComplianceStateUpdate",
