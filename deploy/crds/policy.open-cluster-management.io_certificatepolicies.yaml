@@ -256,6 +256,21 @@ spec:
                 - Compliant
                 - NonCompliant
                 type: string
+              history:
+                description: |-
+                  History is a list of the most recent compliance messages for this certificate policy.
+                  The first entry is the most recent, and the list is limited to 10 entries.
+                items:
+                  description: HistoryEvent is a timestamped message representing
+                    the policy compliance state at that time.
+                  properties:
+                    lastTimestamp:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                  type: object
+                type: array
             type: object
         type: object
     served: true

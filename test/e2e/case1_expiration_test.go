@@ -145,36 +145,58 @@ var _ = DescribeTableSubtree("Test certificate policy expiration", Ordered, func
 		)
 		Expect(err).ToNot(HaveOccurred())
 
-		Eventually(func() interface{} {
+		Eventually(func(g Gomega) {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespaceLocal, true, defaultTimeoutSeconds)
 
-			return utils.GetComplianceState(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+			g.Expect(utils.GetComplianceState(managedPlc)).Should(Equal("Compliant"))
+
+			events, found, err := unstructured.NestedSlice(managedPlc.Object, "status", "history")
+			g.Expect(found).To(BeTrue())
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(events).NotTo(BeEmpty())
+
+			g.Expect(events[0]).To(ContainElement(ContainSubstring("All evaluated certificates are compliant")))
+		}, defaultTimeoutSeconds, 1).Should(Succeed())
 	})
 	It("should create expired certificate on managed cluster", func() {
 		By("creating " + case1ExpiredCertificate + " on managed cluster")
 		utils.Kubectl("apply", "-f", case1ExpiredCertificate, "--kubeconfig", kubeconfigManaged)
 
-		var certPolicy *unstructured.Unstructured
-
-		Eventually(func() interface{} {
-			certPolicy = utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
+		Eventually(func(g Gomega) {
+			certPolicy := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespaceLocal, true, defaultTimeoutSeconds)
 
-			return utils.GetComplianceState(certPolicy)
-		}, defaultTimeoutSeconds, 1).Should(Equal("NonCompliant"))
+			g.Expect(utils.GetComplianceState(certPolicy)).Should(Equal("NonCompliant"))
 
-		msg, _, _ := unstructured.NestedString(certPolicy.Object, "status", "compliancyDetails", "default", "message")
-		Expect(msg).To(ContainSubstring("expired-cert expires on 2021-04-06T02:32:56Z"))
+			msg, found, err := unstructured.NestedString(certPolicy.Object,
+				"status", "compliancyDetails", "default", "message")
+			g.Expect(found).To(BeTrue())
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(msg).To(ContainSubstring("expired-cert expires on 2021-04-06T02:32:56Z"))
+
+			events, found, err := unstructured.NestedSlice(certPolicy.Object, "status", "history")
+			g.Expect(found).To(BeTrue())
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(events).NotTo(BeEmpty())
+
+			g.Expect(events[0]).To(ContainElement(ContainSubstring("certificates expire in less than 300h0m0s")))
+		}, defaultTimeoutSeconds, 1).Should(Succeed())
 	})
 	It("should become Compliant with unexpired certificate on managed cluster", func() {
 		utils.Kubectl("apply", "-f", case1UnexpiredCertificate, "--kubeconfig", kubeconfigManaged)
-		Eventually(func() interface{} {
+		Eventually(func(g Gomega) {
 			managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrCertPolicy,
 				case1CertPolicyName, testNamespaceLocal, true, defaultTimeoutSeconds)
 
-			return utils.GetComplianceState(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+			g.Expect(utils.GetComplianceState(managedPlc)).Should(Equal("Compliant"))
+
+			events, found, err := unstructured.NestedSlice(managedPlc.Object, "status", "history")
+			g.Expect(found).To(BeTrue())
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(events).NotTo(BeEmpty())
+
+			g.Expect(events[0]).To(ContainElement(ContainSubstring("All evaluated certificates are compliant")))
+		}, defaultTimeoutSeconds, 1).Should(Succeed())
 	})
 }, Entry("Test with default testNamespace", ""), Entry("Test with "+ocmPolicyNs, ocmPolicyNs))

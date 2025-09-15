@@ -170,7 +170,7 @@ func TestSendComplianceEvent(t *testing.T) {
 
 	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil, TargetK8sClient: nil}
 
-	err = r.sendComplianceEvent(context.TODO(), certPolicy)
+	err = r.sendComplianceEvent(context.TODO(), certPolicy, time.Now())
 	assert.NoError(t, err)
 }
 
