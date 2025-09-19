@@ -5,12 +5,13 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -41,14 +42,14 @@ func GetWithTimeout(
 			return err
 		}
 		if !wantFound && err == nil {
-			return fmt.Errorf("expected to return IsNotFound error")
+			return errors.New("expected to return IsNotFound error")
 		}
-		if !wantFound && err != nil && !errors.IsNotFound(err) {
+		if !wantFound && err != nil && !k8serrors.IsNotFound(err) {
 			return err
 		}
 
 		return nil
-	}, timeout, 1).Should(BeNil())
+	}, timeout, 1).Should(Succeed())
 
 	if wantFound {
 		return obj

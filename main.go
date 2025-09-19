@@ -53,7 +53,7 @@ const ocmPolicyNs = "open-cluster-management-policies"
 
 // errNoNamespace indicates that a namespace could not be found for the current
 // environment. This was taken from operator-sdk v0.19.4.
-var errNoNamespace = fmt.Errorf("namespace not found for current environment")
+var errNoNamespace = errors.New("namespace not found for current environment")
 
 func printVersion() {
 	setupLog.Info("Using", "OperatorVersion", version.Version, "GoVersion", runtime.Version(),
