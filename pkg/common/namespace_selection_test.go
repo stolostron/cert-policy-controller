@@ -16,7 +16,6 @@
 package common
 
 import (
-	"context"
 	"strconv"
 	"testing"
 
@@ -47,7 +46,7 @@ func TestGetSelectedNamespaces(t *testing.T) {
 			},
 		}
 
-		_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+		_, err := simpleClient.CoreV1().Namespaces().Create(t.Context(), namespace, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatalf("Encountered unexpected error: %v", err)
 		}
@@ -186,7 +185,7 @@ func TestGetSelectedNamespaces(t *testing.T) {
 		t.Run(
 			name,
 			func(t *testing.T) {
-				actual, err := GetSelectedNamespaces(context.TODO(), simpleClient, test.selector)
+				actual, err := GetSelectedNamespaces(t.Context(), simpleClient, test.selector)
 				if err != nil {
 					if test.errMsg == "" {
 						t.Fatalf("Encountered unexpected error: %v", err)
@@ -220,7 +219,7 @@ func TestGetAllNamespaces(t *testing.T) {
 			},
 		}
 
-		_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+		_, err := simpleClient.CoreV1().Namespaces().Create(t.Context(), namespace, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatalf("Encountered unexpected error: %v", err)
 		}
@@ -334,7 +333,7 @@ func TestGetAllNamespaces(t *testing.T) {
 		t.Run(
 			name,
 			func(t *testing.T) {
-				actual, err := GetAllNamespaces(context.TODO(), simpleClient, test.labelSelector)
+				actual, err := GetAllNamespaces(t.Context(), simpleClient, test.labelSelector)
 				if err != nil {
 					if test.errMsg == "" {
 						t.Fatalf("Encountered unexpected error: %v", err)
