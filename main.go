@@ -46,7 +46,7 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 	// errNoNamespace indicates that a namespace could not be found for the current
 	// environment. This was taken from operator-sdk v0.19.4.
-	errNoNamespace = fmt.Errorf("namespace not found for current environment")
+	errNoNamespace = errors.New("namespace not found for current environment")
 )
 
 const (
