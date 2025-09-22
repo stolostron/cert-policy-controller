@@ -75,8 +75,6 @@ func TestMatches(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
-
 		t.Run(
 			test.testDescription,
 			func(t *testing.T) {

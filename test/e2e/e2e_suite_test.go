@@ -5,8 +5,8 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -75,7 +75,7 @@ var _ = BeforeSuite(func() {
 	By("Create Namespaces if needed")
 	namespaces := clientManaged.CoreV1().Namespaces()
 	for _, ns := range testNamespaces {
-		if _, err := namespaces.Get(context.TODO(), ns, metav1.GetOptions{}); err != nil && errors.IsNotFound(err) {
+		if _, err := namespaces.Get(context.TODO(), ns, metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
 			Expect(namespaces.Create(context.TODO(), &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: ns,
@@ -153,5 +153,5 @@ func LoadConfig(url, kubeconfig, context string) (*rest.Config, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("could not create a valid kubeconfig")
+	return nil, errors.New("could not create a valid kubeconfig")
 }
