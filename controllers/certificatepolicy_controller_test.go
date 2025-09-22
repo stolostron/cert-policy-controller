@@ -16,7 +16,6 @@
 package controllers
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -76,7 +75,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
 	r := &CertificatePolicyReconciler{Client: cl.Build(), Scheme: s, Recorder: nil, TargetK8sClient: simpleClient}
 
-	_, err = r.TargetK8sClient.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+	_, err = r.TargetK8sClient.CoreV1().Namespaces().Create(t.Context(), ns, metav1.CreateOptions{})
 	if err != nil {
 		t.Logf("Error creating namespace: %s", err)
 		assert.NoError(t, err)
@@ -111,19 +110,19 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 			func(t *testing.T) {
 				certPolicy := policiesv1.CertificatePolicy{}
 
-				err := r.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
+				err := r.Get(t.Context(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
 				assert.NoError(t, err)
 
 				certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{test.namespaceSelector}
 
-				err = r.Update(context.TODO(), &certPolicy)
+				err = r.Update(t.Context(), &certPolicy)
 				assert.NoError(t, err)
 
-				r.PeriodicallyExecCertificatePolicies(context.TODO(), 1, false)
+				r.PeriodicallyExecCertificatePolicies(t.Context(), 1, false)
 
 				certPolicy = policiesv1.CertificatePolicy{}
 
-				err = r.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
+				err = r.Get(t.Context(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
 				assert.NoError(t, err)
 
 				assert.Equal(t, test.complianceState, certPolicy.Status.ComplianceState)
@@ -170,7 +169,7 @@ func TestSendComplianceEvent(t *testing.T) {
 
 	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil, TargetK8sClient: nil}
 
-	err = r.sendComplianceEvent(context.TODO(), certPolicy)
+	err = r.sendComplianceEvent(t.Context(), certPolicy)
 	assert.NoError(t, err)
 }
 
@@ -351,7 +350,7 @@ func createNamespace(t *testing.T, simpleClient kubernetes.Interface, namespace 
 		ObjectMeta: nsobjMeta,
 	}
 
-	_, err := simpleClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
+	_, err := simpleClient.CoreV1().Namespaces().Create(t.Context(), &ns, metav1.CreateOptions{})
 	if err != nil {
 		t.Logf("Error creating namespace: %s", err)
 	}
@@ -403,7 +402,7 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 		secret.ObjectMeta.Labels = labels
 	}
 
-	s, err := simpleClient.CoreV1().Secrets(namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
+	s, err := simpleClient.CoreV1().Secrets(namespace).Create(t.Context(), &secret, metav1.CreateOptions{})
 	assert.NotNil(t, s)
 	assert.NoError(t, err)
 }
@@ -425,7 +424,7 @@ func TestProcessPolicies(t *testing.T) {
 
 	r := &CertificatePolicyReconciler{Client: nil, Scheme: nil, Recorder: nil, TargetK8sClient: nil}
 
-	updatedPolicies := r.ProcessPolicies(context.TODO(), policies)
+	updatedPolicies := r.ProcessPolicies(t.Context(), policies)
 
 	assert.Len(t, updatedPolicies, 1)
 }
@@ -457,7 +456,7 @@ func TestParseCertificate(t *testing.T) {
 
 	labelSelector := toLabelSet(instance.Spec.LabelSelector)
 	secretList, _ := simpleClient.CoreV1().Secrets("default").List(
-		context.TODO(), metav1.ListOptions{
+		t.Context(), metav1.ListOptions{
 			LabelSelector: labelSelector.String(),
 		},
 	)
@@ -466,7 +465,7 @@ func TestParseCertificate(t *testing.T) {
 	cert := parseCertificate(&secretList.Items[0])
 	assert.NotNil(t, cert)
 
-	update, nonCompliant, list := r.checkSecrets(context.TODO(), instance, "default")
+	update, nonCompliant, list := r.checkSecrets(t.Context(), instance, "default")
 
 	assert.Equal(t, uint(1), nonCompliant)
 	assert.True(t, update)
@@ -493,13 +492,13 @@ func TestParseCertificate(t *testing.T) {
 
 	labelSelector = toLabelSet(instance.Spec.LabelSelector)
 	secretList, _ = simpleClient.CoreV1().Secrets("default").List(
-		context.TODO(), metav1.ListOptions{
+		t.Context(), metav1.ListOptions{
 			LabelSelector: labelSelector.String(),
 		},
 	)
 	assert.Len(t, secretList.Items, 2)
 
-	update, nonCompliant, list = r.checkSecrets(context.TODO(), instance, "default")
+	update, nonCompliant, list = r.checkSecrets(t.Context(), instance, "default")
 
 	assert.Equal(t, uint(2), nonCompliant)
 	assert.True(t, update)
@@ -541,7 +540,7 @@ func TestMultipleNamespaces(t *testing.T) {
 		Items: []policiesv1.CertificatePolicy{*instance},
 	}
 
-	updatedPolicies := r.ProcessPolicies(context.TODO(), policies)
+	updatedPolicies := r.ProcessPolicies(t.Context(), policies)
 	assert.Len(t, updatedPolicies, 1)
 
 	message := convertPolicyStatusToString(updatedPolicies[0], DefaultDuration)
@@ -591,7 +590,7 @@ func TestSecretLabelSelection(t *testing.T) {
 		Items: []policiesv1.CertificatePolicy{*instance},
 	}
 
-	updatedPolicies := r.ProcessPolicies(context.TODO(), policies)
+	updatedPolicies := r.ProcessPolicies(t.Context(), policies)
 	assert.Len(t, updatedPolicies, 1)
 
 	// With the label selector only the secret default2 is matched
