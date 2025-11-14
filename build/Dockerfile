@@ -1,3 +1,5 @@
+ARG ACM_VERSION=${ACM_VERSION}
+
 # Copyright Contributors to the Open Cluster Management project
 
 # Stage 1: Use image builder to build the target binaries
@@ -37,3 +39,4 @@ LABEL io.k8s.display-name="CertificatePolicy controller"
 LABEL io.k8s.description="The CertificatePolicy kind compares the desired state of certificates with certificates on the cluster."
 LABEL com.redhat.component="acm-cert-policy-controller-container"
 LABEL io.openshift.tags="data,images"
+LABEL cpe="cpe:/a:redhat:acm:${ACM_VERSION}::el9"
