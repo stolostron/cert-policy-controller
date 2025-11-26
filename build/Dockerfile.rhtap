@@ -38,3 +38,4 @@ LABEL io.k8s.description="The CertificatePolicy kind compares the desired state 
 LABEL com.redhat.component="acm-cert-policy-controller-container"
 LABEL io.openshift.tags="data,images"
 LABEL url="https://github.com/stolostron/cert-policy-controller"
+LABEL cpe="cpe:/a:redhat:acm:2.15::el9"
