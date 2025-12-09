@@ -1,6 +1,6 @@
 module open-cluster-management.io/cert-policy-controller
 
-go 1.24.4
+go 1.25.0
 
 require (
 	github.com/go-logr/zapr v1.3.0
