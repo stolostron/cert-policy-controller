@@ -11,9 +11,9 @@ require (
 	github.com/stolostron/go-log-utils v0.1.3
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.33.6
-	k8s.io/apimachinery v0.33.6
-	k8s.io/client-go v0.33.6
+	k8s.io/api v0.33.7
+	k8s.io/apimachinery v0.33.7
+	k8s.io/client-go v0.33.7
 	k8s.io/klog/v2 v2.130.1
 	open-cluster-management.io/addon-framework v1.1.2
 	open-cluster-management.io/config-policy-controller v0.17.0
@@ -105,9 +105,9 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiextensions-apiserver v0.33.6 // indirect
-	k8s.io/apiserver v0.33.6 // indirect
-	k8s.io/component-base v0.33.6 // indirect
+	k8s.io/apiextensions-apiserver v0.33.7 // indirect
+	k8s.io/apiserver v0.33.7 // indirect
+	k8s.io/component-base v0.33.7 // indirect
 	k8s.io/kube-openapi v0.0.0-20250610211856-8b98d1ed966a // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
 	open-cluster-management.io/api v1.1.0 // indirect
