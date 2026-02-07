@@ -163,7 +163,7 @@ func TestGetSelectedNamespaces(t *testing.T) {
 			},
 			[]string{},
 			"error parsing namespace LabelSelector: " +
-				"values: Invalid value: []string(nil): for 'in', 'notin' operators, values set can't be empty",
+				"values: Invalid value: null: for 'in', 'notin' operators, values set can't be empty",
 		},
 		"Invalid Include": {
 			policyv1.Target{
@@ -306,7 +306,7 @@ func TestGetAllNamespaces(t *testing.T) {
 			}},
 			nil,
 			"error parsing namespace LabelSelector: " +
-				"values: Invalid value: []string(nil): for 'in', 'notin' operators, values set can't be empty",
+				"values: Invalid value: null: for 'in', 'notin' operators, values set can't be empty",
 		},
 		"MatchExpressions and MatchLabels": {
 			metav1.LabelSelector{
