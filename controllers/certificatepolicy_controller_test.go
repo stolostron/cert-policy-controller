@@ -71,7 +71,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithStatusSubresource(instance).WithScheme(s).WithRuntimeObjects(objs...)
 
-	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+	var simpleClient kubernetes.Interface = testclient.NewClientset()
 	// Create a ReconcileCertificatePolicy object with the scheme and fake client.
 	r := &CertificatePolicyReconciler{Client: cl.Build(), Scheme: s, Recorder: nil, TargetK8sClient: simpleClient}
 
@@ -440,7 +440,7 @@ func TestParseCertificate(t *testing.T) {
 		},
 	}
 
-	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+	var simpleClient kubernetes.Interface = testclient.NewClientset()
 
 	r := &CertificatePolicyReconciler{
 		Client: nil, Scheme: nil, Recorder: nil,
@@ -521,7 +521,7 @@ func TestMultipleNamespaces(t *testing.T) {
 		},
 	}
 
-	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+	var simpleClient kubernetes.Interface = testclient.NewClientset()
 
 	r := &CertificatePolicyReconciler{
 		Client: nil, Scheme: nil, Recorder: nil,
@@ -568,7 +568,7 @@ func TestSecretLabelSelection(t *testing.T) {
 		},
 	}
 
-	var simpleClient kubernetes.Interface = testclient.NewSimpleClientset()
+	var simpleClient kubernetes.Interface = testclient.NewClientset()
 
 	r := &CertificatePolicyReconciler{
 		Client: nil, Scheme: nil, Recorder: nil,

@@ -29,7 +29,7 @@ import (
 
 func TestGetSelectedNamespaces(t *testing.T) {
 	// Initialize controller client to return namespaces for test
-	simpleClient := testclient.NewSimpleClientset()
+	simpleClient := testclient.NewClientset()
 
 	// Initialize set of namespaces for the test
 	for i := 1; i <= 5; i++ {
@@ -202,7 +202,7 @@ func TestGetSelectedNamespaces(t *testing.T) {
 
 func TestGetAllNamespaces(t *testing.T) {
 	// Initialize controller client to return namespaces for test
-	simpleClient := testclient.NewSimpleClientset()
+	simpleClient := testclient.NewClientset()
 
 	// Initialize set of namespaces for the test
 	for i := 1; i <= 5; i++ {
