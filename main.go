@@ -188,7 +188,7 @@ func main() {
 	r := &controllers.CertificatePolicyReconciler{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
-		Recorder:        mgr.GetEventRecorderFor("certificatepolicy-controller"),
+		Recorder:        mgr.GetEventRecorder("certificatepolicy-controller"),
 		InstanceName:    instanceName,
 		TargetK8sClient: targetK8sClient,
 		TargetK8sConfig: targetK8sConfig,
