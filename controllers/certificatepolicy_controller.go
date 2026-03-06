@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -64,7 +64,7 @@ var _ reconcile.Reconciler = &CertificatePolicyReconciler{}
 type CertificatePolicyReconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
-	Recorder     record.EventRecorder
+	Recorder     events.EventRecorder
 	InstanceName string
 	// The Kubernetes client to use when evaluating/enforcing policies. Most times,
 	// this will be the same cluster where the controller is running.
@@ -669,12 +669,12 @@ func (r *CertificatePolicyReconciler) updatePolicyStatus(
 		}
 
 		if r.Recorder != nil {
-			eType := "Normal"
+			eType := corev1.EventTypeNormal
 			if instance.Status.ComplianceState == policyv1.NonCompliant {
-				eType = "Warning"
+				eType = corev1.EventTypeWarning
 			}
 
-			r.Recorder.Event(instance, eType, "Policy updated", message)
+			r.Recorder.Eventf(instance, nil, eType, "PolicyUpdate", "Policy status update", message)
 		}
 	}
 
