@@ -15,6 +15,43 @@ defaults:
     shell: bash
 
 jobs:
+  preflight-tests:
+    name: Preflight Tests
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: localhost:5000
+    steps:
+    - name: Checkout Cert Policy Controller
+      uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: go.mod
+
+    - name: Format, Lint, and Generate
+      run: |
+        go mod verify
+        make fmt
+        git diff --exit-code
+        make lint
+        make generate
+        make generate-operator-yaml
+        git diff --exit-code
+
+    - name: Unit Tests
+      run: |
+        make test-coverage
+
+    - name: Upload Test Info
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: latest-preflight-tests
+        path: |
+          coverage_*.out
+          report_*.xml
+
   kind-tests:
     runs-on: ubuntu-latest
     env:
@@ -38,34 +75,11 @@ jobs:
       with:
         go-version-file: go.mod
 
-    - name: Verify modules
-      run: |
-        go mod verify
-
-    - name: Verify format
-      run: |
-        make fmt
-        git diff --exit-code
-        make lint
-
-    - name: Verify deploy/operator.yaml
-      run: |
-        make generate
-        make generate-operator-yaml
-        git diff --exit-code
-
-    - name: Unit and Integration Tests
-      run: |
-        make test
-
     - name: Create K8s KinD Cluster - ${{ matrix.kind }}
       env:
         KIND_VERSION: ${{ matrix.kind }}
       run: |
         make kind-bootstrap-cluster-dev
-
-    - name: Ensure Service Account kubeconfig
-      run: |
         KUBECONFIG=${PWD}/kubeconfig_managed make kind-ensure-sa
 
     - name: E2E Tests
@@ -84,11 +98,51 @@ jobs:
         export GOPATH=$(go env GOPATH)
         KUBECONFIG=${PWD}/kubeconfig_managed make e2e-test-hosted-mode-coverage
 
-    - name: Test Coverage and Report Generation
+    - name: Upload Test Info
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: "${{matrix.kind}}-kind-tests"
+        path: |
+          coverage_*.out
+          report_*.xml
+
+    - name: Debug
+      if: ${{ failure() }}
       run: |
-        make test-coverage | tee report_unit.json
+        make e2e-debug
+
+    - name: Clean up cluster
+      if: ${{ always() }}
+      run: |
+        make kind-delete-cluster
+
+  coverage-verification:
+    needs: [preflight-tests, kind-tests]
+    defaults:
+      run:
+        working-directory: '.'
+    name: Test Coverage Verification
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Cert Policy Controller
+      uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: go.mod
+
+    - name: Download Test Results
+      uses: actions/download-artifact@v8
+      with:
+        merge-multiple: true
+        pattern: latest-*
+
+    - name: Test Coverage Verification
+      run: |
+        make coverage-verify
         make gosec-scan
-        cat gosec.json
 
     - name: Store the GitHub triggering event for the sonarcloud workflow
       env:
@@ -100,7 +154,6 @@ jobs:
 
     - name: Upload artifacts for the sonarcloud workflow
       if: |
-        matrix.kind == 'latest' &&
         github.repository_owner == 'stolostron'
       uses: actions/upload-artifact@v7
       with:
@@ -110,12 +163,28 @@ jobs:
           event.json
           gosec.json
 
-    - name: Debug
-      if: ${{ failure() }}
-      run: |
-        make e2e-debug
+    - name: Report unit coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_UPLOAD_TOKEN }}
+        files: ./coverage_unit.out
+        flags: unit-tests
+        name: unit-tests
+        fail_ci_if_error: false
+        disable_search: true
 
-    - name: Clean up cluster
-      if: ${{ always() }}
-      run: |
-        make kind-delete-cluster
+    - name: Report e2e coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_UPLOAD_TOKEN }}
+        files: ./coverage_e2e.out
+        flags: e2e-tests
+        name: e2e-tests
+        fail_ci_if_error: false
+        disable_search: true
+
+    - name: Report overall coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_UPLOAD_TOKEN }}
+        fail_ci_if_error: false

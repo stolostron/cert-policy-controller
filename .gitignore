@@ -13,7 +13,7 @@ vendor/
 cmd/manager/__debug_bin
 kubeconfig_*
 
-report.json
-report_*.json
+report*.json
+report*.xml
 gosec.json
 *.out

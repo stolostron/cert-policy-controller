@@ -13,9 +13,6 @@ export PATH := $(LOCAL_BIN):$(PATH)
 GOARCH = $(shell go env GOARCH)
 GOOS = $(shell go env GOOS)
 
-TESTARGS_DEFAULT := -v
-TESTARGS ?= $(TESTARGS_DEFAULT)
-
 # Deployment configuration
 CONTROLLER_NAME ?= $(shell cat COMPONENT_NAME 2> /dev/null)
 CONTROLLER_NAMESPACE ?= open-cluster-management-agent-addon
@@ -27,7 +24,7 @@ WATCH_NAMESPACE ?= $(MANAGED_CLUSTER_NAME)
 
 # Test coverage threshold
 export COVERAGE_MIN ?= 65
-COVERAGE_E2E_OUT ?= coverage_e2e.out
+COVERAGE_E2E_OUT ?= coverage_e2e_basic.out
 
 # Get the branch of the PR target or Push in Github Action
 ifeq ($(GITHUB_EVENT_NAME), pull_request) # pull request
@@ -127,15 +124,12 @@ generate-operator-yaml: kustomize manifests
 ############################################################
 
 .PHONY: test
-test: test-dependencies
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test $(TESTARGS) `go list ./... | grep -v test/e2e`
+test: envtest kubebuilder gotestsum
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GOTESTSUM) $(GOTST_FMT) --junitfile report_unit.xml -- $(TESTARGS) `go list ./... | grep -v test/e2e`
 
 .PHONY: test-coverage
-test-coverage: TESTARGS = -json -cover -covermode=atomic -coverprofile=coverage_unit.out
+test-coverage: TESTARGS = -coverpkg=./... -covermode=atomic -coverprofile=coverage_unit.out
 test-coverage: test
-
-.PHONY: test-dependencies
-test-dependencies: envtest kubebuilder
 
 .PHONY: gosec-scan
 gosec-scan:
@@ -143,7 +137,6 @@ gosec-scan:
 ############################################################
 # e2e test (using KinD clusters)
 ############################################################
-GINKGO = $(LOCAL_BIN)/ginkgo
 CLUSTER_NAME = $(MANAGED_CLUSTER_NAME)
 
 .PHONY: kind-bootstrap-cluster
@@ -205,23 +198,28 @@ install-resources: create-ns
 	kubectl apply -k deploy/rbac
 	kubectl apply -f deploy/manager/service_account.yaml -n $(KIND_NAMESPACE)
 
+E2E_JSON = --json-report=report_e2e.json
+E2E_JUNIT = --junit-report=report_e2e.xml
+
 .PHONY: e2e-test
 e2e-test: e2e-dependencies
-	$(GINKGO) -v --fail-fast $(E2E_TEST_ARGS) test/e2e
+	$(GINKGO) -v $(E2E_TEST_ARGS) --output-dir=. $(E2E_JSON) $(E2E_JUNIT) test/e2e
 
 .PHONY: e2e-test-coverage
-e2e-test-coverage: E2E_TEST_ARGS = --json-report=report_e2e.json --label-filter="!hosted-mode" --output-dir=.
+e2e-test-coverage: E2E_TEST_ARGS = --label-filter="!hosted-mode"
 e2e-test-coverage: e2e-run-instrumented e2e-test e2e-stop-instrumented
 
 .PHONY: e2e-test-hosted-mode-coverage
-e2e-test-hosted-mode-coverage: E2E_TEST_ARGS = --json-report=report_e2e_hosted_mode.json --label-filter="hosted-mode" --output-dir=.
+e2e-test-hosted-mode-coverage: E2E_TEST_ARGS = --label-filter="hosted-mode"
+e2e-test-hosted-mode-coverage: E2E_JSON = --json-report=report_e2e_hosted.json
+e2e-test-hosted-mode-coverage: E2E_JUNIT = --junit-report=report_e2e_hosted.xml
 e2e-test-hosted-mode-coverage: COVERAGE_E2E_OUT = coverage_e2e_hosted_mode.out
 e2e-test-hosted-mode-coverage: export TARGET_KUBECONFIG_PATH = $(PWD)/kubeconfig_managed2
 e2e-test-hosted-mode-coverage: e2e-run-instrumented e2e-test e2e-stop-instrumented
 
 .PHONY: e2e-build-instrumented
 e2e-build-instrumented:
-	go test -covermode=atomic -coverpkg=$(shell cat go.mod | head -1 | cut -d ' ' -f 2)/... -c -tags e2e ./ -o build/_output/bin/$(IMG)-instrumented
+	go test -covermode=atomic -coverpkg=./... -c -tags e2e ./ -o build/_output/bin/$(IMG)-instrumented
 
 .PHONY: e2e-run-instrumented
 e2e-run-instrumented: e2e-build-instrumented
@@ -243,13 +241,16 @@ e2e-debug:
 ############################################################
 # test coverage
 ############################################################
-
-COVERAGE_FILE = coverage.out
 .PHONY: coverage-merge
 coverage-merge: coverage-dependencies
-	# Merging the coverage reports into $(COVERAGE_FILE)
-	$(GOCOVMERGE) $(PWD)/coverage_* > $(COVERAGE_FILE)
+	@echo Merging the coverage reports into coverage.out
+	$(GOCOVMERGE) $(PWD)/coverage_* > coverage.out
+
+.PHONY: coverage-merge-e2e
+coverage-merge-e2e: coverage-dependencies
+	@echo Merging the e2e coverage reports into coverage_e2e.out
+	$(GOCOVMERGE) $(PWD)/coverage_e2e* > coverage_e2e.out
 
 .PHONY: coverage-verify
-coverage-verify:
+coverage-verify: coverage-merge-e2e
 	./build/common/scripts/coverage_calc.sh
