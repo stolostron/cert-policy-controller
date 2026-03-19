@@ -40,10 +40,11 @@ const (
 )
 
 var (
-	// EventOnParent specifies if we also want to send events to the parent policy. Available options are yes/no/ifpresent.
+	// EventOnParent specifies if we also want to send events to the parent policy.
+	// Available options are yes/no/ifpresent.
 	EventOnParent string
-	// DefaultDuration is the default minimum duration (if one isn't specified in a policy) that a certificate can be valid
-	// for to be compliant.
+	// DefaultDuration is the default minimum duration (if one isn't specified in a policy)
+	// that a certificate can be valid for to be compliant.
 	DefaultDuration time.Duration
 )
 

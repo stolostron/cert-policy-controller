@@ -87,7 +87,8 @@ var _ = Describe("Test certificate policy with long compliance message", Ordered
 				continue
 			}
 
-			Expect(len(event.Message)).To(BeNumerically(">", 1024), "Expected the event message to be greater than 1024")
+			Expect(len(event.Message)).To(BeNumerically(">", 1024),
+				"Expected the event message to be greater than 1024")
 			matched = true
 		}
 
