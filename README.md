@@ -21,15 +21,15 @@ In addition to checking the expiration of certificates, several optional checks 
 | allowedSANPattern | Optional: A regular expression that must match every SAN entry you have defined in your certificates. See Golang Regular Expression syntax for more inforamtion: https://golang.org/pkg/regexp/syntax/ |
 | disallowedSANPattern | Optional: A regular expression that must not match any SAN entries you have defined in your certificates.  See Golang Regular Expression syntax for more inforamtion: https://golang.org/pkg/regexp/syntax/ |
 
-This is an example spec of a `CertificatePolicy` object:
+This is an example spec of a compliant `CertificatePolicy` object that monitors all certificates in the namespaces `default` and `kube-*`, excluding `kube-system`.
 
-```
+```yaml
 apiVersion: policy.open-cluster-management.io/v1
 kind: CertificatePolicy
 metadata:
   name: certificate-policy-1
   namespace: kube-system
-  label:
+  labels:
     category: "System-Integrity"
 spec:
   # include are the namespaces you want to watch certificatepolicies in, while exclude are the namespaces you explicitly do not want to watch
@@ -40,6 +40,41 @@ spec:
   remediationAction: inform
   # minimum duration is the least amount of time the certificate is still valid before it is considered non-compliant
   minimumDuration: 100h
+status:
+  compliancyDetails:
+    default:
+      message: |
+        Found 0 non compliant certificates in the namespace default.
+  compliant: Compliant
+  history:
+    - lastTimestamp: '2026-05-28T20:52:26.601302Z'
+      message: Compliant; All evaluated certificates are compliant
+```
+
+This policy is considered non-compliant if any certificate expires within 100 hours. The following example shows the status of the same `CertificatePolicy` when the certificate `example-expiring-cert` in the `default` namespace is non-compliant:
+
+```yaml
+status:
+  compliancyDetails:
+    default:
+      message: |
+        Found 1 non compliant certificates in the namespace default.
+        List of non compliant certificates:
+        example-expiring-cert expires on 2026-05-29T21:10:26Z
+      nonCompliantCertificates: 1
+      nonCompliantCertificatesList:
+        example-expiring-cert:
+          ca: true
+          duration: 86400000000000
+          expiration: '2026-05-29T21:10:26Z'
+          expiry: 86348003805020
+          secretName: example-expiring-cert
+  compliant: NonCompliant
+  history:
+    - lastTimestamp: '2026-05-28T21:11:17.996335Z'
+      message: >
+        NonCompliant; 1 certificates expire in less than 100h0m0s:
+        default:example-expiring-cert
 ```
 
 Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved!
