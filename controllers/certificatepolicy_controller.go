@@ -76,9 +76,9 @@ type CertificatePolicyReconciler struct {
 //+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=policy.open-cluster-management.io,resources=certificatepolicies/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
-//+kubebuilder:rbac:groups="",resources=namespaces,verbs=list
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
+//+kubebuilder:rbac:groups=core;events.k8s.io,resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=core,resources=namespaces,verbs=list
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
 
 // Reconcile only runs on DeleteFunc since this controller is polling based.
 func (r *CertificatePolicyReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
