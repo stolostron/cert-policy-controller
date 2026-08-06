@@ -358,7 +358,7 @@ func parseOpts() ctrlOpts {
 	)
 	pflag.StringVar(
 		&opts.probeAddr, "health-probe-bind-address",
-		":8081", "The address the metrics endpoint binds to.",
+		":8081", "The address the health probe endpoint binds to.",
 	)
 
 	pflag.Parse()
