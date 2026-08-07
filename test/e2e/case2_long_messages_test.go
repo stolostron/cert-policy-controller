@@ -65,7 +65,7 @@ var _ = Describe("Test certificate policy with long compliance message", Ordered
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Verifying it is NonCompliant and has the long compliance message")
-		Eventually(func() interface{} {
+		Eventually(func() any {
 			certPlc := utils.GetWithTimeout(
 				clientManagedDynamic, gvrCertPolicy, "case2", testNamespace, true, defaultTimeoutSeconds,
 			)
@@ -87,7 +87,8 @@ var _ = Describe("Test certificate policy with long compliance message", Ordered
 				continue
 			}
 
-			Expect(len(event.Message)).To(BeNumerically(">", 1024), "Expected the event message to be greater than 1024")
+			Expect(len(event.Message)).To(BeNumerically(">", 1024),
+				"Expected the event message to be greater than 1024")
 			matched = true
 		}
 

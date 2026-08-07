@@ -40,10 +40,11 @@ const (
 )
 
 var (
-	// EventOnParent specifies if we also want to send events to the parent policy. Available options are yes/no/ifpresent.
+	// EventOnParent specifies if we also want to send events to the parent policy.
+	// Available options are yes/no/ifpresent.
 	EventOnParent string
-	// DefaultDuration is the default minimum duration (if one isn't specified in a policy) that a certificate can be valid
-	// for to be compliant.
+	// DefaultDuration is the default minimum duration (if one isn't specified in a policy)
+	// that a certificate can be valid for to be compliant.
 	DefaultDuration time.Duration
 )
 
@@ -60,7 +61,7 @@ func (r *CertificatePolicyReconciler) Initialize(eventParent string, defaultDura
 
 var _ reconcile.Reconciler = &CertificatePolicyReconciler{}
 
-// Reconciler reconciles a CertificatePolicy object.
+// CertificatePolicyReconciler reconciles a CertificatePolicy object.
 type CertificatePolicyReconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
@@ -244,6 +245,8 @@ func toLabelSet(v map[string]policyv1.NonEmptyString) labels.Set {
 // Checks each namespace for certificates that are going to expire within 3 months
 // Returns whether a state change is happening, the number of uncompliant certificates
 // and a list of the uncompliant certificates.
+//
+//nolint:funcorder // helpers grouped with CertificatePolicyReconciler methods
 func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *policyv1.CertificatePolicy,
 	namespace string,
 ) (bool, uint, map[string]policyv1.Cert) {
@@ -289,6 +292,7 @@ func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *
 	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
 }
 
+//nolint:funcorder // helpers grouped with CertificatePolicyReconciler methods
 func (r *CertificatePolicyReconciler) retrieveNamespaces(ctx context.Context, selector policyv1.Target) []string {
 	var selectedNamespaces []string
 	// If MatchLabels/MatchExpressions/Include were not provided, return no namespaces
@@ -618,6 +622,7 @@ func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
 	}
 }
 
+//nolint:funcorder // helpers grouped with CertificatePolicyReconciler methods
 func (r *CertificatePolicyReconciler) updatePolicyStatus(
 	ctx context.Context, policies []*policyv1.CertificatePolicy,
 ) (*policyv1.CertificatePolicy, error) {
@@ -681,6 +686,7 @@ func (r *CertificatePolicyReconciler) updatePolicyStatus(
 	return nil, nil
 }
 
+//nolint:funcorder // helpers grouped with CertificatePolicyReconciler methods
 func (r *CertificatePolicyReconciler) sendComplianceEvent(
 	ctx context.Context, instance *policyv1.CertificatePolicy, updateTime time.Time,
 ) error {
