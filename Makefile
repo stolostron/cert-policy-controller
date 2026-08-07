@@ -61,7 +61,7 @@ clean:
 
 .PHONY: build
 build:
-	CGO_ENABLED=1 go build -mod=readonly -o ./build/_output/bin/$(IMG) ./main.go
+	CGO_ENABLED=1 go build -mod=readonly -o ./build/_output/bin/$(IMG) ./.
 
 # Run against the current locally configured Kubernetes cluster
 .PHONY: run
@@ -206,7 +206,7 @@ e2e-test: e2e-dependencies
 	$(GINKGO) -v $(E2E_TEST_ARGS) --output-dir=. $(E2E_JSON) $(E2E_JUNIT) test/e2e
 
 .PHONY: e2e-test-coverage
-e2e-test-coverage: E2E_TEST_ARGS = --label-filter="!hosted-mode"
+e2e-test-coverage: E2E_TEST_ARGS = --label-filter="!hosted-mode && !running-in-cluster"
 e2e-test-coverage: e2e-run-instrumented e2e-test e2e-stop-instrumented
 
 .PHONY: e2e-test-hosted-mode-coverage
@@ -216,6 +216,10 @@ e2e-test-hosted-mode-coverage: E2E_JUNIT = --junit-report=report_e2e_hosted.xml
 e2e-test-hosted-mode-coverage: COVERAGE_E2E_OUT = coverage_e2e_hosted_mode.out
 e2e-test-hosted-mode-coverage: export TARGET_KUBECONFIG_PATH = $(PWD)/kubeconfig_managed2
 e2e-test-hosted-mode-coverage: e2e-run-instrumented e2e-test e2e-stop-instrumented
+
+.PHONY: e2e-test-running-in-cluster
+e2e-test-running-in-cluster: E2E_TEST_ARGS = --label-filter="running-in-cluster"
+e2e-test-running-in-cluster: e2e-test
 
 .PHONY: e2e-build-instrumented
 e2e-build-instrumented:
