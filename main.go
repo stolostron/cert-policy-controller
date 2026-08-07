@@ -124,7 +124,7 @@ func main() {
 		DefaultNamespaces: make(map[string]cache.Config),
 	}
 
-	for _, namespace := range strings.Split(namespace, ",") {
+	for namespace := range strings.SplitSeq(namespace, ",") {
 		cacheOptions.DefaultNamespaces[namespace] = cache.Config{}
 	}
 
@@ -178,9 +178,8 @@ func main() {
 
 		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
 
-		setupLog.Info(
-			"Overrode the target Kubernetes cluster for policy evaluation and enforcement", "path", opts.targetKubeConfig,
-		)
+		setupLog.Info("Overrode the target Kubernetes cluster for policy evaluation and enforcement",
+			"path", opts.targetKubeConfig)
 	}
 
 	instanceName, _ := os.Hostname() // on an error, instanceName will be empty, which is ok
