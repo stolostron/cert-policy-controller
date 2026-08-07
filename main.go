@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/klog/v2"
 	"open-cluster-management.io/addon-framework/pkg/lease"
 	extpolicyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
+	sdktls "open-cluster-management.io/sdk-go/pkg/tls"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -68,6 +70,8 @@ type ctrlOpts struct {
 	enableLease              bool
 	enableLeaderElection     bool
 	enableOcmPolicyNamespace bool
+	tlsMinVersion            string
+	tlsCipherSuites          string
 }
 
 func init() {
@@ -133,6 +137,10 @@ func main() {
 		cacheOptions.DefaultNamespaces[ocmPolicyNs] = cache.Config{}
 	}
 
+	terminatingCtx := ctrl.SetupSignalHandler()
+
+	tlsCfg := resolveEffectiveTLSConfig(terminatingCtx, cfg, opts)
+
 	metricsOptions := server.Options{
 		BindAddress: opts.metricsAddr,
 	}
@@ -142,6 +150,7 @@ func main() {
 		metricsOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 		metricsOptions.SecureServing = true
 		metricsOptions.CertDir = "/var/run/metrics-cert"
+		metricsOptions.TLSOpts = []func(*tls.Config){sdktls.ConfigToFunc(tlsCfg)}
 	}
 
 	options := ctrl.Options{
@@ -219,8 +228,6 @@ func main() {
 	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
 	_ = r.Initialize(opts.eventOnParent, time.Duration(0)) /* #nosec G104 */
-
-	terminatingCtx := ctrl.SetupSignalHandler()
 
 	// PeriodicallyExecCertificatePolicies is the go-routine that periodically checks the policies and
 	// does the needed work to make sure the desired state is achieved
@@ -359,6 +366,16 @@ func parseOpts() ctrlOpts {
 	pflag.StringVar(
 		&opts.probeAddr, "health-probe-bind-address",
 		":8081", "The address the health probe endpoint binds to.",
+	)
+	pflag.StringVar(
+		&opts.tlsMinVersion, "tls-min-version", "",
+		"The minimum TLS version to use on the metrics server (e.g. VersionTLS12). "+
+			"Overrides the ocm-tls-profile ConfigMap when set.",
+	)
+	pflag.StringVar(
+		&opts.tlsCipherSuites, "tls-cipher-suites", "",
+		"A comma-separated list of IANA cipher suite names to use on the metrics server. "+
+			"Overrides the ocm-tls-profile ConfigMap when set.",
 	)
 
 	pflag.Parse()
