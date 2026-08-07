@@ -124,7 +124,7 @@ func main() {
 		DefaultNamespaces: make(map[string]cache.Config),
 	}
 
-	for _, namespace := range strings.Split(namespace, ",") {
+	for namespace := range strings.SplitSeq(namespace, ",") {
 		cacheOptions.DefaultNamespaces[namespace] = cache.Config{}
 	}
 

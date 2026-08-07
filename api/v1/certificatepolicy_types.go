@@ -9,9 +9,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NonEmptyString is a string with a minimum length of one character.
+//
 // +kubebuilder:validation:MinLength=1
 type NonEmptyString string
 
+// RemediationAction is the remediation of the policy.
+//
 // +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
 type RemediationAction string
 
@@ -34,7 +38,7 @@ const (
 	UnknownCompliancy ComplianceState = ""
 )
 
-type Target struct {
+type Target struct { //nolint:recvcheck // kubebuilder-generated methods use mixed receivers
 	// Include is an array of filepath expressions to include objects by name.
 	Include []NonEmptyString `json:"include,omitempty"`
 
@@ -48,7 +52,7 @@ type Target struct {
 	MatchExpressions *[]metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
 }
 
-// Define String() so that the LabelSelector is dereferenced in the logs
+// String returns a string representation of the Target for logging.
 func (t Target) String() string {
 	fmtSelectorStr := "{include:%s,exclude:%s,matchLabels:%+v,matchExpressions:%+v}"
 	if t.MatchLabels == nil && t.MatchExpressions == nil {
