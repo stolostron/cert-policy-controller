@@ -63,6 +63,7 @@ spec:
                 type: string
               labelSelector:
                 additionalProperties:
+                  description: NonEmptyString is a string that must not be empty.
                   minLength: 1
                   type: string
                 description: LabelSelector restricts the secrets that are checked
@@ -105,6 +106,7 @@ spec:
                     description: Exclude is an array of filepath expressions to exclude
                       objects by name.
                     items:
+                      description: NonEmptyString is a string that must not be empty.
                       minLength: 1
                       type: string
                     type: array
@@ -112,6 +114,7 @@ spec:
                     description: Include is an array of filepath expressions to include
                       objects by name.
                     items:
+                      description: NonEmptyString is a string that must not be empty.
                       minLength: 1
                       type: string
                     type: array

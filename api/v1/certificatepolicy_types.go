@@ -9,9 +9,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NonEmptyString is a string that must not be empty.
+//
 // +kubebuilder:validation:MinLength=1
 type NonEmptyString string
 
+// RemediationAction specifies the remediation action for a policy.
+//
 // +kubebuilder:validation:Enum=Inform;inform;Enforce;enforce
 type RemediationAction string
 
@@ -48,8 +52,8 @@ type Target struct {
 	MatchExpressions *[]metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
 }
 
-// Define String() so that the LabelSelector is dereferenced in the logs
-func (t Target) String() string {
+// String returns a string representation of the Target so that the LabelSelector is dereferenced in the logs.
+func (t *Target) String() string {
 	fmtSelectorStr := "{include:%s,exclude:%s,matchLabels:%+v,matchExpressions:%+v}"
 	if t.MatchLabels == nil && t.MatchExpressions == nil {
 		return fmt.Sprintf(fmtSelectorStr, t.Include, t.Exclude, nil, nil)
