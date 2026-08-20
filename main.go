@@ -128,8 +128,8 @@ func main() {
 		DefaultNamespaces: make(map[string]cache.Config),
 	}
 
-	for _, namespace := range strings.Split(namespace, ",") {
-		cacheOptions.DefaultNamespaces[namespace] = cache.Config{}
+	for ns := range strings.SplitSeq(namespace, ",") {
+		cacheOptions.DefaultNamespaces[ns] = cache.Config{}
 	}
 
 	// ocmPolicyNs is cached only in non-hosted=mode
