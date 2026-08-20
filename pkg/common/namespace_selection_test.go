@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
@@ -190,7 +191,7 @@ func TestGetSelectedNamespaces(t *testing.T) {
 					if test.errMsg == "" {
 						t.Fatalf("Encountered unexpected error: %v", err)
 					} else {
-						assert.EqualError(t, err, test.errMsg)
+						require.EqualError(t, err, test.errMsg)
 					}
 				}
 
@@ -338,7 +339,7 @@ func TestGetAllNamespaces(t *testing.T) {
 					if test.errMsg == "" {
 						t.Fatalf("Encountered unexpected error: %v", err)
 					} else {
-						assert.EqualError(t, err, test.errMsg)
+						require.EqualError(t, err, test.errMsg)
 					}
 				}
 

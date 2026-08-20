@@ -61,7 +61,7 @@ func (r *CertificatePolicyReconciler) Initialize(eventParent string, defaultDura
 
 var _ reconcile.Reconciler = &CertificatePolicyReconciler{}
 
-// Reconciler reconciles a CertificatePolicy object.
+// CertificatePolicyReconciler reconciles a CertificatePolicy object.
 type CertificatePolicyReconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
@@ -240,73 +240,6 @@ func toLabelSet(v map[string]policyv1.NonEmptyString) labels.Set {
 	}
 
 	return labelSelector
-}
-
-// Checks each namespace for certificates that are going to expire within 3 months
-// Returns whether a state change is happening, the number of uncompliant certificates
-// and a list of the uncompliant certificates.
-func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *policyv1.CertificatePolicy,
-	namespace string,
-) (bool, uint, map[string]policyv1.Cert) {
-	slog := log.WithValues("policy.Namespace", policy.Namespace, "policy.Name", policy.Name)
-	slog.V(3).Info("Entered checkSecrets")
-
-	update := false
-	nonCompliantCertificates := make(map[string]policyv1.Cert)
-
-	if namespace == "" {
-		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
-	}
-	// GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
-	// Loops through all the secrets within the CertificatePolicy's specified namespace
-	labelSelector := toLabelSet(policy.Spec.LabelSelector)
-	secretList, _ := r.TargetK8sClient.CoreV1().Secrets(namespace).List(ctx,
-		metav1.ListOptions{LabelSelector: labelSelector.String()})
-
-	for _, secretItem := range secretList.Items {
-		secret := secretItem
-		slog.V(3).Info("Checking secret", "secret.Name", secret.Name)
-
-		cert := parseCertificate(&secret)
-		if cert != nil && !isCertificateCompliant(cert, policy) {
-			certName := secret.Name
-			// Gets the certificate's name if it exists
-			if secret.Labels[certNameLabel] != "" {
-				certName = secret.Labels[certNameLabel]
-			} else if secret.Labels[certManagerNameLabel] != "" {
-				certName = secret.Labels[certManagerNameLabel]
-			}
-
-			slog.V(3).Info("Got noncompliant certificate", "certName", certName, "secret.Name", secret.Name)
-
-			nonCompliantCertificates[certName] = *cert
-
-			if policy.Status.ComplianceState != policyv1.NonCompliant {
-				update = true
-			}
-		}
-	}
-
-	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
-}
-
-func (r *CertificatePolicyReconciler) retrieveNamespaces(ctx context.Context, selector policyv1.Target) []string {
-	var selectedNamespaces []string
-	// If MatchLabels/MatchExpressions/Include were not provided, return no namespaces
-	if selector.MatchLabels == nil && selector.MatchExpressions == nil && len(selector.Include) == 0 {
-		log.Info("NamespaceSelector is empty. Skipping namespace retrieval.")
-	} else {
-		var err error
-
-		selectedNamespaces, err = common.GetSelectedNamespaces(ctx, r.TargetK8sClient, selector)
-		if err != nil {
-			log.Error(
-				err, "Error filtering namespaces with provided NamespaceSelector",
-				"namespaceSelector", fmt.Sprintf("%+v", selector))
-		}
-	}
-
-	return selectedNamespaces
 }
 
 // Returns the parsed certificate, if one exists in the secret. Checks the `tls.crt` key by default,
@@ -619,6 +552,81 @@ func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
 	}
 }
 
+// SetupWithManager sets up the controller with the Manager.
+func (r *CertificatePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(ControllerName).
+		For(&policyv1.CertificatePolicy{}).
+		Complete(r)
+}
+
+// Checks each namespace for certificates that are going to expire within 3 months
+// Returns whether a state change is happening, the number of uncompliant certificates
+// and a list of the uncompliant certificates.
+func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *policyv1.CertificatePolicy,
+	namespace string,
+) (bool, uint, map[string]policyv1.Cert) {
+	slog := log.WithValues("policy.Namespace", policy.Namespace, "policy.Name", policy.Name)
+	slog.V(3).Info("Entered checkSecrets")
+
+	update := false
+	nonCompliantCertificates := make(map[string]policyv1.Cert)
+
+	if namespace == "" {
+		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
+	}
+	// GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
+	// Loops through all the secrets within the CertificatePolicy's specified namespace
+	labelSelector := toLabelSet(policy.Spec.LabelSelector)
+	secretList, _ := r.TargetK8sClient.CoreV1().Secrets(namespace).List(ctx,
+		metav1.ListOptions{LabelSelector: labelSelector.String()})
+
+	for _, secretItem := range secretList.Items {
+		secret := secretItem
+		slog.V(3).Info("Checking secret", "secret.Name", secret.Name)
+
+		cert := parseCertificate(&secret)
+		if cert != nil && !isCertificateCompliant(cert, policy) {
+			certName := secret.Name
+			// Gets the certificate's name if it exists
+			if secret.Labels[certNameLabel] != "" {
+				certName = secret.Labels[certNameLabel]
+			} else if secret.Labels[certManagerNameLabel] != "" {
+				certName = secret.Labels[certManagerNameLabel]
+			}
+
+			slog.V(3).Info("Got noncompliant certificate", "certName", certName, "secret.Name", secret.Name)
+
+			nonCompliantCertificates[certName] = *cert
+
+			if policy.Status.ComplianceState != policyv1.NonCompliant {
+				update = true
+			}
+		}
+	}
+
+	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
+}
+
+func (r *CertificatePolicyReconciler) retrieveNamespaces(ctx context.Context, selector policyv1.Target) []string {
+	var selectedNamespaces []string
+	// If MatchLabels/MatchExpressions/Include were not provided, return no namespaces
+	if selector.MatchLabels == nil && selector.MatchExpressions == nil && len(selector.Include) == 0 {
+		log.Info("NamespaceSelector is empty. Skipping namespace retrieval.")
+	} else {
+		var err error
+
+		selectedNamespaces, err = common.GetSelectedNamespaces(ctx, r.TargetK8sClient, selector)
+		if err != nil {
+			log.Error(
+				err, "Error filtering namespaces with provided NamespaceSelector",
+				"namespaceSelector", fmt.Sprintf("%+v", selector))
+		}
+	}
+
+	return selectedNamespaces
+}
+
 func (r *CertificatePolicyReconciler) updatePolicyStatus(
 	ctx context.Context, policies []*policyv1.CertificatePolicy,
 ) (*policyv1.CertificatePolicy, error) {
@@ -742,12 +750,4 @@ func (r *CertificatePolicyReconciler) sendComplianceEvent(
 	}
 
 	return r.Create(ctx, event)
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *CertificatePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(ControllerName).
-		For(&policyv1.CertificatePolicy{}).
-		Complete(r)
 }
