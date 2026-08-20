@@ -82,7 +82,7 @@ lint-dependencies:
 
 .PHONY: lint-yaml
 lint-yaml:
-	# Linting YAML 
+	# Linting YAML
 	@$(FINDFILES) \( -name '*.yml' -o -name '*.yaml' \) -print0 | $(XARGS) grep -L -e "{{" | $(CLEANXARGS) yamllint -c ./build/common/config/.yamllint.yml
 
 .PHONY: lint-go

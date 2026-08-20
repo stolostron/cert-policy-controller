@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	coretypes "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -64,9 +65,9 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	// Register operator types with the runtime scheme.
 	s := runtime.NewScheme()
 	err := scheme.AddToScheme(s)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = policiesv1.AddToScheme(s)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithStatusSubresource(instance).WithScheme(s).WithRuntimeObjects(objs...)
@@ -78,7 +79,7 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 	_, err = r.TargetK8sClient.CoreV1().Namespaces().Create(t.Context(), ns, metav1.CreateOptions{})
 	if err != nil {
 		t.Logf("Error creating namespace: %s", err)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	tests := []struct {
@@ -111,19 +112,19 @@ func TestPeriodicallyExecCertificatePolicies(t *testing.T) {
 				certPolicy := policiesv1.CertificatePolicy{}
 
 				err := r.Get(t.Context(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				certPolicy.Spec.NamespaceSelector.Include = []policiesv1.NonEmptyString{test.namespaceSelector}
 
 				err = r.Update(t.Context(), &certPolicy)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				r.PeriodicallyExecCertificatePolicies(t.Context(), 1, false)
 
 				certPolicy = policiesv1.CertificatePolicy{}
 
 				err = r.Get(t.Context(), types.NamespacedName{Namespace: "default", Name: "foo"}, &certPolicy)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				assert.Equal(t, test.complianceState, certPolicy.Status.ComplianceState)
 				assert.Equal(t, test.expectedMsg, certPolicy.Status.CompliancyDetails[test.cacheNamespace].Message)
@@ -160,9 +161,9 @@ func TestSendComplianceEvent(t *testing.T) {
 	// Create a fake client to mock API calls.
 	s := runtime.NewScheme()
 	err := scheme.AddToScheme(s)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = policiesv1.AddToScheme(s)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	objs := []runtime.Object{certPolicy}
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objs...).Build()
@@ -170,7 +171,7 @@ func TestSendComplianceEvent(t *testing.T) {
 	r := &CertificatePolicyReconciler{Client: cl, Scheme: s, Recorder: nil, TargetK8sClient: nil}
 
 	err = r.sendComplianceEvent(t.Context(), certPolicy)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGetPatternsUsed(t *testing.T) {
@@ -399,12 +400,12 @@ uFPO5+jBaPT3/G0z1dDrZZDOxhTSkFuyLTXnaEhIbZQW0Mniq1m5nswOAgfompmA
 	}
 
 	if labels != nil {
-		secret.ObjectMeta.Labels = labels
+		secret.Labels = labels
 	}
 
 	s, err := simpleClient.CoreV1().Secrets(namespace).Create(t.Context(), &secret, metav1.CreateOptions{})
 	assert.NotNil(t, s)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestProcessPolicies(t *testing.T) {
@@ -463,12 +464,12 @@ func TestParseCertificate(t *testing.T) {
 	assert.Len(t, secretList.Items, 1)
 
 	cert, err := parseCertificate(&secretList.Items[0])
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, cert)
 
 	update, nonCompliant, list := r.checkSecrets(t.Context(), instance, "default")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, uint(1), nonCompliant)
 	assert.True(t, update)
 
@@ -502,7 +503,7 @@ func TestParseCertificate(t *testing.T) {
 
 	update, nonCompliant, list = r.checkSecrets(t.Context(), instance, "default")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, uint(2), nonCompliant)
 	assert.True(t, update)
 
