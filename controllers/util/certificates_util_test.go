@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDecodeCertificateBytes(t *testing.T) {
@@ -43,7 +44,7 @@ func TestDecodeCertificateBytes(t *testing.T) {
 			"5EIENFUlRJRklDQVRFLS0tLS0K",
 	)
 	certs, err := DecodeCertificateBytes(certBytes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, certs)
 
 	singlecert := `
@@ -68,7 +69,7 @@ eYT4R967QQjq7D3aVq6YnpJLY//L4c1AmdUY+nMl5BH4U0rqv9punL1FGda/nbrW
 -----END CERTIFICATE-----`
 	certBytes = []byte(singlecert)
 	certs, err = DecodeCertificateBytes(certBytes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, certs, 1)
 
 	multicert := `-----BEGIN CERTIFICATE-----
@@ -139,6 +140,6 @@ t/CIranv84u4TYG6vvr5S+w5v/5bk86XHme2oU7+tBVQ8qTxCo6XJRDfvQn1ZEik
 -----END RSA PRIVATE KEY-----`
 	certBytes = []byte(multicert)
 	certs, err = DecodeCertificateBytes(certBytes)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Len(t, certs, 3)
 }
