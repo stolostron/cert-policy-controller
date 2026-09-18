@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -10,6 +11,8 @@ import (
 	. "github.com/onsi/gomega"
 	"open-cluster-management.io/config-policy-controller/test/utils"
 )
+
+var metricsTestCtx = context.Background()
 
 var _ = Describe("Test cert policy metrics", Ordered, func() {
 	const (
@@ -26,9 +29,11 @@ var _ = Describe("Test cert policy metrics", Ordered, func() {
 		if err != nil {
 			return 0, err
 		}
+
 		if len(metric) == 0 {
 			return 0, fmt.Errorf("failed to retrieve any %s metric", metricName)
 		}
+
 		metricVal, err := strconv.ParseFloat(metric[0], 64)
 		if err != nil {
 			return 0, fmt.Errorf("error converting metric: %w", err)
@@ -100,7 +105,7 @@ var _ = Describe("Test cert policy metrics", Ordered, func() {
 // endpoint, filters the response with the given patterns, and returns the
 // value(s) for the matching metric(s).
 func getMetrics(metricPatterns ...string) ([]string, error) {
-	podCmd := exec.Command("kubectl", "get", "pod", "-n=open-cluster-management-agent-addon",
+	podCmd := exec.CommandContext(metricsTestCtx, "kubectl", "get", "pod", "-n=open-cluster-management-agent-addon",
 		"-l=name=cert-policy-controller", "--no-headers", "--kubeconfig=../../kubeconfig_managed_e2e")
 
 	propPodInfo, err := podCmd.CombinedOutput()
@@ -117,9 +122,10 @@ func getMetrics(metricPatterns ...string) ([]string, error) {
 	propPodName := strings.Split(string(propPodInfo), " ")[0]
 	if propPodName == "No" || propPodName == "" {
 		// A missing pod could mean the controller is running locally
-		cmd = exec.Command("bash", "-c", metricsCmd)
+		cmd = exec.CommandContext(metricsTestCtx, "bash", "-c", metricsCmd)
 	} else {
-		cmd = exec.Command("kubectl", "exec", "-n=open-cluster-management-agent-addon", propPodName, "-c",
+		cmd = exec.CommandContext(
+			metricsTestCtx, "kubectl", "exec", "-n=open-cluster-management-agent-addon", propPodName, "-c",
 			"cert-policy-controller", "--kubeconfig=../../kubeconfig_managed_e2e", "--", "bash", "-c", metricsCmd)
 	}
 
