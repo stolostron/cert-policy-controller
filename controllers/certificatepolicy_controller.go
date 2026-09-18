@@ -41,10 +41,11 @@ const (
 )
 
 var (
-	// EventOnParent specifies if we also want to send events to the parent policy. Available options are yes/no/ifpresent.
+	// EventOnParent specifies if we also want to send events to the parent policy.
+	// Available options are yes/no/ifpresent.
 	EventOnParent string
-	// DefaultDuration is the default minimum duration (if one isn't specified in a policy) that a certificate can be valid
-	// for to be compliant.
+	// DefaultDuration is the default minimum duration (if one isn't specified in a policy)
+	// that a certificate can be valid for to be compliant.
 	DefaultDuration time.Duration
 )
 
@@ -61,7 +62,7 @@ func (r *CertificatePolicyReconciler) Initialize(eventParent string, defaultDura
 
 var _ reconcile.Reconciler = &CertificatePolicyReconciler{}
 
-// Reconciler reconciles a CertificatePolicy object.
+// CertificatePolicyReconciler reconciles a CertificatePolicy object.
 type CertificatePolicyReconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
@@ -242,78 +243,12 @@ func toLabelSet(v map[string]policyv1.NonEmptyString) labels.Set {
 	return labelSelector
 }
 
-// Checks each namespace for certificates that are going to expire within 3 months
-// Returns whether a state change is happening, the number of uncompliant certificates
-// and a list of the uncompliant certificates.
-func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *policyv1.CertificatePolicy,
-	namespace string,
-) (bool, uint, map[string]policyv1.Cert) {
-	slog := log.WithValues("policy.Namespace", policy.Namespace, "policy.Name", policy.Name)
-	slog.V(3).Info("Entered checkSecrets")
-
-	update := false
-	nonCompliantCertificates := make(map[string]policyv1.Cert)
-
-	if namespace == "" {
-		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
-	}
-	// GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
-	// Loops through all the secrets within the CertificatePolicy's specified namespace
-	labelSelector := toLabelSet(policy.Spec.LabelSelector)
-	secretList, _ := r.TargetK8sClient.CoreV1().Secrets(namespace).List(ctx,
-		metav1.ListOptions{LabelSelector: labelSelector.String()})
-
-	for _, secretItem := range secretList.Items {
-		secret := secretItem
-		slog.V(3).Info("Checking secret", "secret.Name", secret.Name)
-
-		cert, err := parseCertificate(&secret)
-		if err != nil {
-			slog.Error(err, "Unable to parse certificate", "secret.Name", secret.Name)
-		} else if !isCertificateCompliant(cert, policy) {
-			certName := secret.Name
-			// Gets the certificate's name if it exists
-			if secret.Labels[certNameLabel] != "" {
-				certName = secret.Labels[certNameLabel]
-			} else if secret.Labels[certManagerNameLabel] != "" {
-				certName = secret.Labels[certManagerNameLabel]
-			}
-
-			slog.V(3).Info("Got noncompliant certifiate", "certName", certName, "secret.Name", secret.Name)
-
-			nonCompliantCertificates[certName] = *cert
-
-			if policy.Status.ComplianceState != policyv1.NonCompliant {
-				update = true
-			}
-		}
-	}
-
-	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
-}
-
-func (r *CertificatePolicyReconciler) retrieveNamespaces(ctx context.Context, selector policyv1.Target) []string {
-	var selectedNamespaces []string
-	// If MatchLabels/MatchExpressions/Include were not provided, return no namespaces
-	if selector.MatchLabels == nil && selector.MatchExpressions == nil && len(selector.Include) == 0 {
-		log.Info("NamespaceSelector is empty. Skipping namespace retrieval.")
-	} else {
-		var err error
-
-		selectedNamespaces, err = common.GetSelectedNamespaces(ctx, r.TargetK8sClient, selector)
-		if err != nil {
-			log.Error(
-				err, "Error filtering namespaces with provided NamespaceSelector",
-				"namespaceSelector", fmt.Sprintf("%+v", selector))
-		}
-	}
-
-	return selectedNamespaces
-}
-
-// Returns true only if the secret (certificate) is not compliant.
+// Returns the parsed certificate, if one exists in the secret. Checks the `tls.crt` key by default,
+// but can be configured by a "certificate_key_name" label on the secret.
 func parseCertificate(secret *corev1.Secret) (*policyv1.Cert, error) {
-	log.V(3).Info("entered parseCertificate")
+	slog := log.WithValues("secret.Namespace", secret.Namespace, "secret.Name", secret.Name)
+
+	slog.V(3).Info("entered parseCertificate")
 
 	keyName := "certificate_key_name"
 	key := "tls.crt"
@@ -616,6 +551,83 @@ func checkComplianceBasedOnDetails(plc *policyv1.CertificatePolicy) {
 	}
 }
 
+// SetupWithManager sets up the controller with the Manager.
+func (r *CertificatePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(ControllerName).
+		For(&policyv1.CertificatePolicy{}).
+		Complete(r)
+}
+
+// Checks each namespace for certificates that are going to expire within 3 months
+// Returns whether a state change is happening, the number of uncompliant certificates
+// and a list of the uncompliant certificates.
+func (r *CertificatePolicyReconciler) checkSecrets(ctx context.Context, policy *policyv1.CertificatePolicy,
+	namespace string,
+) (bool, uint, map[string]policyv1.Cert) {
+	slog := log.WithValues("policy.Namespace", policy.Namespace, "policy.Name", policy.Name)
+	slog.V(3).Info("Entered checkSecrets")
+
+	update := false
+	nonCompliantCertificates := make(map[string]policyv1.Cert)
+
+	if namespace == "" {
+		return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
+	}
+	// GOAL: Want the label selector to find secrets with certificates only!! -> is-certificate
+	// Loops through all the secrets within the CertificatePolicy's specified namespace
+	labelSelector := toLabelSet(policy.Spec.LabelSelector)
+	secretList, _ := r.TargetK8sClient.CoreV1().Secrets(namespace).List(ctx,
+		metav1.ListOptions{LabelSelector: labelSelector.String()})
+
+	for _, secretItem := range secretList.Items {
+		secret := secretItem
+		slog.V(3).Info("Checking secret", "secret.Name", secret.Name)
+
+		cert, err := parseCertificate(&secret)
+		if err != nil {
+			slog.Error(err, "Unable to parse certificate", "secret.Name", secret.Name)
+		} else if !isCertificateCompliant(cert, policy) {
+			certName := secret.Name
+			// Gets the certificate's name if it exists
+			if secret.Labels[certNameLabel] != "" {
+				certName = secret.Labels[certNameLabel]
+			} else if secret.Labels[certManagerNameLabel] != "" {
+				certName = secret.Labels[certManagerNameLabel]
+			}
+
+			slog.V(3).Info("Got noncompliant certificate", "certName", certName, "secret.Name", secret.Name)
+
+			nonCompliantCertificates[certName] = *cert
+
+			if policy.Status.ComplianceState != policyv1.NonCompliant {
+				update = true
+			}
+		}
+	}
+
+	return update, uint(len(nonCompliantCertificates)), nonCompliantCertificates
+}
+
+func (r *CertificatePolicyReconciler) retrieveNamespaces(ctx context.Context, selector policyv1.Target) []string {
+	var selectedNamespaces []string
+	// If MatchLabels/MatchExpressions/Include were not provided, return no namespaces
+	if selector.MatchLabels == nil && selector.MatchExpressions == nil && len(selector.Include) == 0 {
+		log.Info("NamespaceSelector is empty. Skipping namespace retrieval.")
+	} else {
+		var err error
+
+		selectedNamespaces, err = common.GetSelectedNamespaces(ctx, r.TargetK8sClient, selector)
+		if err != nil {
+			log.Error(
+				err, "Error filtering namespaces with provided NamespaceSelector",
+				"namespaceSelector", fmt.Sprintf("%+v", selector))
+		}
+	}
+
+	return selectedNamespaces
+}
+
 func (r *CertificatePolicyReconciler) updatePolicyStatus(
 	ctx context.Context, policies []*policyv1.CertificatePolicy,
 ) (*policyv1.CertificatePolicy, error) {
@@ -726,12 +738,4 @@ func (r *CertificatePolicyReconciler) sendComplianceEvent(ctx context.Context,
 	}
 
 	return r.Create(ctx, event)
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *CertificatePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(ControllerName).
-		For(&policyv1.CertificatePolicy{}).
-		Complete(r)
 }

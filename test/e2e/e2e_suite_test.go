@@ -53,6 +53,7 @@ func init() {
 
 var _ = BeforeSuite(func() {
 	By("Setup Hub client")
+
 	gvrNS = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}
 	gvrCertPolicy = schema.GroupVersionResource{
 		Group:    "policy.open-cluster-management.io",
@@ -72,7 +73,9 @@ var _ = BeforeSuite(func() {
 	testNamespace = "managed"
 	testNamespaces := []string{testNamespace, "open-cluster-management-policies", "range1", "range2"}
 	defaultTimeoutSeconds = 90
+
 	By("Create Namespaces if needed")
+
 	namespaces := clientManaged.CoreV1().Namespaces()
 	for _, ns := range testNamespaces {
 		if _, err := namespaces.Get(context.TODO(), ns, metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
@@ -82,6 +85,7 @@ var _ = BeforeSuite(func() {
 				},
 			}, metav1.CreateOptions{})).NotTo(BeNil())
 		}
+
 		Expect(namespaces.Get(context.TODO(), ns, metav1.GetOptions{})).NotTo(BeNil())
 	}
 })
