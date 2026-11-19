@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/go-logr/zapr"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/spf13/pflag"
 	"github.com/stolostron/go-log-utils/zaputil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiRuntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -31,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -44,8 +47,8 @@ import (
 )
 
 var (
-	scheme   = apiRuntime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = apiRuntime.NewScheme()
+	log    = ctrl.Log.WithName("setup")
 	// errNoNamespace indicates that a namespace could not be found for the current
 	// environment. This was taken from operator-sdk v0.19.4.
 	errNoNamespace = errors.New("namespace not found for current environment")
@@ -72,11 +75,20 @@ type ctrlOpts struct {
 	enableOcmPolicyNamespace bool
 	tlsMinVersion            string
 	tlsCipherSuites          string
+	tlsGroups                string
 }
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+
+	// Only register the two resources this controller might use, rather than
+	// `configv1.Install(scheme)`, which would pull in ~24 kinds.
+	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.APIServer{}, &configv1.APIServerList{})
+	// AddKnownTypes registers the object kinds only. AddToGroupVersion also registers the
+	// group version's meta types (ListOptions, DeleteOptions, WatchEvent) and conversions,
+	// which the client and cache need to encode requests for this group.
+	metav1.AddToGroupVersion(scheme, configv1.GroupVersion)
 	utilruntime.Must(policyv1.AddToScheme(scheme))
 	utilruntime.Must(extpolicyv1.AddToScheme(scheme))
 }
@@ -103,29 +115,32 @@ func main() {
 	// send klog messages through our zap logger so they look the same (console vs JSON)
 	klogZap, err := zaputil.BuildForKlog(zflags.GetConfig(), flag.CommandLine)
 	if err != nil {
-		setupLog.Error(err, "Failed to build zap logger for klog, those logs will not go through zap")
+		log.Error(err, "Failed to build zap logger for klog, those logs will not go through zap")
 	} else {
 		klog.SetLogger(zapr.NewLogger(klogZap).WithName("klog"))
 	}
 
-	setupLog.Info("Using", "OperatorVersion", version.Version, "GoVersion", runtime.Version(),
+	log.Info("Using", "OperatorVersion", version.Version, "GoVersion", runtime.Version(),
 		"GOOS", runtime.GOOS, "GOARCH", runtime.GOARCH)
 
 	namespace, err := getWatchNamespace()
 	if err != nil {
-		setupLog.Error(err, "Failed to get watch namespace")
+		log.Error(err, "Failed to get watch namespace")
 		os.Exit(1)
 	}
 
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	if err != nil {
-		setupLog.Error(err, "Failed to get config for apiserver")
+		log.Error(err, "Failed to get config for apiserver")
 		os.Exit(1)
 	}
 
+	cacheByObject := map[client.Object]cache.ByObject{}
+
 	cacheOptions := cache.Options{
 		DefaultNamespaces: make(map[string]cache.Config),
+		ByObject:          cacheByObject,
 	}
 
 	for ns := range strings.SplitSeq(namespace, ",") {
@@ -139,7 +154,21 @@ func main() {
 
 	terminatingCtx := ctrl.SetupSignalHandler()
 
-	tlsCfg := resolveEffectiveTLSConfig(terminatingCtx, cfg, opts)
+	tlsOptsFunc, watchAPIServer, initialTLSProfileSpec, err := resolveEffectiveTLSConfig(
+		terminatingCtx, cfg, opts.tlsMinVersion, opts.tlsCipherSuites, opts.tlsGroups,
+	)
+	if err != nil {
+		if errors.Is(err, errInvalidTLSGroups) {
+			log.Error(err, "Invalid TLS groups configuration")
+			os.Exit(1)
+		}
+
+		log.Error(err, "Failed to resolve TLS configuration; falling back to defaults")
+
+		tlsOptsFunc = sdktls.ConfigToFunc(sdktls.GetDefaultTLSConfig())
+	}
+
+	cacheAPIServer(cacheByObject, watchAPIServer)
 
 	metricsOptions := server.Options{
 		BindAddress: opts.metricsAddr,
@@ -150,7 +179,7 @@ func main() {
 		metricsOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 		metricsOptions.SecureServing = true
 		metricsOptions.CertDir = "/var/run/metrics-cert"
-		metricsOptions.TLSOpts = []func(*tls.Config){sdktls.ConfigToFunc(tlsCfg)}
+		metricsOptions.TLSOpts = []func(*tls.Config){tlsOptsFunc}
 	}
 
 	options := ctrl.Options{
@@ -164,11 +193,19 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		log.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	setupLog.Info("Registering components")
+	if watchAPIServer {
+		if err := mgr.Add(&apiServerTLSWatcherSetup{mgr: mgr, initialSpec: initialTLSProfileSpec}); err != nil {
+			log.Error(err, "Unable to watch the APIServer TLS profile; using resolved TLS settings. "+
+				"Expected when none is provided",
+				"controller", "tls-profile-watcher")
+		}
+	}
+
+	log.Info("Registering components")
 
 	var targetK8sClient kubernetes.Interface
 	var targetK8sConfig *rest.Config
@@ -181,13 +218,13 @@ func main() {
 
 		targetK8sConfig, err = clientcmd.BuildConfigFromFlags("", opts.targetKubeConfig)
 		if err != nil {
-			setupLog.Error(err, "Failed to load the target kubeconfig", "path", opts.targetKubeConfig)
+			log.Error(err, "Failed to load the target kubeconfig", "path", opts.targetKubeConfig)
 			os.Exit(1)
 		}
 
 		targetK8sClient = kubernetes.NewForConfigOrDie(targetK8sConfig)
 
-		setupLog.Info("Overrode the target Kubernetes cluster for policy evaluation and enforcement",
+		log.Info("Overrode the target Kubernetes cluster for policy evaluation and enforcement",
 			"path", opts.targetKubeConfig)
 	}
 
@@ -210,18 +247,18 @@ func main() {
 			DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
 		})).
 		Complete(r); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "CertificatePolicy")
+		log.Error(err, "unable to create controller", "controller", "CertificatePolicy")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		log.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
 
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		log.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
 
@@ -236,13 +273,13 @@ func main() {
 	if opts.enableLease {
 		startLeaseController(terminatingCtx, generatedClient, opts.hubConfigPath, opts.clusterName)
 	} else {
-		setupLog.Info("Status reporting is not enabled")
+		log.Info("Status reporting is not enabled")
 	}
 
-	setupLog.Info("Starting the manager")
+	log.Info("Starting the manager")
 
 	if err := mgr.Start(terminatingCtx); err != nil {
-		setupLog.Error(err, "problem running manager")
+		log.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }
@@ -276,7 +313,7 @@ func getOperatorNamespace() (string, error) {
 	}
 
 	ns := strings.TrimSpace(string(nsBytes))
-	setupLog.Info("Found operator namespace", "Namespace", ns)
+	log.Info("Found operator namespace", "Namespace", ns)
 
 	return ns, nil
 }
@@ -287,14 +324,14 @@ func startLeaseController(
 	operatorNs, err := getOperatorNamespace()
 	if err != nil {
 		if errors.Is(err, errNoNamespace) {
-			setupLog.Info("Skipping lease; not running in a cluster.")
+			log.Info("Skipping lease; not running in a cluster.")
 		} else {
-			setupLog.Error(err, "Failed to get operator namespace")
+			log.Error(err, "Failed to get operator namespace")
 			os.Exit(1)
 		}
 	} else {
-		setupLog.V(2).Info("Got operator namespace", "Namespace", operatorNs)
-		setupLog.Info("Starting lease controller to report status")
+		log.V(2).Info("Got operator namespace", "Namespace", operatorNs)
+		log.Info("Starting lease controller to report status")
 
 		leaseUpdater := lease.NewLeaseUpdater(
 			generatedClient,
@@ -304,7 +341,7 @@ func startLeaseController(
 
 		hubCfg, err := clientcmd.BuildConfigFromFlags("", hubConfigPath)
 		if err != nil {
-			setupLog.Error(err, "Could not load hub config, lease updater not set with config")
+			log.Error(err, "Could not load hub config, lease updater not set with config")
 		} else {
 			leaseUpdater = leaseUpdater.WithHubLeaseConfig(hubCfg, clusterName)
 		}
@@ -366,6 +403,11 @@ func parseOpts() ctrlOpts {
 	pflag.StringVar(
 		&opts.probeAddr, "health-probe-bind-address",
 		":8081", "The address the health probe endpoint binds to.",
+	)
+	pflag.StringVar(
+		&opts.tlsGroups, "tls-groups", "",
+		"A comma-separated list of TLS group names to use on the metrics server "+
+			"(e.g. X25519,secp256r1). Overrides the default APIServer TLS groups when set.",
 	)
 	pflag.StringVar(
 		&opts.tlsMinVersion, "tls-min-version", "",
